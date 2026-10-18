@@ -20,7 +20,7 @@ We'll walk through a full data science problem in this lab. Specifically, we'll 
 
 In Collab or vscode save the the lab-classification-left-handedness.ipynb as lab-classification-<_name_>.ipynb **before starting**
 
-Lab submissions should be made via Canvas.
+Lab submissions should be made via **Canvas**.
 
 Your submission will be in the form of uploading your copy of the Jupyter notebook.
 
