@@ -1,231 +1,4321 @@
 <a id="top"></a>
 
-# Data Science Glossary: Machine Learning and Advanced Modeling
+# Data Science Glossary: Python, pandas and Exploratory Data Analysis
 
-For the repository overview, unit contents, and PDF slide-deck completeness tracker, see [README-REPOSITORY.md](README-REPOSITORY.md). Every numbered learning-unit folder should contain its corresponding slide deck as a PDF.
+Key terms, functions and methods from the EDA unit (Unit 2), running from Python basics to APIs. Each of the 476 entries says what the term means, where it appears in the course, and (where relevant) shows working code you can copy into your own notebooks. The [Unit 3 glossary](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD) (machine learning) continues the numbering from section 12 and links back to entries here.
 
-Key terms, functions and methods from the machine learning unit, running from probability to recommender systems. This glossary picks up where the [Unit 2 glossary](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD) (sections 1–11: Python, pandas and EDA) left off, so numbering starts at section 12, and terms already defined there are linked rather than repeated. Each of the 548 entries says what the term means, where it appears in the course, and (where relevant) shows working code.
+<a id="how-to-read-the-examples"></a>
 
-**How to read the examples.** Examples follow the course notebooks and assume the standard imports below. Extra libraries are imported inside the entries that need them; `statsmodels`, `imbalanced-learn`, `xgboost`, `arch` and `shap` may need installing with `pip install`.
+**How to read the examples.** Examples use the course's own datasets and variable names. Run the setup block below once at the top of a notebook, then any example in this glossary will run as written. It loads every dataset straight from this repository, so it needs an internet connection. If you've cloned the repo, swap the `REPO` address for a local path such as `"../"`.
 
 ```python
-import numpy as np
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import sweetviz as sv
 
-from sklearn import metrics
-from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
-from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LinearRegression, LogisticRegression
-from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.pipeline import Pipeline
-from sklearn.metrics import accuracy_score
+REPO = "https://raw.githubusercontent.com/CharleyHananiaGA/DSB-Unit-02/main/"
+DATA = REPO + "data/"
+JOIN = REPO + "02%20-%20Exploring%20and%20Joining/practice/data/"
+VIZ = REPO + "03%20-%20Data%20Visualisation/practice/data/"
+
+lego = pd.read_csv(DATA + "lego.csv")                 # LEGO sets: price, pieces, theme (most examples)
+titanic = pd.read_csv(DATA + "titanic-adj.csv")       # Titanic passengers (missing data)
+housing_df = pd.read_csv(DATA + "housing-geron.csv")  # California housing (EDA for modeling)
+sodas = pd.read_csv(DATA + "sodas.csv")               # BIG Sodas taste test (experiments)
+cpi = pd.read_json(DATA + "cpi.json")                 # US consumer price index (joins)
+movies = pd.read_csv(VIZ + "imdb_1000.csv")           # IMDb top movies
+ufo = pd.read_csv(VIZ + "ufo.csv")                    # UFO sightings (dates and time series)
+auto = pd.read_csv(VIZ + "autoMPG.csv")               # cars: mpg, horsepower, weight
+houses = pd.read_csv(VIZ + "iowa_houses.csv")         # Iowa house sales (plotly)
+bonds = pd.read_csv(JOIN + "eu-govt-bonds-cleaned.csv")  # EU bond yields: one row per country
+bonds_raw = pd.read_csv(JOIN + "eu-govt-bonds.tsv", sep="\t")  # the same data before cleaning
+codes = pd.read_csv(JOIN + "country-codes.csv", encoding="latin-1")  # country names and codes
+drinks = pd.read_csv(VIZ + "drinks.csv")              # alcohol servings by country
+rock = pd.read_csv(JOIN + "rock.csv")                 # classic rock songs and play counts
+loans = pd.read_csv(JOIN + "rejections.csv.gz")       # rejected loan applications
+
+customers = pd.DataFrame({                            # the four-customer table from the slides
+    "customer_id": [505, 196, 947, 952],
+    "surname": ["Smith", "Peck", "Murdock", "Baracus"],
+    "age": [55, 43, 36, 31],
+})
 ```
 
-Most notebooks read a CSV from the course `data/` folder, and the entries use the same variable names: `elec` (`elecdemand.csv`), `bike` (`bikeshare.csv`), `admissions` (`grad_admissions.csv`), `wine` (`winequality_merged.csv`), `titanic` (`titanic_clean.csv`), `aapl` (`AAPL.csv`) and so on. Scaled data is named `X_train_sc` or `Z_train`. To try an example without the course files, swap in a built-in dataset such as `load_breast_cancer()`, `load_iris()`, `load_digits()`, `make_classification()` or `make_blobs()` from `sklearn.datasets`, or `sm.datasets.macrodata` for time series.
+The feature engineering examples use the synthetic housing table built at the start of that notebook. It's random but seeded, so you get the same 1,000 rows every time:
 
-**Library versions.** Code is written to run on current releases (scikit-learn 1.8, pandas 3, statsmodels 0.15). Libraries change between versions: parameters are renamed, defaults change and old functions are removed, so tutorials and older notebooks sometimes use syntax that no longer works. Where that affects something you'll use, the entry says what changed, and [Library version changes to know](#library-version-changes-to-know) collects them in one table. When code fails or warns, check the documentation for the version you have installed.
+```python
+np.random.seed(42)
+n_samples = 1000
+housing = pd.DataFrame({
+    "sqft": np.abs(np.random.normal(2000, 500, n_samples)),
+    "bedrooms": np.random.choice([1, 2, 3, 4, 5], n_samples, p=[0.1, 0.2, 0.4, 0.25, 0.05]),
+    "bathrooms": np.random.choice([1, 1.5, 2, 2.5, 3, 3.5, 4], n_samples,
+                                  p=[0.15, 0.1, 0.3, 0.15, 0.2, 0.05, 0.05]),
+    "neighborhood": np.random.choice(["Downtown", "Suburb", "Rural", "Waterfront"], n_samples,
+                                     p=[0.3, 0.5, 0.15, 0.05]),
+    "year_built": np.random.randint(1950, 2023, n_samples),
+    "garage": np.random.choice(["None", "Attached", "Detached"], n_samples, p=[0.2, 0.6, 0.2]),
+    "condition": np.random.choice(["Poor", "Fair", "Good", "Excellent"], n_samples,
+                                  p=[0.1, 0.2, 0.5, 0.2]),
+    "income_area": np.random.exponential(50000, n_samples) + 30000,
+})
+effects = {"Downtown": 50000, "Waterfront": 80000, "Suburb": 20000, "Rural": -10000}
+price = (housing["sqft"] * 150 + housing["bedrooms"] * 10000 + housing["bathrooms"] * 8000
+         + (2023 - housing["year_built"]) * -500 + housing["income_area"] * 2
+         + housing["neighborhood"].map(effects))
+housing["price"] = np.abs(price + np.random.normal(0, 20000, n_samples))
+```
 
-**For your capstone.** Every section opens with an **In your capstone** line saying when to reach for it, and section 38, the [Capstone playbook](#s38-capstone-playbook), walks the data science lifecycle stage by stage with tested code templates and a checklist of common mistakes.
+A few entries build a small table on the spot (such as the four-customer table from the slides) so you can see every number. Examples that call a live web API are marked `# Needs internet`, and ones that need a free account key are marked `# Needs an API key`.
+
+<a id="library-versions"></a>
+
+**Library versions.** Every code block was run on Python 3.12.3, pandas 3.0.6, NumPy 2.5.4, matplotlib 3.11.2, seaborn 0.13.2, scikit-learn 1.9.1, SciPy 1.18.1, statsmodels 0.15.0, plotly 7.1.0, joblib 1.6.0. Libraries change between versions: parameters are renamed, defaults change and old functions are removed. Tutorials, Stack Overflow answers and older notebooks therefore sometimes use syntax that no longer works or now gives a warning. The biggest recent change is **pandas 3**: text columns now have their own `str` dtype, and **Copy-on-Write** changes how assignment works. Where a change affects something you'll use, the entry says what changed and in which version. [Library version changes to know](#library-version-changes-to-know) collects them in one table. When code fails or warns, check the documentation for the version you have installed (`pd.__version__` tells you which pandas that is).
+
+<a id="for-your-capstone"></a>
+
+**For your capstone.** Every section opens with an **In your capstone** line saying when to reach for its methods. Section 00, the [Capstone playbook: the data stage](#s00-capstone-playbook-the-data-stage) (placed after section 11), walks the data stage of a project from question to model-ready table. It includes a tested EDA template notebook and a common-mistakes checklist. Unit 3's [Capstone playbook](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#s38-capstone-playbook) picks up from there with modelling. Section 00b, the [Capstone code cookbook](#s00b-capstone-code-cookbook), has complete, tested recipes for every step of the data stage, from importing every sheet of an Excel workbook, through fixing misspelled categories, validation rules and outliers, to charting the target against each feature; its [code finder](#find-the-code-you-need) maps the task you have to the recipe you need.
 
 <a id="audio-summary"></a>
 
-**AI audio summary.** An AI-generated audio overview of the glossary's contents and key learnings, useful for revision on the go. It's a summary, not a substitute: where anything differs, the written entries are the reference.
+**AI audio summary.** An AI-generated audio overview of the glossary's contents and key ideas, useful for revision on the go. It's a summary, not a substitute: where anything differs, the written entries are the reference.
 
 <audio controls preload="none" style="width:100%;max-width:560px">
-  <source src="assets/AIAudioSummary.m4a" type="audio/mp4">
+  <source src="assets/AISummaryEDA.m4a" type="audio/mp4">
 </audio>
 
-[Listen to or download the audio summary (AIAudioSummary.m4a)](assets/AIAudioSummary.m4a). GitHub doesn't play audio inside a README, so on github.com this link opens the file's page (use **View raw** or the download button); it plays directly in the [HTML glossary](https://charleyhananiaga.github.io/DSB-Unit-03/).
+[Listen to or download the audio summary (AISummaryEDA.m4a)](assets/AISummaryEDA.m4a). GitHub doesn't play audio inside a README, so on github.com this link opens the file's page instead. The file is stored with Git LFS, so use the **Download** button there (**View raw** also works). It plays directly in the [HTML glossary](https://charleyhananiaga.github.io/DSB-Unit-02/#audio-summary).
+
+<a id="contents"></a>
 
 ## Contents
 
-12. [Probability](#s12-probability)
-13. [Machine learning foundations and linear regression](#s13-machine-learning-foundations-and-linear-regression)
-14. [Regression metrics](#s14-regression-metrics)
-15. [Generalization, bias–variance and cross-validation](#s15-generalization-bias-variance-and-cross-validation)
-16. [k-Nearest Neighbors](#s16-k-nearest-neighbors)
-17. [Logistic regression](#s17-logistic-regression)
-18. [Classification metrics](#s18-classification-metrics)
-19. [Imbalanced classes](#s19-imbalanced-classes)
-20. [Regularization](#s20-regularization)
-21. [Hyperparameter tuning: grid search and pipelines](#s21-hyperparameter-tuning-grid-search-and-pipelines)
-22. [Model explainability](#s22-model-explainability)
-23. [Framing a data science problem and ROI](#s23-framing-a-data-science-problem-and-roi)
-24. [Leveraging GenAI as a data scientist](#s24-leveraging-genai-as-a-data-scientist)
-25. [Time series: data handling and stationarity](#s25-time-series-data-handling-and-stationarity)
-26. [Time series: forecasting models](#s26-time-series-forecasting-models)
-27. [Simulation](#s27-simulation)
-28. [Decision trees](#s28-decision-trees)
-29. [Ensembles: bagging and random forests](#s29-ensembles-bagging-and-random-forests)
-30. [Ensembles: boosting](#s30-ensembles-boosting)
-31. [Support vector machines](#s31-support-vector-machines)
-32. [Gradient descent and optimization](#s32-gradient-descent-and-optimization)
-33. [Unsupervised learning and k-means clustering](#s33-unsupervised-learning-and-k-means-clustering)
-34. [DBSCAN and hierarchical clustering](#s34-dbscan-and-hierarchical-clustering)
-35. [Principal component analysis (PCA)](#s35-principal-component-analysis-pca)
-36. [Recommender systems](#s36-recommender-systems)
-37. [Bayesian statistics](#s37-bayesian-statistics)
-38. [Capstone playbook](#s38-capstone-playbook)
+1. [Python foundations](#s1-python-foundations)
+2. [NumPy essentials](#s2-numpy-essentials)
+3. [pandas: loading, inspecting and selecting](#s3-pandas-loading-inspecting-and-selecting)
+4. [pandas: cleaning, grouping, reshaping and joining](#s4-pandas-cleaning-grouping-reshaping-and-joining)
+5. [Descriptive statistics and distributions](#s5-descriptive-statistics-and-distributions)
+6. [Data visualization](#s6-data-visualization)
+7. [Experimental design and hypothesis testing](#s7-experimental-design-and-hypothesis-testing)
+8. [Missing data](#s8-missing-data)
+9. [EDA for modeling](#s9-eda-for-modeling)
+10. [Feature engineering](#s10-feature-engineering)
+11. [APIs and web data](#s11-apis-and-web-data)
 
-[Audio summary](#audio-summary) · [Concept map](#concept-map) · [A–Z index](#a-z-index)
+**00. [Capstone playbook: the data stage](#s00-capstone-playbook-the-data-stage)** (placed after section 11)
+
+**00b. [Capstone code cookbook](#s00b-capstone-code-cookbook)**: copy-paste recipes for importing, profiling, cleaning text and dates, validation rules, outliers, filtering, reshaping, joining, duplicates, missing values, encoding, group summaries and charts. Start with the [code finder](#find-the-code-you-need).
+
+[Code finder](#find-the-code-you-need) · [Audio summary](#audio-summary) · [Concept map](#concept-map) · [Course materials map](#course-materials-map) · [A–Z index](#a-z-index)
+
+---
 
 <a id="concept-map"></a>
 
 ## Concept map
 
-The whole unit on one page: 27 modules, grouped into themes, with the key concepts of each (294 in all). Every concept is a link.
+The whole unit on one page: 12 modules, grouped into themes, with 245 key concepts. Modules run clockwise from the top right, and every concept has a matching entry.
 
-**Using the clickable map.** GitHub displays SVG files as plain pictures, so the links inside the map only work when it's opened in a browser. On GitHub, use the **linked outline below**, which works right here. For the interactive map, use the GitHub Pages site: the [clickable mind map](https://charleyhananiaga.github.io/DSB-Unit-03/assets/ds-ml-glossary-mindmap.svg) and the [HTML glossary](https://charleyhananiaga.github.io/DSB-Unit-03/), which adds search, the audio summary and the clickable map embedded in the page. (To switch the site on: repository **Settings → Pages → Deploy from a branch → main / (root)**.) Offline, download the repository and open `assets/ds-ml-glossary-mindmap.svg` or `assets/ds-ml-glossary.html` in a browser.
+[![Concept map of the EDA unit](assets/ds-eda-glossary-mindmap.png)](https://charleyhananiaga.github.io/DSB-Unit-02/assets/ds-eda-glossary-mindmap.svg)
 
-[![Concept map of the machine learning unit](assets/ds-ml-glossary-mindmap.png)](https://charleyhananiaga.github.io/DSB-Unit-03/assets/ds-ml-glossary-mindmap.svg)
+GitHub shows SVG files as static pictures, so the links inside the map only work in two places: the [interactive map on the glossary website](https://charleyhananiaga.github.io/DSB-Unit-02/assets/ds-eda-glossary-mindmap.svg) (also embedded in the [HTML glossary](https://charleyhananiaga.github.io/DSB-Unit-02/#concept-map)), or a downloaded copy of [`assets/ds-eda-glossary-mindmap.svg`](assets/ds-eda-glossary-mindmap.svg) opened in a browser. On GitHub, use the linked outline below instead: it is the same map, and every link works here.
 
 The same map as a linked outline:
 
-- **[12. Probability](#s12-probability)**
-  - _Sets:_ [Sample space](#sample-space), [Event](#event), [Intersection ∩](#intersection-a-b), [Union ∪](#union-a-b), [Complement](#complement-a)
-  - _Rules:_ [Complement rule](#complement-rule), [Multiplication rule](#multiplication-rule-intersections), [Addition rule](#addition-rule-unions), [Independence](#statistical-independence), [Conditional probability](#conditional-probability)
-  - _Simulation:_ [Monte Carlo simulation](#simulation-monte-carlo), [Law of Large Numbers](#law-of-large-numbers-lln), [Gambler's fallacy](#gambler-s-fallacy), [np.random.choice()](#np-random-choice)
-- **[13. Linear regression](#s13-machine-learning-foundations-and-linear-regression)**
-  - _ML basics:_ [Supervised learning](#supervised-learning), [Unsupervised learning](#unsupervised-learning), [Regression vs classification](#regression-vs-classification-tasks), [Predictor & response](#predictor-and-response-and-their-many-names)
-  - _OLS model:_ [OLS](#ordinary-least-squares-ols), [Intercept (β₀)](#intercept), [Coefficient (β₁)](#slope-coefficient), [Interpreting coefficients](#interpreting-coefficients)
-  - _scikit-learn:_ [LinearRegression](#linearregression), [Six-step workflow](#the-modeling-workflow-in-scikit-learn), [X is 2D, y is 1D](#x-is-2d-y-is-1d)
-  - _Assumptions:_ [LINEM assumptions](#linem-assumptions), [Residual plot](#residual-plot), [VIF](#variance-inflation-factor-vif), [Log-transform y](#log-transforming-the-target)
-  - _Extensions:_ [Dummy variables](#dummy-variables-in-regression), [statsmodels OLS](#statsmodels-ols), [PolynomialFeatures](#polynomialfeatures)
-- **[14. Regression metrics](#s14-regression-metrics)**
-  - _Errors:_ [SSE](#sum-of-squared-errors-sse), [MSE](#mean-squared-error-mse), [RMSE](#root-mean-squared-error-rmse), [MAE](#mean-absolute-error-mae)
-  - _Fit:_ [R²](#r2-coefficient-of-determination), [Adjusted R²](#adjusted-r2), [Null model](#null-model-baseline-for-regression)
-- **[15. Generalization](#s15-generalization-bias-variance-and-cross-validation)**
-  - _Fit:_ [Underfitting](#underfitting), [Overfitting](#overfitting), [Bias](#bias), [Variance](#variance-model-variance), [Bias–variance trade-off](#bias-variance-trade-off), [Sampling bias](#sampling-bias)
-  - _Holdout:_ [Train-test split](#train-test-split), [stratify / shuffle](#test-size-stratify-and-shuffle), [Train vs test scores](#reading-train-vs-test-scores)
-  - _Cross-validation:_ [k-fold cross-validation](#k-fold-cross-validation), [KFold](#kfold), [cross_val_score()](#cross-val-score), [Data leakage](#data-leakage-in-model-evaluation)
-- **[16. k-Nearest Neighbors](#s16-k-nearest-neighbors)**
-  - _Algorithm:_ [kNN algorithm](#k-nearest-neighbors-knn), [Distance metrics](#distance-metrics-euclidean-manhattan-minkowski), [Choosing k](#choosing-k)
-  - _Practice:_ [Scaling](#scaling-for-distance-based-models), [KNeighborsClassifier](#kneighborsclassifier)
-  - _Baselines:_ [Accuracy](#accuracy), [Null accuracy](#null-accuracy), [DummyClassifier](#dummyclassifier)
-- **[17. Logistic regression](#s17-logistic-regression)**
-  - _Model:_ [Sigmoid function](#logistic-sigmoid-function), [Logit link](#link-function-and-the-logit), [Perfect separation](#perfect-separation)
-  - _Odds:_ [Odds](#odds), [Log-odds](#log-odds), [Odds ratio](#odds-ratio), [Interpreting coefficients](#interpreting-logistic-regression-coefficients)
-  - _scikit-learn:_ [.predict_proba()](#predict-proba), [solver and max_iter](#solver-and-max-iter), [Default regularization](#regularization-is-on-by-default)
-  - _Multiclass:_ [Multinomial](#multinomial-logistic-regression), [One-vs-rest (OvR)](#one-vs-rest-ovr)
-- **[18. Classification metrics](#s18-classification-metrics)**
-  - _Confusion matrix:_ [Confusion matrix](#confusion-matrix), [TP / FP / TN / FN](#true-false-positives-and-negatives), [Type I & II errors](#type-i-and-type-ii-errors)
-  - _Metrics:_ [Recall](#recall-sensitivity-true-positive-rate), [Precision](#precision), [Specificity](#specificity-true-negative-rate), [F1 score](#f1-score)
-  - _Thresholds:_ [Threshold](#classification-threshold), [ROC curve](#roc-curve), [ROC AUC](#auc-roc-auc), [Precision–recall curve](#precision-recall-curve)
-- **[19. Imbalanced classes](#s19-imbalanced-classes)**
-  - _Problem:_ [Imbalanced classes](#imbalanced-classes), [Balanced accuracy](#balanced-accuracy)
-  - _Resampling:_ [Oversampling](#oversampling), [RandomOverSampler](#randomoversampler), [SMOTE](#smote), [ADASYN](#adasyn)
-  - _Other fixes:_ [Class weights](#class-weights), [Resampling trade-off](#resampling-is-a-trade-off), [Lower the threshold](#changing-the-threshold-for-imbalanced-data), [imblearn pipeline](#imbalanced-learn-pipeline)
-- **[20. Regularization](#s20-regularization)**
-  - _Penalties:_ [Ridge (L2)](#ridge-regression-l2), [Lasso (L1)](#lasso-regression-l1), [ElasticNet](#elasticnet)
-  - _Tuning:_ [alpha](#alpha-regularization-strength), [RidgeCV and LassoCV](#ridgecv-and-lassocv), [C](#c-inverse-regularization-strength)
-  - _Practice:_ [Standardize first](#standardize-before-regularizing), [LogisticRegressionCV](#logisticregressioncv)
-- **[21. Grid search & pipelines](#s21-hyperparameter-tuning-grid-search-and-pipelines)**
-  - _Tuning:_ [Hyperparameter](#hyperparameter), [GridSearchCV](#gridsearchcv), [RandomizedSearchCV](#randomizedsearchcv)
-  - _Results:_ [best*params*](#best-params-best-score-and-best-estimator), [cv*results*](#cv-results)
-  - _Pipelines:_ [Pipeline](#pipelines-in-tuning), [step\_\_param names](#step-parameter-naming), [Pipeline + GridSearchCV](#pipeline-gridsearchcv)
-- **[22. Explainability](#s22-model-explainability)**
-  - _Why:_ [Explainability](#model-explainability), [White-box model](#white-box-model), [Black-box model](#black-box-model), [Global vs local](#global-vs-local-explanations)
-  - _Tools:_ [plot_tree](#visualizing-a-decision-tree-plot-tree), [Feature importance](#feature-importance), [Permutation importance](#permutation-importance), [Partial dependence](#partial-dependence-plot-pdp), [SHAP](#shap-shapley-additive-explanations)
-- **[23. Framing & ROI](#s23-framing-a-data-science-problem-and-roi)**
-  - _Framing:_ [Problem framing](#problem-framing), [Data science lifecycle](#data-science-lifecycle), [Five considerations](#five-key-considerations-for-framing), [Problem statement](#problem-statement), [SMART goals](#smart-goals)
-  - _People:_ [Stakeholder](#stakeholder), [Influence/interest grid](#influence-interest-grid), [Sponsor & KPI](#project-sponsor-and-kpi)
-  - _Success:_ [Metrics & hypotheses](#success-metrics-and-hypotheses), [Base rate & false alarms](#base-rate-and-false-alarms), [Problem type](#framing-the-problem-type-early)
-  - _Value:_ [ROI](#return-on-investment-roi), [Risk-adjusted ROI](#risk-adjusted-roi), [Payback & NPV](#payback-period-and-npv)
-  - _Ethics:_ [Ethics, legal, strategy](#ethical-legal-and-strategic-implications), [Data minimization](#data-minimization-and-anonymization), [Build, buy or partner](#build-buy-or-partner)
-- **[24. GenAI](#s24-leveraging-genai-as-a-data-scientist)**
-  - _How LLMs work:_ [LLM](#large-language-model-llm), [Token](#token), [Embedding](#embedding), [Transformer & attention](#transformer-and-attention), [Temperature](#temperature-and-sampling)
-  - _Training & limits:_ [How LLMs are trained](#how-llms-are-trained), [Context window](#context-window), [Hallucination](#hallucination)
-  - _Using GenAI:_ [Where GenAI helps](#where-genai-helps-in-the-data-science-lifecycle), [Generation vs analysis](#generation-mode-vs-analysis-mode), [Calling an LLM from Python](#calling-an-llm-from-python), [Data privacy](#data-privacy-with-genai-tools)
-  - _Checking:_ [How output goes wrong](#how-genai-output-goes-wrong), [Testing AI code](#testing-ai-generated-code), [Validating classifications](#validating-genai-classifications)
-- **[25. Time series data](#s25-time-series-data-handling-and-stationarity)**
-  - _pandas:_ [Datetime index](#datetime-index), [.resample()](#resample-for-time-series), [Rolling statistics](#rolling-statistics), [.shift() lags](#lag-backshift-and-shift), [.diff()](#differencing-and-diff), [Seasonal differencing](#seasonal-differencing)
-  - _Diagnostics:_ [Stationarity](#stationarity), [Autocorrelation](#autocorrelation), [ACF plot](#acf-plot), [PACF plot](#pacf-plot)
-- **[26. Forecasting](#s26-time-series-forecasting-models)**
-  - _Decomposition:_ [Classical decomposition](#classical-decomposition), [Trend](#trend), [Seasonality](#seasonality), [Naive forecasts](#naive-and-seasonal-naive-forecasts)
-  - _ARIMA:_ [AR](#autoregression-ar), [MA](#moving-average-model-ma), [ARIMA](#arima-p-d-q), [SARIMA](#sarima), [ADF test](#augmented-dickey-fuller-adf-test), [Ljung–Box test](#ljung-box-test), [AIC](#aic-akaike-information-criterion)
-  - _Extensions:_ [GLS](#generalized-least-squares-gls), [GARCH](#garch-p-q), [VAR](#vector-autoregression-var)
-- **[27. Simulation](#s27-simulation)**
-  - _Concepts:_ [Simulation](#simulation), [Key components](#key-components-of-a-simulation), [Four pillars](#four-pillars-of-simulation), [Utilization](#utilization)
-  - _Approaches:_ [Discrete event (DES)](#discrete-event-simulation-des), [Agent-based (ABM)](#agent-based-modelling-abm), [Monte Carlo simulation](#monte-carlo-simulation), [System dynamics](#system-dynamics-sd)
-  - _Python:_ [Queue simulation](#coffee-shop-queue-simulation), [np.random.default_rng()](#np-random-default-rng), [SimPy](#simpy)
-  - _Trust:_ [Verification & validation](#verification-and-validation), [Sensitivity analysis](#sensitivity-analysis)
-- **[28. Decision trees](#s28-decision-trees)**
-  - _Structure:_ [Nodes & leaves](#root-node-internal-node-leaf-and-branch), [CART algorithm](#cart-algorithm), [Gini impurity](#gini-impurity)
-  - _Control:_ [Stopping criteria](#stopping-criteria), [ccp_alpha pruning](#ccp-alpha-cost-complexity-pruning), [DecisionTreeClassifier](#decisiontreeclassifier-and-decisiontreeregressor)
-- **[29. Bagging & random forests](#s29-ensembles-bagging-and-random-forests)**
-  - _Bootstrap:_ [Bootstrap sample](#bootstrap-sample), [Bagging](#bagging-bootstrap-aggregating), [BaggingClassifier](#baggingclassifier)
-  - _Evaluate:_ [Out-of-bag error](#out-of-bag-oob-observations-and-error), [Feature importance in ensembles](#feature-importance-in-ensembles)
-  - _Forests:_ [Random forest](#random-forest), [max_features](#max-features), [Stacking](#stacking)
-- **[30. Boosting](#s30-ensembles-boosting)**
-  - _Idea:_ [Boosting](#boosting), [Decision stump](#decision-stump), [Bagging vs boosting](#bagging-vs-boosting)
-  - _Algorithms:_ [AdaBoost](#adaboost), [Gradient boosting](#gradient-boosting), [XGBoost](#xgboost)
-  - _scikit-learn:_ [AdaBoostClassifier](#adaboostclassifier), [learning_rate](#learning-rate-and-n-estimators)
-- **[31. Support vector machines](#s31-support-vector-machines)**
-  - _Margins:_ [Separating hyperplane](#separating-hyperplane), [Maximal margin](#maximal-margin-classifier), [Support vectors](#support-vectors), [Soft margin](#soft-margin-classifier)
-  - _Kernels:_ [Kernel trick](#kernel-trick), [Linear / poly / RBF](#linear-polynomial-and-rbf-kernels), [C](#c-svm)
-  - _scikit-learn:_ [SVC and LinearSVC](#svc-and-linearsvc)
-- **[32. Gradient descent](#s32-gradient-descent-and-optimization)**
-  - _Basics:_ [Loss function](#loss-function), [Derivative](#derivative), [Gradient descent](#gradient-descent)
-  - _Step size:_ [Learning rate α](#learning-rate-step-size), [Convergence](#convergence-and-tolerance)
-  - _Pitfalls:_ [Local vs global minimum](#local-vs-global-minimum), [Convex function](#convex-function), [Feature scaling](#feature-scaling-and-gradient-descent), [Newton's method](#newton-s-method), [L-BFGS](#quasi-newton-methods-bfgs-l-bfgs)
-- **[33. k-means clustering](#s33-unsupervised-learning-and-k-means-clustering)**
-  - _Clustering:_ [Clustering](#clustering), [Uses of clustering](#uses-of-clustering), [k-means algorithm](#k-means), [Centroid](#centroid), [Birch & Affinity Prop.](#birch-and-affinity-propagation)
-  - _scikit-learn:_ [KMeans](#kmeans), [labels* and cluster_centers*](#labels-and-cluster-centers), [Labels are arbitrary](#cluster-labels-are-arbitrary)
-  - _Evaluation:_ [Inertia](#inertia-within-cluster-sum-of-squares), [Elbow method](#elbow-method), [Silhouette score](#silhouette-score)
-- **[34. DBSCAN & hierarchical](#s34-dbscan-and-hierarchical-clustering)**
-  - _DBSCAN:_ [DBSCAN](#dbscan), [eps & min_samples](#eps-and-min-samples), [Core / border / noise](#core-border-and-noise-points), [k-distance plot](#k-distance-plot), [HDBSCAN](#hdbscan)
-  - _Hierarchical:_ [Agglomerative clustering](#agglomerative-clustering), [Linkage](#linkage), [Dendrogram](#dendrogram)
-  - _Metrics:_ [External cluster metrics](#external-cluster-metrics), [ARI](#adjusted-rand-index-ari)
-- **[35. PCA](#s35-principal-component-analysis-pca)**
-  - _Idea:_ [Dimensionality reduction](#dimensionality-reduction), [Principal component](#principal-component)
-  - _scikit-learn:_ [PCA()](#pca-in-scikit-learn), [Explained variance](#explained-variance-and-explained-variance-ratio), [Scree plot](#scree-plot), [Loadings](#loadings-components)
-  - _Maths:_ [SVD](#singular-value-decomposition-svd), [Reconstruction](#dimensionality-reduced-reconstruction)
-- **[36. Recommenders](#s36-recommender-systems)**
-  - _Types:_ [Collaborative filtering](#collaborative-filtering), [Content-based & hybrid](#content-based-knowledge-based-and-hybrid-recommenders)
-  - _Build:_ [Ratings matrix](#utility-ratings-matrix), [Sparse matrix](#sparse-matrix), [Cosine similarity](#cosine-similarity), [pairwise_distances()](#pairwise-distances)
-- **[37. Bayesian statistics](#s37-bayesian-statistics)**
-  - _Ideas:_ [Bayesian statistics](#bayesian-statistics), [Frequentist vs Bayesian](#frequentist-vs-bayesian), [Bayes' theorem](#bayes-theorem), [Base rate fallacy](#base-rate-fallacy)
-  - _Distributions:_ [Prior, likelihood, posterior](#prior-likelihood-and-posterior), [PMF & PDF](#probability-mass-and-density-functions), [Conjugate prior](#conjugate-prior-beta-binomial), [Credible interval](#credible-interval)
-  - _Computing:_ [Grid approximation](#grid-approximation), [MCMC](#markov-chain-monte-carlo-mcmc), [PyMC](#pymc), [A/B testing](#bayesian-a-b-testing)
-- **[38. Capstone playbook](#s38-capstone-playbook)**
-  - _Lifecycle:_ [Using the glossary](#using-this-glossary-for-your-capstone), [1 Frame](#stage-1-frame-the-question), [2 Data](#stage-2-get-and-understand-the-data), [3 Validate](#stage-3-choose-the-split-and-validation-strategy), [4 Baselines](#stage-4-build-baselines)
-  - _Build:_ [5 Candidate models](#stage-5-choose-candidate-models), [Approach by question](#choosing-an-approach-by-question-type), [Model cheat sheet](#model-selection-cheat-sheet), [6 Pipeline & tune](#stage-6-build-a-pipeline-and-tune)
-  - _Deliver:_ [7 Evaluate](#stage-7-evaluate-honestly), [8 Explain](#stage-8-interpret-and-explain), [9 Communicate](#stage-9-communicate-the-value), [10 Deploy](#stage-10-deploy-monitor-and-next-steps)
-  - _Templates:_ [Classification](#capstone-template-classification), [Regression](#capstone-template-regression), [Time series](#capstone-template-time-series-forecasting), [Clustering](#capstone-template-clustering)
-  - _Habits:_ [Mistakes checklist](#common-capstone-mistakes-checklist), [Library changes](#library-version-changes-to-know), [Reproducibility](#reproducibility-habits)
+- **[1. Python foundations](#s1-python-foundations)**
+  - _Data types:_ [Integer (int)](#integer-int), [Float](#float), [String (str)](#string-str), [Boolean (bool)](#boolean-bool), [None](#none), [Type conversion](#type-conversion-casting)
+  - _Containers:_ [List](#list), [Tuple](#tuple), [Dictionary (dict)](#dictionary-dict), [Set](#set), [Indexing and slicing](#indexing-and-slicing)
+  - _Control flow:_ [for loop](#for-loop), [if / elif / else](#if-elif-else), [List comprehension](#list-comprehension), [zip()](#zip), [sorted() and .sort()](#sorted-sort-and-reversed)
+  - _Functions and classes:_ [Function (def)](#function-def), [lambda](#lambda), [Method vs attribute](#function-method-and-attribute), [Writing your own class](#writing-your-own-class), [try / except](#try-except)
+  - _Working style:_ [import](#import), [Jupyter notebook](#jupyter-notebook), [f-string](#f-string), [Raw strings](#raw-string-r), [Files](#reading-and-writing-text-files), [assert](#assert)
+- **[2. NumPy](#s2-numpy-essentials)**
+  - _Arrays:_ [Array (ndarray)](#array-ndarray), [Vectorized operation](#vectorized-operation), [reshape(-1, 1)](#reshape-1-1), [np.concatenate()](#np-concatenate-and-np-append)
+  - _Randomness:_ [Random seed](#random-seed), [Random generators](#random-number-generators), [rng.choice()](#sampling-with-rng-choice)
+  - _Maths and missing:_ [NaN](#nan), [Infinity (inf)](#infinity-inf-from-dividing-by-zero), [Math functions](#math-functions-np-log-np-exp-np-sqrt-np-abs), [np.clip()](#np-maximum-and-np-clip), [np.where() / np.select()](#np-where-and-np-select)
+- **[3. pandas: load and select](#s3-pandas-loading-inspecting-and-selecting)**
+  - _Structures:_ [Series](#series), [DataFrame](#dataframe), [Index](#index), [dtype](#dtype), [str dtype (pandas 3)](#string-dtype-str-in-pandas-3), [Copy-on-Write](#copy-on-write)
+  - _Load and save:_ [pd.read_csv()](#pd-read-csv), [read_csv() options](#read-csv-options-for-messy-files), [pd.read_json()](#pd-read-json), [.to_csv()](#to-csv), [Excel files](#excel-files-read-excel-and-to-excel)
+  - _Inspect:_ [.head() / .tail()](#head-and-tail), [.info()](#info), [.describe()](#describe), [.value_counts()](#value-counts), [Data dictionary](#data-dictionary), [.sample()](#sample)
+  - _Select:_ [Selecting columns](#selecting-columns), [Boolean mask](#boolean-mask-filtering), [.between()](#comparison-methods-and-between), [.select_dtypes()](#select-dtypes), [Sorting](#sort-values-and-sort-index)
+- **[4. pandas: clean and combine](#s4-pandas-cleaning-grouping-reshaping-and-joining)**
+  - _Clean:_ [Grain of a table](#grain-of-a-table), [.astype()](#astype), [.rename()](#rename), [.str accessor](#str-accessor), [Cleaning text categories](#cleaning-text-categories), [.drop_duplicates()](#drop-duplicates)
+  - _Transform:_ [.assign()](#assign), [.pipe()](#pipe), [Method chaining](#method-chaining), [.shift() and .cumsum()](#shift-diff-and-cumulative-sums), [.rank()](#rank)
+  - _Group and reshape:_ [groupby()](#groupby), [Named aggregation](#named-aggregation), [.transform()](#transform), [.pivot_table()](#pivot-table-and-pivot), [.melt()](#melt), [MultiIndex](#multiindex)
+  - _Join:_ [Inner join](#inner-join), [Left / right join](#left-right-join), [.merge()](#merge), [Validating a merge](#validating-a-merge), [Checking join keys](#checking-join-keys), [pd.concat()](#pd-concat)
+  - _Dates:_ [pd.to_datetime()](#pd-to-datetime), [.dt accessor](#dt-accessor), [Timestamp and Timedelta](#timestamp-timedelta-and-date-arithmetic), [.resample()](#resample), [.to_period()](#to-period)
+- **[5. Statistics](#s5-descriptive-statistics-and-distributions)**
+  - _Data types:_ [Nominal](#nominal), [Ordinal](#ordinal), [Interval](#interval), [Ratio](#ratio)
+  - _Centre:_ [Mean](#mean), [Median](#median), [Mode](#mode), [Mean vs median](#worked-example-mean-vs-median-with-an-outlier)
+  - _Spread:_ [Variance](#variance), [Standard deviation](#standard-deviation), [Bessel's correction](#bessel-s-correction-ddof), [IQR](#interquartile-range-iqr), [IQR outlier fences](#iqr-outlier-fences), [Five-number summary](#five-number-summary)
+  - _Shape:_ [Normal distribution](#normal-gaussian-distribution), [Skewness](#skewness), [Kurtosis](#kurtosis), [Bimodal distribution](#bimodal-multimodal-distribution), [Outlier](#outlier)
+- **[6. Visualization](#s6-data-visualization)**
+  - _Chart types:_ [Bar chart](#bar-chart), [Scatter plot](#scatter-plot), [Line chart](#line-chart), [Histogram](#histogram), [Box plot](#box-plot), [Heatmap](#heatmap)
+  - _matplotlib:_ [Figure](#figure), [Axes](#axes), [plt.subplots()](#plt-subplots), [Subplot grids](#subplot-grids-subplot-add-subplot-delaxes-and-suptitle), [Annotations](#annotations-text-reference-lines-and-legends), [Ticks and axis limits](#ticks-and-axis-limits)
+  - _seaborn:_ [Figure- vs axes-level](#figure-level-vs-axes-level-seaborn-functions), [Small multiples](#small-multiples), [Error bars](#sns-lineplot-sns-barplot-and-error-bars), [Trend lines](#trend-lines-regplot-and-lmplot), [Themes and palettes](#themes-and-palettes-sns-set-theme)
+  - _Good practice:_ [Choosing a chart type](#choosing-a-chart-type), [Choosing histogram bins](#choosing-histogram-bins), [Misleading charts](#misleading-charts), [pandas .plot() options](#pandas-plot-options), [plotly](#plotly-plotly-express)
+- **[7. Experiments](#s7-experimental-design-and-hypothesis-testing)**
+  - _Design:_ [Experimental unit](#experimental-unit), [Treatment factor](#treatment-factor), [Control group](#control-group), [Blocking factor](#blocking-factor), [Full factorial design](#full-factorial-design), [Blinding](#blinding)
+  - _Assignment:_ [Randomization](#randomization), [Block design (RCBD)](#completely-randomized-block-design-crbd), [Within-subject design](#within-subject-design), [Between-subject design](#between-subject-design), [Order effects](#order-and-carryover-effects)
+  - _Validity:_ [Selection bias](#selection-bias), [Observational study](#observational-study), [Internal / external validity](#internal-and-external-validity), [Proxy metric](#proxy-metric)
+  - _Hypotheses:_ [Null hypothesis](#null-hypothesis-h), [Alternative hypothesis](#alternative-hypothesis-h), [Significance level](#significance-level), [Type I / II errors](#type-i-and-type-ii-errors), [Multiple testing](#multiple-testing)
+  - _Testing:_ [p-value](#p-value), [t-test](#t-test-stats-ttest-ind), [Welch and paired t-tests](#welch-s-t-test-and-paired-t-test), [Effect size](#effect-size-cohen-s-d), [A/B test](#a-b-test)
+- **[8. Missing data](#s8-missing-data)**
+  - _Why it's missing:_ [MCAR](#mcar-missing-completely-at-random), [MAR](#mar-missing-at-random), [MNAR](#mnar-missing-not-at-random), [Survey exercise](#classifying-missingness-the-survey-exercise)
+  - _Detect:_ [.isnull() / .isna()](#isnull-isna), [Missingness table](#missingness-table), [Missingness heatmap](#missingness-heatmap), [Placeholder values](#placeholder-values-for-missing-data), [missingno](#missingno)
+  - _Delete:_ [Listwise deletion](#listwise-deletion-complete-case-analysis), [Pairwise deletion](#pairwise-deletion), [Column deletion](#column-deletion)
+  - _Impute:_ [Mean / median / mode imputation](#mean-median-mode-imputation), [Group-based imputation](#group-based-imputation), [SimpleImputer](#simpleimputer), [KNN and iterative](#knnimputer-and-iterativeimputer), [Missing indicator](#missing-indicator), [Decision order](#missing-data-decision-order)
+- **[9. EDA for modeling](#s9-eda-for-modeling)**
+  - _Foundations:_ [Random variable](#random-variable), [Target](#target-dependent-variable), [Data quality assessment](#data-quality-assessment), [Classifying variables](#classifying-variables-in-code), [Capped values](#capped-values), [Duplicates and leakage](#duplicate-rows-and-leakage)
+  - _Correlation:_ [Pearson's r](#pearson-correlation-coefficient-r), [Spearman rank correlation](#spearman-rank-correlation), [Correlation with the target](#correlation-with-the-target), [Anscombe's quartet](#anscombe-s-quartet), [Nonlinear relationships](#nonlinear-relationships-and-correlation)
+  - _Redundancy and scaling:_ [Multicollinearity](#multicollinearity), [VIF](#variance-inflation-factor-vif), [Z-score standardization](#z-score-standardization), [Robust scaling](#robust-scaling), [Scaling keeps shape](#scaling-doesn-t-change-a-distribution-s-shape)
+  - _Causation:_ [Correlation ≠ causation](#correlation-does-not-imply-causation), [Confounding variable](#confounding-variable), [Reverse causality](#reverse-causality), [Spurious correlation](#spurious-correlation)
+  - _Modeling basics:_ [train_test_split()](#train-test-split), [fit / predict](#fit-predict), [Evaluation metrics](#evaluation-metrics-r-mse-rmse-mae-accuracy)
+- **[10. Feature engineering](#s10-feature-engineering)**
+  - _Encoding:_ [One-hot encoding](#one-hot-encoding), [OneHotEncoder options](#onehotencoder-options), [Label encoding](#label-encoding), [OrdinalEncoder](#ordinalencoder), [Target encoding](#target-encoding), [High-cardinality strategies](#high-cardinality-strategies)
+  - _Binning and dates:_ [Equal-width (pd.cut)](#equal-width-binning-pd-cut), [Equal-frequency (pd.qcut)](#equal-frequency-binning-pd-qcut), [KBinsDiscretizer](#kbinsdiscretizer), [Features from dates](#features-from-dates)
+  - _Transforming:_ [Scalers](#standardscaler-minmaxscaler-robustscaler), [Log transformation](#log-transformation), [Power transformation](#power-transformation-box-cox-yeo-johnson), [FunctionTransformer](#functiontransformer)
+  - _Pipelines:_ [Pipeline](#pipeline), [ColumnTransformer](#columntransformer), [Feature names](#get-feature-names-out-and-set-output), [Data leakage](#data-leakage), [Saving a pipeline](#saving-a-fitted-pipeline-joblib)
+- **[11. APIs](#s11-apis-and-web-data)**
+  - _How the web works:_ [Web API](#web-api), [Request and response](#request-and-response), [HTTP](#http), [HTTP methods](#http-methods-get-post-put-delete)
+  - _Building requests:_ [URL anatomy](#url-anatomy), [Endpoint](#endpoint), [Query parameters](#query-parameters)
+  - _Reading responses:_ [Status code](#status-code), [Common status codes](#common-http-status-codes), [JSON](#json), [pd.json_normalize()](#pd-json-normalize), [Error handling](#timeouts-and-error-handling)
+  - _Using APIs well:_ [API key](#api-key), [Environment variables](#environment-variables-and-env-files), [Rate limit](#rate-limit), [Pagination](#pagination), [Caching API responses](#caching-api-responses), [API documentation](#api-documentation)
+- **[00. Capstone playbook](#s00-capstone-playbook-the-data-stage)**
+  - _Plan:_ [Frame the question](#frame-the-question-and-the-target), [Data checklist](#data-understanding-checklist), [Cleaning workflow](#cleaning-workflow)
+  - _Decide:_ [Missing-data decisions](#missing-data-decisions), [Outlier decisions](#outlier-decisions), [Leakage check](#leakage-check-known-at-prediction-time), [Model choice](#eda-findings-that-shape-model-choice)
+  - _Deliver:_ [Pipelines](#feature-engineering-inside-pipelines), [EDA template](#eda-template-notebook), [Mistakes checklist](#capstone-common-mistakes-checklist), [Version changes](#library-version-changes-to-know), [Reproducibility](#reproducibility-habits)
 
 ---
 
-<a id="s12-probability"></a>
+<a id="s1-python-foundations"></a>
 
-## 12. Probability
+## 1. Python foundations
 
-_The language of uncertainty that every model in this unit is built on: experiments, events, set operations, the three probability rules, and estimating probabilities by simulation when the maths gets hard. Examples come from the dice, coin and urn problems in the probability notebook._
+_The building blocks every notebook in the course relies on. If a pandas line confuses you, the answer is often in here: a list, a dictionary, a boolean or a function hiding inside it. The Module 2.1 stepped code-along walks from these Python collections up to NumPy and pandas._
 
-**In your capstone:** Use simulation to sanity-check any probability your analysis relies on, and think about base rates before trusting a classifier's alarms.
+**In your capstone:** you'll write small functions to clean columns, loop over files or API pages, and parse messy text with regular expressions. Keep reusable helpers in functions with docstrings (not copy-pasted cells), use f-strings to label your printed checks, and use `assert` to stop a notebook as soon as an assumption about your data breaks.
 
-<a id="probability"></a>
+<a id="variable-and-assignment"></a>
 
-### Probability
+### Variable and assignment
+
+_Python_
+
+A **variable** is a name that points to a value. The `=` sign means _assign_ (store the value on the right under the name on the left), not "equals". You can reassign a variable at any time, and the name then points to the new value.
+
+```python
+age = 41
+age = age + 1      # reassign using the old value
+print(age)         # 42
+```
+
+> **Watch out:** `=` assigns, `==` compares. `age == 42` asks a question and gives back `True` or `False`.
+
+<a id="data-type"></a>
+
+### Data type
+
+_Python_
+
+The **type** of a value decides what you can do with it: you can add two numbers, but you can't take the mean of a word. The core built-in types are `int`, `float`, `str`, `bool` and `None`, plus the container types `list`, `tuple`, `dict` and `set`. Use `type()` to check.
+
+```python
+type(3)          # int
+type(3.5)        # float
+type("3.5")      # str
+type(True)       # bool
+```
+
+See also: [dtype](#dtype), [Type conversion (casting)](#type-conversion-casting)
+
+<a id="integer-int"></a>
+
+### Integer (int)
+
+_Python_
+
+A whole number with no decimal point, such as `7`, `-3` or `100_000` (underscores are allowed to make large numbers readable). Counts are usually integers: number of pieces in a LEGO set, number of customers.
+
+```python
+pieces = 1_254
+pieces // 100    # 12  (floor division: whole-number result)
+pieces % 100     # 54  (modulo: the remainder)
+```
+
+<a id="float"></a>
+
+### Float
+
+_Python_
+
+A number with a decimal point, such as `19.99` or `-0.5`. Measurements and prices are usually floats. Dividing two integers with `/` always produces a float.
+
+```python
+price = 19.99
+7 / 2            # 3.5
+round(3.14159, 2)  # 3.14
+```
+
+> **Watch out:** Floats are stored approximately, so `0.1 + 0.2 == 0.3` is `False`. Use `round()` or `np.isclose()` when comparing decimals.
+
+<a id="string-str"></a>
+
+### String (str)
+
+_Python_
+
+Text, written inside single or double quotes: `"Star Wars"` or `'R '`. Strings can be joined with `+`, repeated with `*`, and indexed and sliced like lists. Column names, categories and URLs are all strings.
+
+```python
+theme = "Star Wars"
+theme + " LEGO"       # 'Star Wars LEGO'
+theme[0]              # 'S'
+len(theme)            # 9
+```
+
+> **Watch out:** Strings that _look_ like numbers are still text: `"3" + "4"` is `"34"`, not `7`. This is why reading data sometimes gives you a text column that needs converting.
+
+<a id="string-methods"></a>
+
+### String methods
+
+_Python_
+
+Functions that belong to every string and return a new string. The ones used most in the course: `.upper()` / `.lower()` to standardise case, `.strip()` to remove leading and trailing spaces, `.replace(old, new)`, `.split(sep)` to break text into a list, and `.startswith()` / `.endswith()` to test the beginning or end.
+
+```python
+title = "  debt consolidation "
+title.strip().upper()           # 'DEBT CONSOLIDATION'
+"2019M02".startswith("20")      # True
+"a, b, c".split(", ")           # ['a', 'b', 'c']
+"On or near High St".replace("On or near ", "")  # 'High St'
+```
+
+> **Watch out:** In the product data, `'R '` has a trailing space, so `== 'R'` matches nothing. Always check for stray whitespace with `len()` or `.strip()`.
+
+See also: [.str accessor](#str-accessor), [Cookbook: Standardise text: spacing, case and punctuation](#standardise-text-spacing-case-and-punctuation)
+
+<a id="raw-string-r"></a>
+
+### Raw string (r"...")
+
+_Python_
+
+A string written with an `r` in front, such as `r"\d+"`. Python then treats every backslash as an ordinary character instead of the start of an escape code like `\n` (newline) or `\t` (tab). You need raw strings for **regular expressions**, which use backslashes a lot, and for Windows file paths.
+
+The IMDb practice notebook strips square brackets from actor lists with a pattern like `\[`. Written as a normal string, Python reads `\[` as an escape code it doesn't recognise.
+
+```python
+import re
+
+re.sub(r"\[", "", "[u'Tim Robbins', u'Morgan Freeman']")   # raw string: the backslash reaches re
+re.findall(r"\d{4}", "Released 1994, re-released 2004")      # ['1994', '2004']
+print("a\tb")     # \t is a tab in a normal string
+print(r"a\tb")    # raw: prints the backslash and the t
+```
+
+> **Watch out:** since Python 3.12, an unrecognised escape such as `"\["` or `"\d"` in a normal string gives a `SyntaxWarning`, and a future Python will make it an error. Earlier versions accepted it silently. Put an `r` in front of every regex pattern.
+
+See also: [re (regular expressions)](#re-regular-expressions), [String methods](#string-methods)
+
+<a id="f-string"></a>
+
+### f-string
+
+_Python_
+
+A string with an `f` in front that lets you drop variables and expressions straight into the text using `{}`. You can add a format code after a colon: `:.2f` for two decimal places, `:,` for thousands separators, `:.1%` for percentages.
+
+```python
+mean_age = 41.2567
+print(f"Mean age: {mean_age:.1f}")          # Mean age: 41.3
+print(f"Revenue: ${1234567:,.2f}")          # Revenue: $1,234,567.00
+print(f"Retained: {0.873:.1%}")             # Retained: 87.3%
+```
+
+<a id="boolean-bool"></a>
+
+### Boolean (bool)
+
+_Python_
+
+A value that is either `True` or `False`. Comparisons produce booleans, and booleans drive `if` statements and pandas filters. In arithmetic, `True` counts as 1 and `False` as 0, which is why `.sum()` on a boolean column counts the `True` values.
+
+```python
+55 > 40          # True
+sum([True, False, True])   # 2
+```
+
+See also: [Boolean mask (filtering)](#boolean-mask-filtering)
+
+<a id="none"></a>
+
+### None
+
+_Python_
+
+Python's built-in value for "nothing here". A function that doesn't `return` anything gives back `None`. In pandas, `None` in a column is treated as missing, just like `NaN`.
+
+```python
+result = print("hi")   # print returns nothing
+result is None         # True
+```
+
+See also: [NaN](#nan)
+
+<a id="operators"></a>
+
+### Operators
+
+_Python_
+
+Symbols that do something to values. **Arithmetic**: `+ - * / // % **` (the last is "to the power of"). **Comparison**: `== != < <= > >=`, which return booleans. **Logical**: `and`, `or`, `not` for combining booleans in plain Python. **Membership**: `in` checks whether something is inside a container.
+
+```python
+2 ** 3                  # 8
+(5 > 3) and (2 > 4)     # False
+"2020M01" in ["2020M01", "2019M02"]   # True
+```
+
+> **Watch out:** In pandas filters use `&`, `|` and `~` instead of `and`, `or`, `not`, and wrap each condition in brackets.
+
+<a id="type-conversion-casting"></a>
+
+### Type conversion (casting)
+
+_Python_
+
+Turning a value from one type into another with `int()`, `float()`, `str()` or `bool()`. You need it when building URLs from numbers or when text needs to become a number.
+
+```python
+lat = 51.5086
+url = "https://data.police.uk/api/crimes-street/all-crime?lat=" + str(lat)
+float("3.7")     # 3.7
+int("2023")      # 2023
+int(3.9)         # 3  (truncates, does not round)
+```
+
+> **Watch out:** `float("?")` raises a `ValueError`. Real datasets often contain placeholders like `"?"` or `"SONGFACTS.COM"` that block conversion until you clean them.
+
+See also: [.astype()](#astype), [try / except](#try-except)
+
+<a id="list"></a>
+
+### List
+
+_Python_
+
+An ordered, changeable collection written with square brackets: `[1, 2, 3]`. Lists can hold any mix of types. You use them constantly to hold column names, keywords, or results collected inside a loop.
+
+```python
+cols = ["Name", "Theme", "Pieces"]
+cols.append("USD_MSRP")    # add to the end
+cols[0]                    # 'Name'
+cols[-1]                   # 'USD_MSRP' (negative = count from the end)
+len(cols)                  # 4
+```
+
+See also: [Indexing and slicing](#indexing-and-slicing), [List comprehension](#list-comprehension)
+
+<a id="indexing-and-slicing"></a>
+
+### Indexing and slicing
+
+_Python_
+
+**Indexing** picks one item by position, starting at `0`. **Slicing** picks a range with `start:stop`, where `stop` is _not_ included. Leave a side blank to go to the start or end. Works on lists, tuples and strings.
+
+```python
+months = ["Jan", "Feb", "Mar", "Apr", "May"]
+months[1]      # 'Feb'
+months[1:3]    # ['Feb', 'Mar']
+months[:2]     # ['Jan', 'Feb']
+months[-2:]    # ['Apr', 'May']
+"2019M02"[:4]  # '2019'
+```
+
+> **Watch out:** Python counts from 0, so the "first" item is `[0]` and `[1:3]` gives two items, not three.
+
+<a id="tuple"></a>
+
+### Tuple
+
+_Python_
+
+An ordered collection like a list, but written with round brackets and **unchangeable** once created. pandas uses tuples for things that shouldn't change, like `df.shape`, and plotting functions take them for sizes like `figsize=(10, 6)`.
+
+```python
+shape = (1000, 14)     # rows, columns
+rows, cols = shape     # tuple unpacking
+rows                   # 1000
+```
+
+See also: [Tuple unpacking](#tuple-unpacking)
+
+<a id="tuple-unpacking"></a>
+
+### Tuple unpacking
+
+_Python_
+
+Assigning several variables at once from a tuple or list. You'll see it every time a function returns more than one thing: `fig, ax = plt.subplots()` or the four outputs of `train_test_split`.
+
+```python
+from sklearn.model_selection import train_test_split
+
+t_stat, p_value = (2.31, 0.024)      # two names, one tuple: t_stat is 2.31, p_value is 0.024
+
+X = housing[["sqft", "bedrooms"]]
+y = housing["price"]
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+print(len(X_train), len(X_test))     # 800 200
+```
+
+<a id="dictionary-dict"></a>
+
+### Dictionary (dict)
+
+_Python_
+
+A collection of **key-value pairs** in curly brackets: `{"key": value}`. You look things up by key rather than position. Dictionaries are everywhere in the course: building DataFrames, renaming columns, mapping categories to numbers, and reading JSON from APIs.
+
+```python
+condition_map = {"Poor": 0, "Fair": 1, "Good": 2, "Excellent": 3}
+condition_map["Good"]          # 2
+condition_map["Mint"] = 4      # add a new pair
+list(condition_map.keys())     # ['Poor', 'Fair', 'Good', 'Excellent', 'Mint']
+```
+
+> **Watch out:** Looking up a key that doesn't exist raises a `KeyError`. Use `.get(key, default)` if the key might be missing.
+
+See also: [Dictionary methods](#dictionary-methods), [JSON](#json)
+
+<a id="dictionary-methods"></a>
+
+### Dictionary methods
+
+_Python_
+
+`.keys()` gives all keys, `.values()` all values, `.items()` the pairs (great in a `for` loop), and `.get(key, default)` looks up safely. The `in` operator checks whether a key exists.
+
+```python
+counts = {"local-resolution": 3, "no-further-action": 7}
+for outcome, n in counts.items():
+    print(outcome, n)
+sum(counts.values())                 # 10
+"court-result" in counts             # False
+counts.get("court-result", 0)        # 0
+```
+
+Example of looping through an irregular or nested disctionary to flatten the structure:
+
+```python
+import json
+import pandas as pd
+
+# 1. An unbalanced JSON payload (varying structures, nested dictionaries, missing keys)
+json_payload = """
+[
+    {"id": 1, "name": "Alice", "info": {"city": "New York", "age": 28}},
+    {"id": 2, "name": "Bob"},
+    {"id": 3, "name": "Charlie", "info": {"city": "Chicago"}, "skills": ["Python", "SQL"]}
+]
+"""
+
+# 2. Parse the JSON string
+data_list = json.loads(json_payload)
+
+# 3. Loop through the unbalanced payload to safely extract data
+rows = []
+for item in data_list:
+    # Use .get() to avoid KeyError if a key is missing
+    info_dict = item.get("info", {})
+
+    row_data = {
+        "ID": item.get("id"),
+        "Name": item.get("name"),
+        # Extracting from nested dictionary with default fallbacks
+        "City": info_dict.get("city", "Unknown"),
+        "Age": info_dict.get("age", None),
+        # Handling a nested list by joining elements, or defaulting to empty string
+        "Skills": ", ".join(item.get("skills", [])) if "skills" in item else "None"
+    }
+    rows.append(row_data)
+
+# 4. Display in a DataFrame
+df = pd.DataFrame(rows)
+print(df)
+```
+
+<a id="nested-data"></a>
+
+### Nested data
+
+_Python, Concept_
+
+Containers inside containers: a list of dictionaries, a dictionary whose values are dictionaries, and so on. API responses are almost always nested. You drill down one level at a time by chaining `[ ]`.
+
+```python
+crime = {"category": "burglary",
+         "location": {"street": {"id": 1, "name": "On or near Park Lane"}}}
+crime["location"]["street"]["name"]     # 'On or near Park Lane'
+```
+
+See also: [JSON](#json), [pd.json_normalize()](#pd-json-normalize)
+
+<a id="set"></a>
+
+### Set
+
+_Python_
+
+An unordered collection of **unique** values in curly brackets: `{"NY", "CA"}`. Adding a duplicate does nothing. Handy for de-duplicating or comparing two groups of values.
+
+```python
+set(["NY", "CA", "NY", "WA"])    # {'CA', 'NY', 'WA'}
+{"a", "b"} & {"b", "c"}          # {'b'}  (in both)
+```
+
+<a id="built-in-functions"></a>
+
+### Built-in functions
+
+_Python_
+
+Functions that come with Python without importing anything. The everyday ones: `print()`, `len()`, `type()`, `sum()`, `min()`, `max()`, `abs()`, `round()`, `sorted()`, `reversed()`, `list()`, `range()`, `enumerate()`, `isinstance()`.
+
+```python
+ages = [55, 43, 36, 31]
+len(ages), sum(ages), min(ages), max(ages)   # (4, 165, 31, 55)
+sorted(ages)                                  # [31, 36, 43, 55]
+sorted(ages, reverse=True)                    # [55, 43, 36, 31]
+abs(-0.75)                                    # 0.75
+```
+
+<a id="range"></a>
+
+### range()
+
+_Python_
+
+Produces a sequence of whole numbers, most often to drive a `for` loop. `range(stop)`, `range(start, stop)` or `range(start, stop, step)`. Like slicing, `stop` is not included.
+
+```python
+list(range(5))         # [0, 1, 2, 3, 4]
+list(range(1, 13))     # months 1 to 12
+list(range(0, 10, 2))  # [0, 2, 4, 6, 8]
+```
+
+<a id="zip"></a>
+
+### zip()
+
+_Python_
+
+Walks through two or more sequences in step, pairing up their items: the first with the first, the second with the second, and so on. It stops at the end of the shortest one. It's handy for looping over names and values together, or for building a dictionary from two lists.
+
+```python
+months = ["2019M02", "2019M03", "2019M04"]
+rates = [0.45, 0.38, 0.31]
+
+for month, rate in zip(months, rates):
+    print(f"{month}: {rate:.2f}%")
+
+dict(zip(months, rates))          # {'2019M02': 0.45, '2019M03': 0.38, '2019M04': 0.31}
+```
+
+See also: [enumerate()](#enumerate), [Tuple unpacking](#tuple-unpacking), [for loop](#for-loop)
+
+<a id="sorted-sort-and-reversed"></a>
+
+### sorted(), .sort() and reversed()
+
+_Python_
+
+`sorted(items)` returns a **new** sorted list and leaves the original alone. `my_list.sort()` sorts the list **in place** and returns `None`. Both take `reverse=True` for descending order, and `key=` for a function that says what to sort by. `reversed(items)` walks through a sequence backwards. The matplotlib practice notebook uses it to list month names from December up to January, so January ends up at the top of a horizontal chart.
+
+```python
+import calendar
+
+themes = ["Star Wars", "City", "Duplo", "Technic"]
+sorted(themes)                       # ['City', 'Duplo', 'Star Wars', 'Technic']
+sorted(themes, key=len)              # shortest name first
+sorted(themes, reverse=True)
+themes.sort()                        # changes themes itself; returns None
+list(reversed(calendar.month_name[1:]))[:3]   # ['December', 'November', 'October']
+```
+
+> **Watch out:** `themes = themes.sort()` sets `themes` to `None`, because `.sort()` returns nothing. Use either `themes.sort()` on its own or `themes = sorted(themes)`. For pandas objects, use [.sort_values() and .sort_index()](#sort-values-and-sort-index) instead.
+
+See also: [List](#list), [Built-in functions](#built-in-functions), [lambda](#lambda)
+
+<a id="for-loop"></a>
+
+### for loop
+
+_Python_
+
+Repeats a block of code once for every item in a collection. The indented lines are the loop body. In the API lab, loops request one month of data at a time and collect the results.
+
+```python
+dates = []
+for year in [2023, 2024]:
+    for month in range(1, 13):
+        dates.append(f"{year}-{month}")
+dates[:3]      # ['2023-1', '2023-2', '2023-3']
+```
+
+> **Watch out:** Avoid looping over the rows of a DataFrame to do maths. Vectorized pandas operations do the same job far faster.
+
+See also: [Vectorized operation](#vectorized-operation), [enumerate()](#enumerate)
+
+<a id="enumerate"></a>
+
+### enumerate()
+
+_Python_
+
+Wraps a collection so a `for` loop gets both the position number and the item. Common when filling a grid of subplots one by one.
+
+```python
+for i, col in enumerate(["sqft", "price"]):
+    print(i, col)
+# 0 sqft
+# 1 price
+```
+
+<a id="if-elif-else"></a>
+
+### if / elif / else
+
+_Python_
+
+Runs code only when a condition is `True`. `elif` checks another condition if the first was false, and `else` catches everything left over.
+
+```python
+p_value = 0.03
+if p_value < 0.05:
+    print("Reject the null hypothesis")
+else:
+    print("Fail to reject the null hypothesis")
+```
+
+<a id="continue-and-break"></a>
+
+### continue and break
+
+_Python_
+
+Loop controls. `continue` skips the rest of this pass and moves to the next item; `break` stops the loop entirely. The crimes lab uses `continue` to skip months where the API returns a 404.
+
+```python
+for code in [200, 404, 200]:
+    if code == 404:
+        continue        # skip this one
+    print("process", code)
+```
+
+<a id="list-comprehension"></a>
+
+### List comprehension
+
+_Python_
+
+A one-line way to build a new list from an existing one: `[expression for item in collection if condition]`. Used in the course to clean column names and pick out columns that match a pattern.
+
+```python
+cols = [" 2019M02", "2020M01 ", "country"]
+clean = [c.strip() for c in cols]                 # ['2019M02', '2020M01', 'country']
+numeric_cols = [c for c in clean if c.startswith("20")]
+[x ** 2 for x in [1, 2, 3]]                         # [1, 4, 9]
+```
+
+<a id="dictionary-and-set-comprehensions"></a>
+
+### Dictionary and set comprehensions
+
+_Python_
+
+The same one-line idea as a [List comprehension](#list-comprehension), but building a dictionary (`{key: value for ...}`) or a set (`{value for ...}`). Use them to build lookup tables such as a rename map, or a mapping from category to code.
+
+```python
+columns = ["Song Clean", "ARTIST CLEAN", "Release Year"]
+rename_map = {c: c.lower().replace(" ", "_") for c in columns}
+rename_map            # {'Song Clean': 'song_clean', 'ARTIST CLEAN': 'artist_clean', ...}
+
+themes = {name.split()[0] for name in ["Star Wars", "Star Trek", "City"]}   # {'Star', 'City'}
+```
+
+See also: [Dictionary (dict)](#dictionary-dict), [Set](#set), [.rename()](#rename)
+
+<a id="function-def"></a>
+
+### Function (def)
+
+_Python_
+
+A named, reusable block of code. `def` defines it, the names in brackets are **parameters** (inputs), and `return` sends a result back. Writing functions keeps notebooks tidy and lets you repeat an analysis on new data.
+
+```python
+def price_per_piece(price, pieces):
+    """Return the price of one LEGO piece."""
+    return price / pieces
+
+price_per_piece(99.99, 1000)    # 0.09999
+```
+
+See also: [Arguments and parameters](#arguments-and-parameters), [Docstring](#docstring), [lambda](#lambda)
+
+<a id="arguments-and-parameters"></a>
+
+### Arguments and parameters
+
+_Python_
+
+**Parameters** are the names a function expects; **arguments** are the actual values you pass in. **Positional** arguments go in order; **keyword** arguments are named (`bins=20`) and can go in any order. Many parameters have **default values** that apply if you leave them out.
+
+```python
+def describe_age(age, unit="years"):     # unit has a default
+    return f"{age} {unit}"
+
+describe_age(41)                 # '41 years'
+describe_age(41, unit="yrs")     # '41 yrs'
+```
+
+<a id="docstring"></a>
+
+### Docstring
+
+_Python_
+
+The text in triple quotes at the top of a function that explains what it does. Jupyter shows it when you press Shift+Tab or run `help(function_name)`.
+
+```python
+def identify_data_issues(df):
+    """Return missing values, duplicates and outliers for a DataFrame."""
+    ...
+```
+
+<a id="lambda"></a>
+
+### lambda
+
+_Python_
+
+A tiny unnamed function written in one line: `lambda inputs: result`. Handy as a quick argument to `.apply()` or as the `key` when sorting.
+
+```python
+square = lambda x: x ** 2
+square(4)                                         # 16
+pairs = [("a", -0.9), ("b", 0.3)]
+sorted(pairs, key=lambda p: abs(p[1]), reverse=True)   # strongest first
+```
+
+See also: [.apply()](#apply)
+
+<a id="try-except"></a>
+
+### try / except
+
+_Python_
+
+Error handling. Python tries the code in `try`; if it raises an error, the `except` block runs instead of crashing. The rock music lab uses this to convert values to numbers and fall back to `NaN` for anything that won't convert.
+
+```python
+import numpy as np
+
+def to_float(value):
+    try:
+        return float(value)
+    except ValueError:
+        return np.nan
+
+to_float("1971"), to_float("SONGFACTS.COM")   # (1971.0, nan)
+```
+
+The full statement has four parts: `try` (attempt the code), `except` (runs only if an error was raised), `else` (runs only if **no** error was raised), and `finally` (always runs, error or not, which makes it the place for clean-up such as closing a file). Catch the specific error you expect, not every error. The errors you'll meet most:
+
+| Error         | Usual cause                                                           |
+| ------------- | --------------------------------------------------------------------- |
+| `NameError`   | a variable used before it was defined (often a cell run out of order) |
+| `SyntaxError` | a typo or missing bracket: the code can't be read at all              |
+| `TypeError`   | the wrong type for an operation, such as `"5" + 3`                    |
+| `ValueError`  | the right type but an impossible value, such as `float("abc")`        |
+| `KeyError`    | a dictionary key or DataFrame column that doesn't exist               |
+| `IndexError`  | a list position past the end                                          |
+
+```python
+def read_price(text):
+    try:
+        price = float(text)
+    except ValueError:
+        print(f"Not a number: {text!r}")
+        return None
+    else:
+        return round(price, 2)          # only when the conversion worked
+    finally:
+        print("checked", text)          # always runs
+
+read_price("49.99"), read_price("N/A")
+```
+
+<a id="reading-and-writing-text-files"></a>
+
+### Reading and writing text files
+
+_Python_
+
+`open(path, mode, encoding=...)` opens a file. Mode `"r"` reads, `"w"` writes (replacing the file), and `"a"` appends. Use it in a `with` block, which closes the file automatically even if an error happens. `.read()` returns the whole file as one string, `.readlines()` a list of lines, and looping over the file gives one line at a time. The Module 1.4 code-along reads and writes appointment files this way. Always pass `encoding="utf-8"`, so names with accents read the same on every computer.
+
+```python
+from pathlib import Path
+
+notes = Path("cleaning_log.txt")
+with open(notes, "w", encoding="utf-8") as f:            # "w" creates or replaces the file
+    f.write("raw rows: 14936\n")
+    f.write("after dropping missing price: 5837\n")
+
+with open(notes, "a", encoding="utf-8") as f:            # "a" adds to the end
+    f.write("checked by: analyst\n")
+
+with open(notes, encoding="utf-8") as f:
+    for line_number, line in enumerate(f, start=1):
+        print(line_number, line.rstrip())                 # rstrip() drops the newline
+```
+
+See also: [pathlib.Path](#pathlib-path), [csv module (DictReader and DictWriter)](#csv-module-dictreader-and-dictwriter), [try / except](#try-except)
+
+<a id="csv-module-dictreader-and-dictwriter"></a>
+
+### csv module (DictReader and DictWriter)
+
+_Python_
+
+Python's built-in `csv` module reads and writes CSV files without pandas. `csv.DictReader` gives each row as a dictionary keyed by the header. `csv.DictWriter(f, fieldnames=[...])` writes dictionaries back, with `.writeheader()` and `.writerows()`. Open the file with `newline=""`, as the `csv` documentation requires, otherwise Windows can add blank lines. For analysis, `pd.read_csv()` is easier. The `csv` module is for small scripts and for files you process one row at a time.
+
+```python
+import csv
+
+rows = [{"appointment_id": "APT-0001", "department": "Cardiology", "wait_days": 12},
+        {"appointment_id": "APT-0002", "department": "Neurology", "wait_days": 30}]
+with open("appointments.csv", "w", newline="", encoding="utf-8") as f:
+    writer = csv.DictWriter(f, fieldnames=["appointment_id", "department", "wait_days"])
+    writer.writeheader()
+    writer.writerows(rows)
+
+with open("appointments.csv", newline="", encoding="utf-8") as f:
+    for row in csv.DictReader(f):
+        print(row["appointment_id"], int(row["wait_days"]))   # every value arrives as text
+```
+
+See also: [Reading and writing text files](#reading-and-writing-text-files), [pd.read_csv()](#pd-read-csv), [Dictionary (dict)](#dictionary-dict)
+
+<a id="assert"></a>
+
+### assert
+
+_Python_
+
+`assert condition, "message"` stops the program with an `AssertionError` if the condition is `False`, and does nothing if it's `True`. In data work, assertions turn your assumptions into checks that run every time: no duplicate IDs, no negative prices, the row count unchanged after a merge. The Module 2.2 code-along ends its cleaning with a block of final assertions, so a bad re-run fails loudly instead of quietly producing wrong numbers.
+
+pandas has stricter checks for whole tables in `pd.testing`. `assert_frame_equal()` and `assert_series_equal()` fail with a description of exactly what differs.
+
+```python
+assert lego["Set_ID"].is_unique, "Set_ID should identify one set per row"
+assert (lego["Pieces"].dropna() >= 0).all(), "piece counts can't be negative"
+
+before = len(lego)
+merged = lego.merge(cpi, on="Year", how="left")
+assert len(merged) == before, "a left join on a unique key must not add rows"
+
+pd.testing.assert_series_equal(lego["Year"], merged["Year"])   # passes silently
+```
+
+> **Watch out:** assertions are for checking your own assumptions, not for handling expected problems in user input. Python skips them entirely when run with the `-O` flag.
+
+See also: [try / except](#try-except), [.duplicated()](#duplicated), [.merge()](#merge), [Cookbook: Define validation rules and check your data](#define-validation-rules-and-check-your-data)
+
+<a id="module-package-and-library"></a>
+
+### Module, package and library
+
+_Python_
+
+A **module** is a single Python file of reusable code; a **package** is a folder of modules; **library** is the everyday word for a package you install, like pandas or scikit-learn. Python's **standard library** (e.g. `datetime`, `random`, `re`, `calendar`) comes pre-installed; others are installed with `pip`.
+
+See also: [import](#import), [pip](#pip)
+
+<a id="pathlib-path"></a>
+
+### pathlib.Path
+
+_Python_
+
+The modern way to build and check file paths. `Path("data") / "lego.csv"` joins parts with the right separator on any operating system. `.exists()` checks whether a file is there, and `.mkdir(parents=True, exist_ok=True)` creates a folder (and any missing parents) without failing if it already exists. The Module 2.2 code-along saves its raw, cleaned and log files this way.
+
+```python
+from pathlib import Path
+
+out_dir = Path("outputs") / "cleaned"
+out_dir.mkdir(parents=True, exist_ok=True)       # create the folder if needed
+path = out_dir / "lego_clean.csv"
+lego.head(100).to_csv(path, index=False)
+path.exists(), path.name, path.suffix           # (True, 'lego_clean.csv', '.csv')
+```
+
+See also: [.to_csv()](#to-csv), [pd.read_csv()](#pd-read-csv)
+
+<a id="import"></a>
+
+### import
+
+_Python_
+
+Loads a library so you can use it. `import x as y` gives it a short alias, and `from x import y` brings in one specific piece. The course uses standard aliases that everyone recognises.
+
+```python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+from sklearn.preprocessing import StandardScaler
+```
+
+> **Watch out:** Stick to the standard aliases (`pd`, `np`, `plt`, `sns`, `px`). Other people's code, and most online answers, assume them.
+
+<a id="pip"></a>
+
+### pip
+
+_Python_
+
+Python's package installer. In a terminal: `pip install missingno`. Inside a Jupyter cell, put `!` or `%` in front.
+
+```bash
+pip install missingno          # in a terminal
+```
+
+```ipython
+%pip install missingno         # in a notebook cell: installs into the kernel you're using
+```
+
+> **Watch out:** in a notebook, prefer `%pip` to `!pip`. `%pip` installs into the environment your notebook is running in, while `!pip` can install into a different Python. Restart the kernel after installing.
+
+<a id="function-method-and-attribute"></a>
+
+### Function, method and attribute
+
+_Python, Concept_
+
+A **function** stands alone: `len(df)`. A **method** is a function that belongs to an object and is called with a dot and brackets: `df.head()`. An **attribute** is stored information about an object, accessed with a dot but _no_ brackets: `df.shape`, `df.columns`.
+
+```python
+len(lego)       # function
+lego.head()     # method  (brackets)
+lego.shape      # attribute (no brackets)
+```
+
+> **Watch out:** `lego.shape()` raises `TypeError: 'tuple' object is not callable`. If you see "not callable", you've put brackets on an attribute.
+
+<a id="object-class-and-instance"></a>
+
+### Object, class and instance
+
+_Python, Concept_
+
+A **class** is a blueprint; an **object** (or **instance**) is one thing built from it. `pd.DataFrame` is a class and each DataFrame you load is an instance. scikit-learn works the same way: you create an instance like `scaler = StandardScaler()`, then call its methods.
+
+```python
+from sklearn.preprocessing import StandardScaler
+
+scaler = StandardScaler()   # create an instance of the class
+type(scaler)                # sklearn.preprocessing._data.StandardScaler
+scaler.fit(housing[["sqft"]])
+scaler.mean_                # an attribute learned by fit (ends in _)
+```
+
+<a id="writing-your-own-class"></a>
+
+### Writing your own class
+
+_Python_
+
+A class bundles data (**attributes**) with the functions that use it (**methods**). The Module 1.4 code-along models an appointment this way.
+
+- `__init__` runs when you create an instance and stores its attributes on `self`.
+- `__str__` controls what `print()` shows.
+- A method marked `@classmethod` receives the class itself (`cls`) instead of an instance. It's the usual way to write an alternative constructor, such as building an object from one CSV row.
+- A subclass can extend its parent's `__init__` by calling `super().__init__(...)` and then adding its own attributes.
+
+```python
+class Appointment:
+    def __init__(self, appointment_id, department, wait_days):
+        self.appointment_id = appointment_id
+        self.department = department
+        self.wait_days = int(wait_days)
+        self.completed = False
+
+    def mark_completed(self):
+        self.completed = True
+
+    def __str__(self):
+        status = "done" if self.completed else "open"
+        return f"{self.appointment_id} ({self.department}, {self.wait_days} days, {status})"
+
+    @classmethod
+    def from_csv_row(cls, row):
+        return cls(row["appointment_id"], row["department"], row["wait_days"])
+
+
+class OnlineAppointment(Appointment):
+    def __init__(self, appointment_id, department, wait_days, platform):
+        super().__init__(appointment_id, department, wait_days)   # reuse the parent's set-up
+        self.platform = platform
+
+a = Appointment.from_csv_row({"appointment_id": "APT-0001", "department": "Cardiology", "wait_days": "12"})
+a.mark_completed()
+print(a)                                     # APT-0001 (Cardiology, 12 days, done)
+print(OnlineAppointment("APT-0002", "Neurology", 30, "video").platform)
+```
+
+See also: [Object, class and instance](#object-class-and-instance), [Inheritance](#inheritance), [Function, method and attribute](#function-method-and-attribute), [Custom transformer](#custom-transformer)
+
+<a id="inheritance"></a>
+
+### Inheritance
+
+_Python_
+
+A class can be built on top of another class and **inherit** its abilities. Custom scikit-learn transformers inherit from `BaseEstimator` and `TransformerMixin`, which gives them `fit_transform()` for free.
+
+```python
+from sklearn.base import BaseEstimator, TransformerMixin
+
+class AgeTransformer(BaseEstimator, TransformerMixin):
+    """Adds a house-age column. Inherits fit_transform() from TransformerMixin."""
+    def fit(self, X, y=None):
+        return self
+    def transform(self, X):
+        X = X.copy()
+        X["age"] = 2023 - X["year_built"]
+        return X
+
+AgeTransformer().fit_transform(housing)[["year_built", "age"]].head(3)
+```
+
+See also: [Custom transformer](#custom-transformer)
+
+<a id="datetime-module"></a>
+
+### datetime module
+
+_Python_
+
+Python's standard library for dates and times. `datetime.datetime.today()` (or `.now()`) gives the current moment, and `datetime.datetime(year, month, day)` builds a specific date.
+
+```python
+import datetime
+current_year = datetime.datetime.today().year
+datetime.datetime(2020, 1, 1)
+```
+
+See also: [pd.to_datetime()](#pd-to-datetime)
+
+<a id="re-regular-expressions"></a>
+
+### re (regular expressions)
+
+_Python_
+
+A standard library module for pattern matching in text. `re.sub(pattern, replacement, text)` replaces everything matching a pattern. Characters like `[`, `]` and `.` have special meanings and must be escaped with a backslash.
+
+```python
+import re
+line = "[u'Tim Robbins', u'Morgan Freeman']"
+line = re.sub(r"u'", "'", line)
+line = re.sub(r"['\[\]]", "", line)
+line.split(", ")      # ['Tim Robbins', 'Morgan Freeman']
+```
+
+See also: [Cookbook: Split and extract values from text](#split-and-extract-values-from-text)
+
+<a id="random-module"></a>
+
+### random module
+
+_Python_
+
+Python's built-in random number tools. `random.random()` gives a float between 0 and 1. For data work you'll mostly use NumPy's random functions instead because they produce whole arrays at once.
+
+See also: [Random seed](#random-seed)
+
+<a id="calendar-module"></a>
+
+### calendar module
+
+_Python_
+
+Part of the standard library, with names and facts about dates. `calendar.month_name` and `calendar.day_name` give English month and weekday names, which is useful for labelling charts in calendar order rather than alphabetical order.
+
+```python
+import calendar
+
+calendar.month_name[1]          # 'January' (index 0 is an empty string)
+list(calendar.month_abbr)[1:4]  # ['Jan', 'Feb', 'Mar']
+list(calendar.day_name)[:2]     # ['Monday', 'Tuesday']
+```
+
+See also: [datetime module](#datetime-module), [.dt accessor](#dt-accessor)
+
+<a id="jupyter-notebook"></a>
+
+### Jupyter notebook
+
+_Python, Concept_
+
+An interactive document made of **cells**. **Code cells** run Python and show the output below; **Markdown cells** hold formatted notes. Variables persist between cells, so the order you run cells in matters. The value of the last line in a cell is displayed automatically.
+
+> **Watch out:** If results look odd, use "Restart Kernel and Run All" to make sure cells ran top to bottom with nothing left over from earlier experiments.
+
+<a id="magic-commands"></a>
+
+### Magic commands
+
+_Python_
+
+Special Jupyter commands starting with `%` (one line) or `%%` (whole cell). `%matplotlib inline` shows plots inside the notebook, `%%timeit` times a cell (used to prove vectorized pandas is faster than a loop), and `!` runs a terminal command.
+
+```ipython
+%matplotlib inline
+```
+
+```ipython
+%%timeit
+squared = [n ** 2 for n in range(100_000)]
+```
+
+> **Watch out:** a cell magic (`%%`) must be the very first line of its cell, so `%%timeit` needs a cell of its own. Magics only work in Jupyter or IPython, not in a plain `.py` script.
+
+<a id="trailing-semicolon"></a>
+
+### Trailing semicolon
+
+_Python_
+
+Ending the last line of a cell with `;` hides its text output. In plotting cells it stops Jupyter printing lines like `<Axes: ...>` above the chart.
+
+```python
+lego["USD_MSRP"].hist(bins=50);
+```
+
+<a id="warnings-and-filterwarnings"></a>
+
+### Warnings and filterwarnings
+
+_Python_
+
+A **warning** is Python telling you something might be wrong without stopping the code. `warnings.filterwarnings('ignore')` hides them, which keeps teaching notebooks clean.
+
+```python
+import warnings
+warnings.filterwarnings("ignore")
+```
+
+> **Watch out:** Hiding warnings in your own work can hide real problems. Read them first, then decide.
+
+---
+
+<a id="s2-numpy-essentials"></a>
+
+## 2. NumPy essentials
+
+_NumPy is the fast number-crunching engine underneath pandas. You'll use it directly for maths on whole columns, generating random or synthetic data, and the occasional reshape before scikit-learn._
+
+**In your capstone:** set one random seed at the top of the notebook so every sample, split and simulation is reproducible. Use vectorized NumPy functions (`np.log1p`, `np.where`, `np.select`, `np.clip`) to build features in one line instead of looping over rows.
+
+<a id="numpy"></a>
+
+### NumPy
+
+_NumPy_
+
+The core Python library for fast numerical computing, imported as `np`. Its main object is the **array**. pandas is built on NumPy arrays, which is a big reason pandas is fast.
+
+```python
+import numpy as np
+```
+
+<a id="array-ndarray"></a>
+
+### Array (ndarray)
+
+_NumPy_
+
+A grid of values that all share one type. A 1-D array is like a list of numbers; a 2-D array is like a table. Maths on an array applies to every element at once. `df["col"].values` (or `.to_numpy()`) gives you the array behind a pandas column.
+
+```python
+a = np.array([55, 43, 36, 31])
+a * 2          # array([110,  86,  72,  62])
+a.mean()       # 41.25
+a.shape        # (4,)
+```
+
+<a id="vectorized-operation"></a>
+
+### Vectorized operation
+
+_NumPy, pandas, Concept_
+
+Doing an operation on a whole array or column in one go, without writing a `for` loop. The work happens in fast compiled C code, so it's typically many times quicker than looping in Python. It's also shorter and easier to read.
+
+```python
+numbers = range(100_000)
+
+# slow: Python loop
+squared = []
+for n in numbers:
+    squared.append(n ** 2)
+
+# fast: vectorized
+squared = pd.Series(numbers) ** 2
+```
+
+<a id="infinity-inf-from-dividing-by-zero"></a>
+
+### Infinity (inf) from dividing by zero
+
+_NumPy, pandas_
+
+Dividing by zero in pandas doesn't raise an error. It gives **`inf`** (infinity), or `NaN` for `0 / 0`. In the lesson 01 exercise, price per piece is `USD_MSRP / Pieces`. Three minifigure boxes and character packs are listed with 0 pieces, so their price per piece is `inf`, and they come out "most expensive per piece". Check for `inf` after any division, and decide what a zero denominator should mean: here, these aren't really "sets" with pieces.
+
+```python
+lego["price_per_piece"] = lego["USD_MSRP"] / lego["Pieces"]
+np.isinf(lego["price_per_piece"]).sum()                        # 3
+lego.loc[np.isinf(lego["price_per_piece"]), ["Name", "Pieces", "USD_MSRP"]]
+
+safe = lego["USD_MSRP"] / lego["Pieces"].replace(0, np.nan)    # zero pieces -> NaN instead of inf
+safe.nlargest(3)
+```
+
+> **Watch out:** `inf` passes `isna()` checks unnoticed, makes means and sums infinite, and breaks most scikit-learn models with a "contains infinity" error. Replace zeros in the denominator with `NaN` first, or filter those rows out.
+
+See also: [NaN](#nan), [Vectorized operation](#vectorized-operation), [.nlargest() and .nsmallest()](#nlargest-and-nsmallest)
+
+<a id="nan"></a>
+
+### NaN
+
+_NumPy, pandas_
+
+"Not a Number": the standard marker for a missing numeric value, written `np.nan`. Any maths involving `NaN` gives `NaN`, but pandas methods like `.mean()` skip it by default. `NaN` is never equal to anything, including itself, so use `.isnull()` to find it.
+
+```python
+np.nan == np.nan                 # False (!)
+pd.Series([1, np.nan, 3]).mean() # 2.0  (NaN skipped)
+```
+
+See also: [Missing data](#missing-data), [.isnull() / .isna()](#isnull-isna)
+
+<a id="random-seed"></a>
+
+### Random seed
+
+_NumPy_
+
+A starting number for the random number generator. Setting the same seed makes "random" results identical every time you run the notebook, so your analysis is **reproducible**. The course uses `42` by convention.
+
+```python
+np.random.seed(42)
+np.random.normal(0, 1, 3)   # same three numbers every run
+```
+
+See also: [random_state](#random-state)
+
+<a id="random-number-generators"></a>
+
+### Random number generators
+
+_NumPy_
+
+NumPy functions for generating synthetic data with a chosen distribution. `np.random.normal(mean, sd, n)` for bell-shaped data, `uniform(low, high, n)` for evenly spread data, `exponential(scale, n)` for right-skewed data like income, `randint(low, high, n)` for whole numbers, `choice(options, n, p=probs)` for categories, and `randn(rows, cols)` for standard-normal tables.
+
+```python
+heights = np.random.normal(170, 10, 1000)
+incomes = np.random.exponential(50_000, 1000)       # right-skewed
+years   = np.random.randint(1950, 2023, 1000)
+hoods   = np.random.choice(["Downtown", "Suburb"], 1000, p=[0.3, 0.7])
+```
+
+<a id="sampling-with-rng-choice"></a>
+
+### Sampling with rng.choice()
+
+_NumPy_
+
+Draws random items from a list. `size=` says how many, `replace=False` stops any item being drawn twice, and `p=` gives each item its own probability. The feature engineering notebook builds its synthetic housing data this way: for example, 40% of houses get 3 bedrooms because of `p=[0.1, 0.2, 0.4, 0.25, 0.05]`.
+
+```python
+rng = np.random.default_rng(42)
+rng.choice(["Downtown", "Suburb", "Rural"], size=5, p=[0.3, 0.5, 0.2])
+rng.choice(np.arange(1, 101), size=10, replace=False)   # 10 different numbers, no repeats
+
+bedrooms = rng.choice([1, 2, 3, 4, 5], size=10_000, p=[0.1, 0.2, 0.4, 0.25, 0.05])
+(bedrooms == 3).mean()                                   # close to 0.4
+```
+
+> **Watch out:** the probabilities in `p` must add up to 1, otherwise NumPy raises a `ValueError`. The older `np.random.choice(...)` works the same way but uses the global seed. Prefer a generator from `np.random.default_rng(seed)`.
+
+See also: [Random number generators](#random-number-generators), [Random seed](#random-seed), [Randomization](#randomization)
+
+<a id="math-functions-np-log-np-exp-np-sqrt-np-abs"></a>
+
+### Math functions (np.log, np.exp, np.sqrt, np.abs)
+
+_NumPy_
+
+Element-wise maths on arrays or pandas columns. `np.log` is the natural log (used to tame right skew), `np.exp` reverses it, `np.sqrt` is the square root (used to get RMSE from MSE), and `np.abs` is the absolute value.
+
+```python
+income = pd.Series([30_000, 45_000, 250_000])
+np.log(income)               # compresses the big value
+np.exp(np.log(income))       # back to the original
+np.sqrt(400_000_000)         # 20000.0
+```
+
+See also: [Log transformation](#log-transformation)
+
+<a id="np-arange-and-np-linspace"></a>
+
+### np.arange() and np.linspace()
+
+_NumPy_
+
+Create evenly spaced numbers. `np.arange(start, stop, step)` works like `range()` but allows decimals; `np.linspace(start, stop, n)` gives exactly `n` points including both ends.
+
+```python
+np.arange(0, 1, 0.25)      # array([0.  , 0.25, 0.5 , 0.75])
+np.linspace(0, 10, 5)      # array([ 0. ,  2.5,  5. ,  7.5, 10. ])
+```
+
+<a id="reshape-1-1"></a>
+
+### reshape(-1, 1)
+
+_NumPy, scikit-learn_
+
+Changes an array's shape. scikit-learn expects features as a 2-D table (rows by columns), so a single column of values often needs reshaping first. `-1` means "work out this dimension for me".
+
+```python
+values = housing_df["median_house_value"].values   # shape (n,)
+X = values.reshape(-1, 1)                           # shape (n, 1)
+```
+
+> **Watch out:** Selecting with double brackets, `df[["col"]]`, gives a one-column DataFrame, which scikit-learn already accepts, so you often don't need to reshape at all.
+
+<a id="flatten-and-ravel"></a>
+
+### flatten() and ravel()
+
+_NumPy_
+
+Collapse a multi-dimensional array into 1-D. You'll see `axes = axes.flatten()` after `plt.subplots(2, 2)` so you can loop over the four subplots with a single index.
+
+```python
+fig, axes = plt.subplots(2, 2)
+axes = axes.flatten()      # now axes[0] ... axes[3]
+```
+
+<a id="np-maximum-and-np-clip"></a>
+
+### np.maximum() and np.clip()
+
+_NumPy_
+
+Keep values within limits. `np.maximum(0, x)` replaces negatives with 0; `np.clip(x, low, high)` caps values at both ends (e.g. test scores between 0 and 100).
+
+```python
+np.maximum(0, np.array([-2, 5]))         # array([0, 5])
+np.clip(np.array([-5, 50, 120]), 0, 100) # array([  0,  50, 100])
+```
+
+See also: [Cookbook: Detect and treat outliers](#detect-and-treat-outliers)
+
+<a id="np-where-and-np-select"></a>
+
+### np.where() and np.select()
+
+_NumPy_
+
+`np.where(condition, value_if_true, value_if_false)` picks between two values row by row, with no loop. `np.select(conditions, choices, default=...)` does the same for several conditions, checked in order, which makes it the vectorized version of an `if / elif / else` chain. The Module 2.5 code-along uses `np.select` to turn wait times into "short", "medium" and "long" categories.
+
+```python
+lego["is_big"] = np.where(lego["Pieces"] >= 1000, "big", "small")
+
+conditions = [lego["USD_MSRP"] < 20, lego["USD_MSRP"] < 100]
+choices = ["budget", "mid-range"]
+lego["price_band"] = np.select(conditions, choices, default="premium")
+lego.loc[lego["USD_MSRP"].isna(), "price_band"] = pd.NA      # NaN fails both tests: don't call it premium
+lego["price_band"].value_counts(dropna=False)
+```
+
+> **Watch out:** a missing value fails every comparison, so `np.select` sends NaN rows to `default`. Decide what missing values should become and set that explicitly, as the last line above does.
+
+See also: [if / elif / else](#if-elif-else), [Vectorized operation](#vectorized-operation), [Binning (discretization)](#binning-discretization), [Cookbook: Apply functions to columns, rows and groups](#apply-functions-to-columns-rows-and-groups)
+
+<a id="np-concatenate-and-np-append"></a>
+
+### np.concatenate() and np.append()
+
+_NumPy_
+
+Join arrays end to end. `np.concatenate([a, b])` takes a list of arrays (and an `axis` for 2-D arrays). `np.append(a, values)` adds values to the end of one array. Both return a **new** array, because NumPy arrays have a fixed size. The EDA for modeling notebook uses `np.append` to add two outlier points to a cloud of synthetic data, and shows how much they change a correlation.
+
+```python
+rng = np.random.default_rng(42)
+x = rng.normal(0, 1, 50)
+y = 2 * x + rng.normal(0, 0.5, 50)
+x_out = np.append(x, [4, 4.5])           # two extra points far to the right...
+y_out = np.append(y, [-2, -2.5])         # ...and far below the trend
+round(np.corrcoef(x, y)[0, 1], 2), round(np.corrcoef(x_out, y_out)[0, 1], 2)
+
+np.concatenate([np.zeros(3), np.ones(2)])   # array([0., 0., 0., 1., 1.])
+```
+
+> **Watch out:** `np.append` inside a loop copies the whole array every time, which gets slow. Collect values in a Python list and convert once with `np.array(values)` at the end.
+
+See also: [Array (ndarray)](#array-ndarray), [pd.concat()](#pd-concat), [Outlier](#outlier)
+
+<a id="np-triu-and-np-ones-like"></a>
+
+### np.triu() and np.ones_like()
+
+_NumPy, seaborn_
+
+Used together to build a **mask** that hides the upper triangle of a correlation heatmap, since a correlation matrix is symmetrical and the top half repeats the bottom half.
+
+```python
+corr = housing_df.corr(numeric_only=True)
+mask = np.triu(np.ones_like(corr, dtype=bool))   # True above (and on) the diagonal
+fig, ax = plt.subplots(figsize=(8, 6))
+sns.heatmap(corr, mask=mask, annot=True, fmt=".2f", cmap="coolwarm", center=0, ax=ax)
+```
+
+<a id="np-polyfit"></a>
+
+### np.polyfit()
+
+_NumPy_
+
+Fits a straight line (or curve) through points and returns its coefficients. With `deg=1` you get the slope and intercept of a trend line to draw on a scatter plot.
+
+```python
+x = np.array([1, 2, 3, 4]); y = np.array([2.1, 3.9, 6.2, 7.8])
+slope, intercept = np.polyfit(x, y, 1)
+```
+
+<a id="np-poly1d"></a>
+
+### np.poly1d()
+
+_NumPy_
+
+Turns the coefficients from [np.polyfit()](#np-polyfit) into a function you can call. `np.poly1d(np.polyfit(x, y, 1))` gives you `f`, and `f(x)` returns the fitted line's value at any `x`. The EDA for modeling notebook uses it to draw trend lines over scatter plots.
+
+```python
+pair = lego[["Pieces", "USD_MSRP"]].dropna()
+coefs = np.polyfit(pair["Pieces"], pair["USD_MSRP"], deg=1)   # slope, intercept
+trend = np.poly1d(coefs)
+trend(1000)                     # predicted price for a 1,000-piece set
+
+fig, ax = plt.subplots()
+ax.scatter(pair["Pieces"], pair["USD_MSRP"], s=5, alpha=0.3)
+xs = np.linspace(0, pair["Pieces"].max(), 100)
+ax.plot(xs, trend(xs), color="red", label="Linear trend")
+ax.set(xlabel="Pieces", ylabel="Price (USD)")
+ax.legend()
+```
+
+See also: [np.polyfit()](#np-polyfit), [Scatter plot](#scatter-plot), [Simple linear regression (Unit 3)](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#simple-linear-regression)
+
+---
+
+<a id="s3-pandas-loading-inspecting-and-selecting"></a>
+
+## 3. pandas: loading, inspecting and selecting
+
+_pandas is the main tool of the course. This section covers getting data in, looking at it, and picking out the rows and columns you want. Most examples use the LEGO dataset from the course repo. pandas 3 changed two things you'll meet at once: text columns have their own `str` dtype, and Copy-on-Write decides when a selection is a separate copy._
+
+**In your capstone:** this is the first hour of every project. Load the raw file with explicit options (separator, missing-value markers, dates), then run `.shape`, `.info()`, `.describe()`, `.head()` and `.value_counts()` on every column you plan to use. Write down what each column means and its unit before you change anything. Copy-paste recipes: [Import CSV and TSV files](#import-csv-and-tsv-files), [Import every sheet from an Excel workbook](#import-every-sheet-from-an-excel-workbook), [Work with large files and reduce memory](#work-with-large-files-and-reduce-memory), [List the DataFrames you've created and their columns](#list-the-dataframes-you-ve-created-and-their-columns), [Profile a dataset quickly](#profile-a-dataset-quickly), [Build a data dictionary from your data](#build-a-data-dictionary-from-your-data), [Filter rows: a cheat sheet](#filter-rows-a-cheat-sheet).
+
+<a id="pandas"></a>
+
+### pandas
+
+_pandas_
+
+The most popular Python library for exploring, cleaning, joining and visualising tabular data, imported as `pd`. It's fast (built on NumPy, uses vectorized operations), reads almost any data source, and makes analysis reproducible.
+
+```python
+import pandas as pd
+lego = pd.read_csv("https://raw.githubusercontent.com/CharleyHananiaGA/DSB-Unit-02/refs/heads/main/data/lego.csv")
+```
+
+The name comes from **panel data**, an econometrics term for data that follows the same subjects over time.
+
+<a id="series"></a>
+
+### Series
+
+_pandas_
+
+A **one-dimensional** labelled array: a single column (or row) of data with an index. Selecting one column of a DataFrame with single brackets gives you a Series.
+
+```python
+ages = pd.Series([55, 43, 36, 31], name="age")
+type(lego["Name"])      # pandas.core.series.Series
+```
+
+Each column of a DataFrame is a Series with a single dtype. A **row** you select from columns of different types comes back as a Series with the general `object` dtype, because pandas stores data column by column.
+
+```python
+lego["Pieces"].dtype            # float64: one type per column
+lego.iloc[0].dtype              # object: a row mixes text and numbers
+```
+
+<a id="dataframe"></a>
+
+### DataFrame
+
+_pandas_
+
+A **two-dimensional** table of data with labelled rows (the index) and columns. Each column is a Series and each column can have its own type. Once data is loaded, a DataFrame behaves the same whether it came from a CSV, JSON, an API or a database.
+
+```python
+customers = pd.DataFrame({
+    "customer_id": [505, 196, 947, 952],
+    "surname": ["Smith", "Peck", "Murdock", "Baracus"],
+    "age": [55, 43, 36, 31],
+})
+```
+
+> **Watch out:** A list of dictionaries also works: `pd.DataFrame(api_json)` turns each dictionary into a row. This is the usual first step with API data.
+
+<a id="index"></a>
+
+### Index
+
+_pandas_
+
+The row labels of a Series or DataFrame, shown in bold on the left. By default it's `0, 1, 2, ...`, but it can be names, dates or any unique-ish values. A **DatetimeIndex** (dates as the index) unlocks time-series tools like `.resample()`.
+
+```python
+lego.index                       # RangeIndex(start=0, stop=..., step=1)
+lego.set_index("Name").head()    # use set names as the row labels
+```
+
+See also: [.set_index() and .reset_index()](#set-index-and-reset-index)
+
+<a id="dtype"></a>
+
+### dtype
+
+_pandas_
+
+The data type of a pandas column. Common ones: `int64` (whole numbers), `float64` (decimals, and any numeric column containing `NaN`), `bool`, `datetime64` (dates), `category`, and `object` or `str` (text; pandas 3 shows `str`). Checking dtypes is one of the first EDA steps because a wrong dtype blocks analysis.
+
+```python
+lego.dtypes
+```
+
+> **Watch out:** A number column showing as `object` usually means some value isn't a number (e.g. `"?"` in the auto MPG data). Find it before converting.
+
+See also: [Cookbook: Better-than-default data types](#better-than-default-data-types)
+
+<a id="string-dtype-str-in-pandas-3"></a>
+
+### String dtype (str) in pandas 3
+
+_pandas_
+
+From pandas 3.0, a column of text gets its own **`str` dtype** instead of the general-purpose `object` dtype that older versions used. `.info()` and `.dtypes` now show `str` for columns such as LEGO's `Name` and `Theme`. Missing text is stored as `NaN`, and the `.str` methods work as before.
+
+Two things behave differently. First, a `str` column only accepts text or missing values, so putting a number into one raises a `TypeError`. The rock music notebook meets this when it fills missing release years with `0` while the column is still text. Second, code that tests for text with `dtype == "object"` now gets `False`, so helper functions that sort columns into "text" and "numeric" can silently put text columns in neither group.
+
+```python
+lego["Name"].dtype                           # str
+lego["Name"].dtype == "object"               # False in pandas 3
+pd.api.types.is_string_dtype(lego["Name"])   # True in pandas 2 and 3: use this test
+lego.select_dtypes(include="str").columns[:3].tolist()   # ['Set_ID', 'Name', 'Theme']
+
+release = rock["Release Year"]                   # text: some rows aren't years
+filled = release.fillna("0")                     # fill with text while it's still str...
+years = pd.to_numeric(release, errors="coerce")  # ...or convert to numbers first
+```
+
+> **Watch out:** to put numbers into a text column, convert it first with [pd.to_numeric()](#pd-to-numeric) or `.astype(float)`, or fill with text such as `"0"`. In code that must also run on pandas 2, test for text with `pd.api.types.is_string_dtype()` rather than comparing to `"object"`. The pandas documentation's "migration guide for the new string data type" covers the details for your installed version.
+
+See also: [dtype](#dtype), [.select_dtypes()](#select-dtypes), [.astype()](#astype), [.str accessor](#str-accessor)
+
+<a id="select-dtypes"></a>
+
+### .select_dtypes()
+
+_pandas_
+
+Picks the columns of a DataFrame by type. `include="number"` gives every numeric column (integers and floats), `include="str"` the text columns, `include="datetime"` the dates, and `exclude=` works the other way round. It's how you split features into numeric and categorical lists before building a [ColumnTransformer](#columntransformer).
+
+```python
+numeric_cols = housing.select_dtypes(include="number").columns.tolist()
+text_cols = housing.select_dtypes(include="str").columns.tolist()
+numeric_cols, text_cols
+# (['sqft', 'bedrooms', 'bathrooms', 'year_built', 'income_area', 'price'],
+#  ['neighborhood', 'garage', 'condition'])
+```
+
+> **Watch out:** in pandas 3, `include="object"` still returns text columns for backward compatibility but gives a `Pandas4Warning`, and a future version will stop including them. Use `include="str"`, or `include=["object", "str"]` if you also want mixed-type object columns.
+
+See also: [String dtype (str) in pandas 3](#string-dtype-str-in-pandas-3), [dtype](#dtype), [Classifying variables in code](#classifying-variables-in-code), [Cookbook: Select, drop and reorder columns](#select-drop-and-reorder-columns)
+
+<a id="pd-read-csv"></a>
+
+### pd.read_csv()
+
+_pandas_
+
+Reads a CSV (comma-separated) file from a path or URL into a DataFrame. Useful options from the course: `sep="\t"` for tab-separated files, `names=[...]` to set column names, `skiprows=1` to skip the original header, `header=0`, `encoding="latin-1"` for files with special characters, and `na_filter=False` to stop text like `"NA"` being read as missing.
+
+```python
+lego = pd.read_csv(DATA + "lego.csv")                               # a URL or a local path
+bonds_raw = pd.read_csv(JOIN + "eu-govt-bonds.tsv", sep="\t")       # tab-separated file
+codes = pd.read_csv(JOIN + "country-codes.csv", encoding="latin-1")  # non-UTF-8 text
+rock = pd.read_csv(JOIN + "rock.csv", names=["song", "artist"], usecols=[0, 1], skiprows=1)
+rock.head(2)
+```
+
+> **Watch out:** `na_filter=False` matters for the drinks data: the continent code for North America is `"NA"`, which pandas would otherwise turn into missing values.
+
+See also: [Cookbook: Import CSV and TSV files](#import-csv-and-tsv-files)
+
+<a id="read-csv-options-for-messy-files"></a>
+
+### read_csv() options for messy files
+
+_pandas_
+
+Real files rarely load cleanly with the defaults. These `pd.read_csv()` options come up across the course:
+
+| Option                     | What it does                                                                   | Course example              |
+| -------------------------- | ------------------------------------------------------------------------------ | --------------------------- |
+| `sep="\t"`                 | Column separator (tab, `;`, `\|`)                                              | EU bonds `.tsv` file        |
+| `encoding="latin-1"`       | Text encoding when UTF-8 fails                                                 | country codes file          |
+| `names=[...]`, `header=0`  | Supply your own column names (replacing the header row)                        | rock music, drinks data     |
+| `skiprows=1`, `nrows=1000` | Skip lines at the top; read only the first rows                                | rock music                  |
+| `usecols=[...]`            | Load only some columns (faster, less memory)                                   |                             |
+| `na_values=["?", "N/A"]`   | Extra strings to treat as missing                                              | `"?"` horsepower in autoMPG |
+| `keep_default_na=False`    | Keep strings like `"NA"` as text (inspect placeholders before converting them) | Module 2.2 raw file         |
+| `parse_dates=["col"]`      | Convert columns to datetimes while loading                                     |                             |
+| `dtype={"id": "str"}`      | Force a column's type (keeps leading zeros in IDs)                             |                             |
+
+Compressed files (`.gz`, `.zip`) are read directly: the loan rejections file is `rejections.csv.gz`.
+
+```python
+auto_clean = pd.read_csv(VIZ + "autoMPG.csv", na_values=["?"])   # '?' becomes NaN
+auto_clean["horsepower"].dtype                                   # float64: now numeric
+auto_clean["horsepower"].isna().sum()                            # 6 cars with unknown horsepower
+
+raw = pd.read_csv(VIZ + "ufo.csv", usecols=["City", "State", "Time"], nrows=1000,
+                  parse_dates=["Time"], date_format="%m/%d/%Y %H:%M")
+raw.dtypes
+```
+
+> **Watch out:** `delim_whitespace=True` was removed in pandas 3. For files separated by spaces, use `sep=r"\s+"`. For dates, `date_format=` replaces the removed `date_parser=` and `infer_datetime_format=`.
+
+See also: [pd.read_csv()](#pd-read-csv), [Placeholder values for missing data](#placeholder-values-for-missing-data), [pd.to_datetime()](#pd-to-datetime), [Cookbook: Import CSV and TSV files](#import-csv-and-tsv-files)
+
+<a id="pd-read-json"></a>
+
+### pd.read_json()
+
+_pandas_
+
+Reads a JSON file or URL into a DataFrame. Works best when the JSON is a flat list of records; nested JSON usually needs `pd.json_normalize()`.
+
+```python
+cpi = pd.read_json("https://raw.githubusercontent.com/CharleyHananiaGA/DSB-Unit-02/refs/heads/main/data/cpi.json")
+```
+
+> **Watch out:** check what a column really measures before you trust its name. The course's `cpi.json` has a column called `avg_cpi`, but according to the course notes each value is the **March** index for that year (80.1 for 1980, 312.332 for 2024), not the annual average. That's fine for practising joins, but describe it accurately in any analysis.
+
+See also: [Cookbook: Import Parquet, JSON and other formats](#import-parquet-json-and-other-formats)
+
+<a id="to-csv"></a>
+
+### .to_csv()
+
+_pandas_
+
+Saves a DataFrame to a CSV file. Use `index=False` unless the index holds real information (like dates), otherwise you get an unnamed extra column when you read the file back.
+
+```python
+filtered = lego[lego["Pieces"] > 1000]
+filtered.to_csv("lego_filtered.csv", index=False)   # index=False: don't write 0, 1, 2, ... as a column
+pd.read_csv("lego_filtered.csv").shape == filtered.shape   # True: the round trip worked
+```
+
+See also: [Cookbook: Export clean data and figures](#export-clean-data-and-figures)
+
+<a id="excel-files-read-excel-and-to-excel"></a>
+
+### Excel files: read_excel() and to_excel()
+
+_pandas_
+
+`pd.read_excel(path, sheet_name=...)` reads one sheet by name or position. `sheet_name=None` reads **every** sheet into a dictionary of DataFrames. `df.to_excel(path, sheet_name=..., index=False)` writes one sheet. To write several sheets into one workbook, use `pd.ExcelWriter` in a `with` block. The loan rejections exercise ships its data dictionary as `loans_data_dictionary.xlsx`, and the Module 1.4 stretch task exports a summary workbook. pandas needs the `openpyxl` package for `.xlsx` files.
+
+```python
+summary = lego.groupby("Theme_Group").agg(n_sets=("Set_ID", "size"), median_price=("USD_MSRP", "median"))
+with pd.ExcelWriter("lego_summary.xlsx", engine="openpyxl") as writer:
+    summary.to_excel(writer, sheet_name="by_theme_group")
+    lego.head(100).to_excel(writer, sheet_name="sample", index=False)
+
+sheets = pd.read_excel("lego_summary.xlsx", sheet_name=None)   # {sheet name: DataFrame}
+list(sheets)                                                   # ['by_theme_group', 'sample']
+pd.read_excel("lego_summary.xlsx", sheet_name="by_theme_group").head(3)
+```
+
+> **Watch out:** if `read_excel` fails with `ImportError: Missing optional dependency 'openpyxl'`, install it (`%pip install openpyxl`) and restart the kernel. Excel can't hold more than 1,048,576 rows on a sheet, so keep large tables as CSV.
+
+See also: [.to_csv()](#to-csv), [pd.read_csv()](#pd-read-csv), [Data dictionary](#data-dictionary), [Cookbook: Import every sheet from an Excel workbook](#import-every-sheet-from-an-excel-workbook)
+
+<a id="head-and-tail"></a>
+
+### .head() and .tail()
+
+_pandas_
+
+Show the first or last rows (5 by default). Always the first thing to run after loading data, to check it looks the way you expect.
+
+```python
+lego.head()      # first 5 rows
+lego.head(10)    # first 10
+lego.tail(3)     # last 3
+```
+
+<a id="sample"></a>
+
+### .sample()
+
+_pandas_
+
+Returns random rows: `n=` for a number of rows, `frac=` for a fraction. Pass `random_state=` so you get the same rows each time. Looking at a random sample is a better first look than `.head()` when a file is sorted (by date, say), because the first rows can be unrepresentative. It's also a quick way to test slow code on a smaller piece of a big file.
+
+```python
+lego.sample(5, random_state=42)[["Name", "Year", "Theme"]]
+ufo_10pct = ufo.sample(frac=0.1, random_state=42)
+len(ufo_10pct)                       # 8054 of 80543 rows
+```
+
+See also: [.head() and .tail()](#head-and-tail), [random_state](#random-state), [Cookbook: Work with large files and reduce memory](#work-with-large-files-and-reduce-memory)
+
+<a id="shape"></a>
+
+### .shape
+
+_pandas_
+
+An attribute giving `(rows, columns)` as a tuple. No brackets after it. Check it before and after filtering or joining to see how many rows you kept or gained.
+
+```python
+lego.shape        # e.g. (2462, 14)
+lego.shape[0]     # number of rows
+```
+
+<a id="info"></a>
+
+### .info()
+
+_pandas_
+
+Prints a summary of a DataFrame: number of rows, each column's name, its count of non-null values and its dtype, plus memory use. The quickest way to spot missing values and wrong types together.
+
+```python
+lego.info()
+```
+
+See also: [Cookbook: List the DataFrames you've created and their columns](#list-the-dataframes-you-ve-created-and-their-columns), [Cookbook: Work with large files and reduce memory](#work-with-large-files-and-reduce-memory)
+
+<a id="data-dictionary"></a>
+
+### Data dictionary
 
 _Concept_
 
-If you repeated an experiment infinitely many times, the **probability** of an event is the proportion of those repeats in which the event happens. It is always a number between 0 and 1: a fair coin lands heads with probability 0.5. Written formally, P(A) = lim (number of times A occurs ÷ n) as n → ∞. We can't run anything infinitely often, so in practice we either calculate probabilities by hand or estimate them by running many simulated trials.
+A table that describes every column in a dataset: its name, its meaning in plain words, its type, its units, its allowed values or range, and how much is missing. The Module 2.1 code-along builds one as the first output of EDA, and the loan rejections exercise ships with one (`loans_data_dictionary.xlsx`). Writing it forces you to find out what each column really means before you analyse it, and it's the first thing a reader of your capstone needs.
 
-Two interpretations are worth knowing. The definition above is the **frequentist** view (long-run frequency), which underpins sampling, A/B testing and Monte Carlo simulation. The **Bayesian** view treats probability as a degree of belief that is updated as evidence arrives. Probability theory itself began in the 16th century with the analysis of dice and card games.
+```python
+data_dictionary = pd.DataFrame({
+    "dtype": lego.dtypes.astype(str),
+    "n_missing": lego.isna().sum(),
+    "pct_missing": (lego.isna().mean() * 100).round(1),
+    "n_unique": lego.nunique(),
+    "example": lego.iloc[0],
+})
+data_dictionary["meaning"] = ""          # fill in by hand: what does each column measure, in what units?
+data_dictionary.head(6)
+```
 
-See also: [Simulation (Monte Carlo)](#simulation-monte-carlo), [Law of Large Numbers (LLN)](#law-of-large-numbers-lln), [Frequentist vs Bayesian](#frequentist-vs-bayesian)
+See also: [.info()](#info), [Data quality assessment](#data-quality-assessment), [Missingness table](#missingness-table), [Cookbook: Build a data dictionary from your data](#build-a-data-dictionary-from-your-data)
 
-<a id="probability-notation-p-a"></a>
+<a id="describe"></a>
 
-### Probability notation P(A)
+### .describe()
+
+_pandas_
+
+Summary statistics for numeric columns: count, mean, standard deviation, min, 25%, 50% (median), 75% and max, which includes the **five-number summary**. Pass `percentiles=` for extra cut points, or `include="object"` to summarise text columns.
+
+```python
+lego["USD_MSRP"].describe()
+lego["Pieces"].describe(percentiles=[0.05, 0.25, 0.5, 0.75, 0.95])
+lego.describe(include="str")          # text columns: count, unique, top, freq
+```
+
+> **Watch out:** in pandas 3, text columns have the `str` dtype, so summarise them with `include="str"`. The older `include="object"` still picks them up for now but gives a `Pandas4Warning`. `include="all"` summarises every column at once.
+
+`count` is the number of **non-missing** values, not the number of rows. For `USD_MSRP` it's 5,837 out of 14,936 rows, which is how `.describe()` quietly reveals missing data.
+
+See also: [Cookbook: Profile a dataset quickly](#profile-a-dataset-quickly)
+
+<a id="columns"></a>
+
+### .columns
+
+_pandas_
+
+The column labels of a DataFrame. Use `.tolist()` to get a plain list. You can reassign it to rename every column at once.
+
+```python
+lego.columns.tolist()
+bonds.columns = [c.strip() for c in bonds.columns]   # clean all names
+```
+
+See also: [Cookbook: Python-style names for sheets and columns](#python-style-names-for-sheets-and-columns)
+
+<a id="values-to-numpy"></a>
+
+### .values / .to_numpy()
+
+_pandas, NumPy_
+
+Returns the underlying NumPy array of a Series or DataFrame, without the index and column labels.
+
+```python
+lego["Pieces"].values[:5]
+```
+
+<a id="to-dict-and-tolist"></a>
+
+### .to_dict() and .tolist()
+
+_pandas_
+
+Convert pandas objects back into plain Python. `.tolist()` turns a Series into a list. `.to_dict()` turns a Series into `{index: value}`. A DataFrame's `.to_dict()` can produce several layouts; `orient="records"` gives a list of row dictionaries, the same shape as most API JSON.
+
+```python
+lego["Theme_Group"].value_counts().head(3).to_dict()   # {'Licensed': ..., 'Basic': ..., ...}
+customers.to_dict(orient="records")[0]                 # {'customer_id': 505, 'surname': 'Smith', 'age': 55}
+customers["age"].tolist()                              # [55, 43, 36, 31]
+```
+
+See also: [Dictionary (dict)](#dictionary-dict), [Turning JSON into a DataFrame](#turning-json-into-a-dataframe)
+
+<a id="selecting-columns"></a>
+
+### Selecting columns
+
+_pandas_
+
+Single brackets with one name give a **Series**; double brackets with a list give a **DataFrame**. Dot notation (`movies.duration`) also works for simple names without spaces, but brackets always work.
+
+```python
+lego["Pieces"]                         # Series
+lego[["Name", "Theme", "Pieces"]]      # DataFrame
+```
+
+> **Watch out:** `lego["Name", "Theme"]` (single brackets, two names) raises a `KeyError`. The inner brackets make the list.
+
+See also: [Cookbook: Select, drop and reorder columns](#select-drop-and-reorder-columns)
+
+<a id="boolean-mask-filtering"></a>
+
+### Boolean mask (filtering)
+
+_pandas_
+
+A Series of `True`/`False` values, one per row, produced by a comparison. Put it inside `[ ]` to keep only the `True` rows. Giving the mask a name makes code easier to read.
+
+```python
+is_expensive = lego["USD_MSRP"] > 100
+lego[is_expensive]
+lego[lego["Theme"] == "Star Wars"]
+```
+
+See also: [Combining conditions (& | ~)](#combining-conditions), [Cookbook: Filter rows: a cheat sheet](#filter-rows-a-cheat-sheet)
+
+<a id="comparison-methods-and-between"></a>
+
+### Comparison methods and .between()
+
+_pandas_
+
+Method versions of the comparison operators: `.eq()` (`==`), `.ne()` (`!=`), `.lt()` (`<`), `.le()` (`<=`), `.gt()` (`>`) and `.ge()` (`>=`). They give the same boolean mask, but they fit neatly in a [method chain](#method-chaining) and accept a `fill_value`. `.between(low, high)` tests a range in one step, including both ends by default (`inclusive="both"`). The Module 2.3 code-along uses these to filter date ranges and wait-time bands.
+
+```python
+lego[lego["Year"].between(2010, 2019)].shape          # sets released in the 2010s
+lego[lego["Pieces"].ge(1000) & lego["Theme"].eq("Star Wars")].shape
+lego[lego["USD_MSRP"].between(10, 20, inclusive="left")].shape   # 10 <= price < 20
+```
+
+See also: [Boolean mask (filtering)](#boolean-mask-filtering), [Combining conditions (& | ~)](#combining-conditions), [.isin()](#isin), [Cookbook: Filter rows: a cheat sheet](#filter-rows-a-cheat-sheet)
+
+<a id="combining-conditions"></a>
+
+### Combining conditions (& | ~)
+
+_pandas_
+
+`&` means AND (both true), `|` means OR (either true), `~` means NOT (flip). Each condition must be wrapped in its own brackets because of operator precedence.
+
+```python
+recent_star_wars = (lego["Year"] >= 2015) & (lego["Theme"] == "Star Wars")
+lego[recent_star_wars]
+lego[(lego["Year"] >= 2015) | (lego["Pieces"] > 2000)]
+lego[~lego["Theme"].isin(["Star Wars", "Technic"])]
+```
+
+> **Watch out:** Python's `and`/`or` raise "The truth value of a Series is ambiguous". Swap them for `&` and `|`.
+
+See also: [Cookbook: Filter rows: a cheat sheet](#filter-rows-a-cheat-sheet)
+
+<a id="isin"></a>
+
+### .isin()
+
+_pandas_
+
+Checks each value against a list and returns a boolean mask. Cleaner than chaining lots of `|` conditions.
+
+```python
+ufo[ufo["State"].isin(["NY", "CA", "WA"])]
+```
+
+See also: [Cookbook: Filter rows: a cheat sheet](#filter-rows-a-cheat-sheet)
+
+<a id="loc"></a>
+
+### .loc[]
+
+_pandas_
+
+Selects by **label**: `df.loc[rows, columns]`. Rows can be index labels or a boolean mask; columns are names. Also the safe way to **update** a subset of values in place.
+
+```python
+lego.loc[lego["Pieces"] > 5000, ["Name", "Pieces"]]   # rows by condition, columns by name
+lego.loc[:, lego.isnull().mean() < 0.3]               # columns under 30% missing (note the comma)
+bonds.loc[bonds["country_code"] == "EL", "Country"] = "Greece"   # set a value where a condition holds
+bonds.loc[bonds["country_code"] == "EL", ["country_code", "Country"]]
+```
+
+See also: [Cookbook: Filter rows: a cheat sheet](#filter-rows-a-cheat-sheet)
+
+<a id="iloc"></a>
+
+### .iloc[]
+
+_pandas_
+
+Selects by **integer position**: `df.iloc[row_numbers, column_numbers]`, starting at 0, with slicing that excludes the end point, exactly like Python lists.
+
+```python
+movies.iloc[0]           # first row
+movies.iloc[:5, :2]      # first 5 rows, first 2 columns
+corr = housing_df.corr(numeric_only=True)
+corr.iloc[0, 1]          # value at row 0, column 1
+```
+
+> **Watch out:** `.loc` slices include the end label, `.iloc` slices exclude the end position.
+
+<a id="sort-values-and-sort-index"></a>
+
+### .sort_values() and .sort_index()
+
+_pandas_
+
+`.sort_values(by)` orders rows by one or more columns (`ascending=False` for largest first). `.sort_index()` orders by the index, which is how you put `value_counts()` output into year or rating order.
+
+```python
+lego.sort_values("USD_MSRP", ascending=False).head()
+lego["Year"].value_counts().sort_index()
+```
+
+<a id="value-counts"></a>
+
+### .value_counts()
+
+_pandas_
+
+Counts how many times each unique value appears, sorted most-common first. The go-to summary for a categorical column. `normalize=True` gives proportions instead of counts.
+
+```python
+lego["Theme_Group"].value_counts()
+lego["Category"].value_counts(normalize=True)
+```
+
+`value_counts()` leaves missing values out by default. Pass `dropna=False` to count them as their own row, which is the quickest way to see how many values a categorical column is missing:
+
+```python
+titanic["Embarked"].value_counts(dropna=False)     # includes a NaN row with 2 passengers
+titanic["Embarked"].value_counts(normalize=True, dropna=False).round(3)
+```
+
+> **Watch out:** a percentage table built with `normalize=True` and the default `dropna=True` is a percentage of the **non-missing** rows only. Say so in your write-up, or add `dropna=False`.
+
+<a id="unique-and-nunique"></a>
+
+### .unique() and .nunique()
+
+_pandas_
+
+`.unique()` lists the distinct values in a column; `.nunique()` counts them. The count is the column's **cardinality**.
+
+```python
+lego["Theme"].nunique()      # how many themes
+lego["Theme_Group"].unique()
+```
+
+> **Watch out:** `.nunique()` ignores `NaN` by default; `.unique()` includes it.
+
+See also: [Cardinality](#cardinality), [Cookbook: Profile a dataset quickly](#profile-a-dataset-quickly)
+
+<a id="nlargest-and-nsmallest"></a>
+
+### .nlargest() and .nsmallest()
+
+_pandas_
+
+The `n` rows with the largest (or smallest) values in a column. It's shorter and faster than sorting the whole table and then taking `.head(n)`. For a Series, call it without a column name.
+
+```python
+lego.nlargest(5, "Pieces")[["Name", "Theme", "Pieces"]]       # the five biggest sets
+lego["USD_MSRP"].nsmallest(3)
+```
+
+See also: [.sort_values() and .sort_index()](#sort-values-and-sort-index), [.idxmin() and .idxmax()](#idxmin-and-idxmax)
+
+<a id="duplicated"></a>
+
+### .duplicated()
+
+_pandas_
+
+Returns `True` for each row (or value) that repeats an earlier one. `.sum()` counts duplicates; `.drop_duplicates()` removes them.
+
+```python
+lego.duplicated().sum()                  # fully duplicated rows
+movies[movies["title"].duplicated()]     # repeated titles
+```
+
+See also: [Cookbook: Find and handle duplicates](#find-and-handle-duplicates)
+
+<a id="pd-set-option"></a>
+
+### pd.set_option()
+
+_pandas_
+
+Changes how pandas displays output, for example showing every column of a wide DataFrame instead of `...`.
+
+```python
+pd.set_option("display.max_columns", None)
+```
+
+---
+
+<a id="s4-pandas-cleaning-grouping-reshaping-and-joining"></a>
+
+## 4. pandas: cleaning, grouping, reshaping and joining
+
+_Turning raw data into the shape your question needs: fixing columns, summarising by group, switching between wide and long formats, combining tables and working with dates. The Module 2.2, 2.3 and 2.5 stepped code-alongs extend this with validation checks, `assign`/`pipe` chains, pivot tables and window calculations._
+
+**In your capstone:** do all cleaning in one ordered, re-runnable chain or function, not scattered edits, so you can rerun it on a fresh download. Check row counts before and after every merge and filter, and make sure the final table has exactly one row per thing you want to predict. Copy-paste recipes: [Standardise text: spacing, case and punctuation](#standardise-text-spacing-case-and-punctuation), [Fix misspelled and inconsistent categories](#fix-misspelled-and-inconsistent-categories), [Split and extract values from text](#split-and-extract-values-from-text), [Clean and validate dates and times](#clean-and-validate-dates-and-times), [Reshape between wide and long formats](#reshape-between-wide-and-long-formats), [Join DataFrames safely](#join-dataframes-safely), [Find and handle duplicates](#find-and-handle-duplicates), [Apply functions to columns, rows and groups](#apply-functions-to-columns-rows-and-groups), [Summarise by group](#summarise-by-group).
+
+<a id="grain-of-a-table"></a>
+
+### Grain of a table
 
 _Concept_
 
-`P(A)` reads "the probability that event A occurs". `P(A | B)` reads "the probability of A given that B has already happened". `P(A ∩ B)` is the probability that both happen and `P(A ∪ B)` the probability that at least one happens.
+The **grain** is what one row represents: one LEGO set, one passenger, one appointment, one patient per day. The Module 2.5 code-along starts every transformation by establishing it, because the grain decides which joins are safe and which counts mean anything. For a model it has to be exactly one row per thing you want to predict.
+
+Check the grain by testing whether the columns you think identify a row really are unique.
+
+```python
+lego["Set_ID"].is_unique                                   # True: one row per set
+lego.duplicated(subset=["Name", "Year"]).sum()            # same name and year: not a unique key
+lego.groupby("Year").size().head()                        # changing the grain: one row per year
+```
+
+> **Watch out:** a join or reshape that silently changes the grain is one of the most common sources of wrong numbers. If the grain was "one row per set" before a merge, check that it still is afterwards.
+
+See also: [Observation](#observation), [.duplicated()](#duplicated), [Validating a merge](#validating-a-merge)
+
+<a id="creating-a-new-column"></a>
+
+### Creating a new column
+
+_pandas_
+
+Assign to a column name that doesn't exist yet. The calculation is vectorized, so it runs on every row at once.
+
+```python
+lego["price_per_piece"] = lego["USD_MSRP"] / lego["Pieces"]
+lego["Age"] = 2025 - lego["Year"]
+```
+
+<a id="assign"></a>
+
+### .assign()
+
+_pandas_
+
+Adds or replaces columns and returns a **new** DataFrame, so it fits in a [method chain](#method-chaining). Each keyword becomes a column. A `lambda` receives the DataFrame as it is at that step, so later columns can use earlier ones. The Module 2.5 code-along builds all of its features in one `assign()` call.
+
+```python
+lego_features = (
+    lego.assign(
+        price_per_piece=lambda d: d["USD_MSRP"] / d["Pieces"],
+        decade=lambda d: d["Year"] // 10 * 10,
+        is_licensed=lambda d: d["Theme_Group"].eq("Licensed"),
+    )
+)
+lego_features[["Name", "price_per_piece", "decade", "is_licensed"]].head(3)
+```
+
+See also: [Creating a new column](#creating-a-new-column), [Method chaining](#method-chaining), [.pipe()](#pipe)
+
+<a id="drop"></a>
+
+### .drop()
+
+_pandas_
+
+Removes columns or rows. Use `columns=[...]` for columns (clearest), or the older `axis=1` form. Without `inplace=True` or reassignment it returns a new DataFrame and the original is unchanged.
+
+```python
+lego = lego.drop(columns=["Owned"])                             # drop a column
+housing.drop(["year_built", "price"], axis=1).columns           # axis=1 means columns
+bonds.drop(bonds[bonds["country_code"] == "EE"].index)          # drop rows by index label
+```
+
+> **Watch out:** Running `lego.drop(columns=["Owned"])` on its own line does nothing lasting. Assign the result back.
+
+<a id="drop-duplicates"></a>
+
+### .drop_duplicates()
+
+_pandas_
+
+Removes repeated rows and keeps the first one (`keep="first"`), or the last one, or none of them (`keep=False`). `subset=` limits the comparison to some columns. It returns a new DataFrame.
+
+The Module 2.2 code-along's rule is to remove only **confirmed exact duplicates**. A row that repeats on a few columns may be a genuine second record, not a mistake, so look at the duplicates before you drop them.
+
+```python
+dupes = titanic[titanic.duplicated(subset=["Name"], keep=False)]   # inspect first
+len(dupes)
+titanic_unique = titanic.drop_duplicates()                         # exact duplicate rows only
+lego.drop_duplicates(subset=["Name"], keep="first").shape
+```
+
+See also: [.duplicated()](#duplicated), [Duplicate rows and leakage](#duplicate-rows-and-leakage), [Cookbook: Find and handle duplicates](#find-and-handle-duplicates)
+
+<a id="axis"></a>
+
+### axis
+
+_pandas, NumPy, Concept_
+
+Tells a method which direction to work in. `axis=0` (the default) means _down the rows_, giving one result per column; `axis=1` means _across the columns_, giving one result per row. For `.drop()`, `axis=1` means "drop columns".
+
+```python
+bonds_table = bonds.set_index("Country").drop(columns="country_code")
+bonds_table.mean(axis=0)   # average of each column (each month)
+bonds_table.mean(axis=1)   # average of each row (each country)
+```
+
+<a id="rename"></a>
+
+### .rename()
+
+_pandas_
+
+Renames columns (or index labels) using a dictionary of `{old: new}`. Only the names in the dictionary change.
+
+```python
+rock = rock.rename(columns={"Song Clean": "song", "ARTIST CLEAN": "artist"})
+```
+
+See also: [Cookbook: Python-style names for sheets and columns](#python-style-names-for-sheets-and-columns)
+
+<a id="astype"></a>
+
+### .astype()
+
+_pandas_
+
+Converts a column to a different dtype. It fails if any value can't be converted, which is a useful signal that there's dirty data to find.
+
+```python
+auto = auto[auto["horsepower"] != "?"].copy()
+auto["horsepower"] = auto["horsepower"].astype(float)
+titanic["Age_missing"] = titanic["Age"].isnull().astype(int)   # True/False -> 1/0
+```
+
+See also: [pd.to_numeric()](#pd-to-numeric), [Cookbook: Better-than-default data types](#better-than-default-data-types)
+
+<a id="pd-to-numeric"></a>
+
+### pd.to_numeric()
+
+_pandas_
+
+Converts a column to numbers. With `errors="coerce"`, anything that can't be converted becomes `NaN` instead of raising an error. A one-line alternative to the `try/except` helper in the rock music lab.
+
+```python
+rock = rock.rename(columns={"Song Clean": "song", "ARTIST CLEAN": "artist", "Release Year": "release"})
+rock["release"].dtype                                        # str: a few values aren't numbers
+rock["release"] = pd.to_numeric(rock["release"], errors="coerce")   # bad values become NaN
+rock["release"].dtype                                        # float64
+```
+
+<a id="copy"></a>
+
+### .copy()
+
+_pandas_
+
+Makes an independent copy of a DataFrame. Use it when you filter a DataFrame and then plan to change the result, or when you want to try a cleaning method without touching the original.
+
+```python
+recent = lego[lego["Year"] >= 2020].copy()
+recent["new_column"] = "new value"     # changes recent only; lego is untouched
+df_mean_imputed = titanic.copy()        # a separate copy to try a cleaning method on
+```
+
+See also: [SettingWithCopyWarning](#settingwithcopywarning)
+
+<a id="settingwithcopywarning"></a>
+
+### SettingWithCopyWarning and Copy-on-Write
+
+_pandas_
+
+In pandas 2.x and earlier, filtering a DataFrame and then assigning to the result sometimes gave a **SettingWithCopyWarning**. The filtered result might be a _view_ that shares memory with the original, so pandas couldn't tell whether your change would stick or would also change the original.
+
+pandas 3 made **Copy-on-Write** (CoW) the only behaviour, and the warning no longer exists. Under CoW, any DataFrame or Series you get from another one behaves as an independent copy. Changing a filtered result never changes the original, and the only way to change a DataFrame is to assign to it directly, with `df[...] = ...` or `df.loc[...] = ...`.
+
+The pattern that changed is **chained assignment**: two square-bracket steps followed by `=`, such as `df[df["a"] > 1]["b"] = 0`. In pandas 3 it never updates `df`. pandas emits a `ChainedAssignmentError` warning and leaves the data unchanged. The same applies to `inplace=True` called on a single selected column.
+
+```python
+df = lego[["Name", "Pieces", "USD_MSRP"]].copy()
+
+# Chained assignment: does nothing to df in pandas 3 (with a ChainedAssignmentError warning)
+# df[df["Pieces"] > 5000]["USD_MSRP"] = 0
+
+df.loc[df["Pieces"] > 5000, "USD_MSRP"] = 0           # one .loc step: changes df
+
+big = df[df["Pieces"] > 1000]
+big["flag"] = True                                     # fine: changes big only, never df
+"flag" in df.columns                                   # False
+```
+
+> **Watch out:** write each change as a single assignment on the DataFrame you want to change: `df.loc[rows, "col"] = value`, or `df["col"] = df["col"].fillna(0)`. Calling `.copy()` after a filter still works in every version and makes your intent clear, so the habit is worth keeping.
+
+See also: [.copy()](#copy), [.loc[]](#loc), [inplace=True](#inplace-true), [Copy-on-Write](#copy-on-write)
+
+<a id="copy-on-write"></a>
+
+### Copy-on-Write
+
+_pandas_
+
+The memory model of pandas 3. When you take a subset or a modified version of a DataFrame, pandas shares the underlying data until one of them is changed, and only then makes a real copy. For you this means two things. Every derived object behaves like a separate copy, and chained assignment (`df[...][...] = value`) no longer works. Code written in the "one `.loc` per change" style runs the same in pandas 2 and 3.
+
+```python
+original = pd.DataFrame({"a": [1, 2, 3]})
+subset = original[original["a"] > 1]
+subset.loc[:, "a"] = 0                  # changes subset only
+original["a"].tolist()                  # [1, 2, 3]: the original is untouched
+```
+
+See also: [SettingWithCopyWarning and Copy-on-Write](#settingwithcopywarning), [Method chaining](#method-chaining)
+
+<a id="inplace-true"></a>
+
+### inplace=True
+
+_pandas_
+
+Makes a method change the DataFrame directly instead of returning a new one. Reassigning (`df = df.drop(...)`) does the same job and is the style pandas now recommends.
+
+```python
+df = lego.copy()
+df["diff"] = df["Current_Price"] - df["USD_MSRP"]
+df.drop(columns=["diff"], inplace=True)     # same as:
+df = lego.copy()
+df["diff"] = df["Current_Price"] - df["USD_MSRP"]
+df = df.drop(columns=["diff"])
+```
+
+> **Watch out:** `df["col"].fillna(0, inplace=True)` (inplace on a single selected column) is unreliable, and under pandas 3 it no longer updates the DataFrame at all. Write `df["col"] = df["col"].fillna(0)` instead.
+
+<a id="method-chaining"></a>
+
+### Method chaining
+
+_pandas, Concept_
+
+Calling several methods one after another, each working on the result of the previous one. Wrap the chain in brackets to split it over several lines with one step per line, which reads like a recipe.
+
+```python
+(
+    lego.groupby("Theme_Group")["USD_MSRP"]
+        .median()
+        .dropna()
+        .sort_values(ascending=False)
+        .head(5)
+)
+```
+
+See also: [Cookbook: Keep a cleaning log](#keep-a-cleaning-log)
+
+<a id="pipe"></a>
+
+### .pipe()
+
+_pandas_
+
+Passes a DataFrame into your own function inside a chain: `df.pipe(clean_names)` is the same as `clean_names(df)`, but reads top to bottom. This lets you write each cleaning step as a small, named, testable function and run them in order. The Module 2.5 code-along ends with a reusable pipeline built this way.
+
+```python
+def standardise_columns(df):
+    return df.rename(columns=lambda c: c.strip().lower().replace(" ", "_"))
+
+def drop_missing_price(df, col="usd_msrp"):
+    return df.dropna(subset=[col])
+
+lego_clean = (lego
+              .pipe(standardise_columns)
+              .pipe(drop_missing_price, col="usd_msrp"))
+lego_clean.shape
+```
+
+See also: [Method chaining](#method-chaining), [.assign()](#assign), [Function (def)](#function-def)
+
+<a id="replace"></a>
+
+### .replace()
+
+_pandas_
+
+Swaps specific values for others across a Series or DataFrame. Accepts a single value, a list, or a dictionary.
+
+```python
+movies["content_rating"] = movies["content_rating"].replace(
+    ["NOT RATED", "APPROVED", "PASSED", "GP"], "UNRATED")
+```
+
+See also: [Cookbook: Standardise text: spacing, case and punctuation](#standardise-text-spacing-case-and-punctuation)
+
+<a id="map"></a>
+
+### .map()
+
+_pandas_
+
+Transforms each value in a Series using a dictionary or a function. With a dictionary, values not in it become `NaN`. It's the simplest way to do label encoding of an ordered category.
+
+```python
+condition_map = {"Poor": 0, "Fair": 1, "Good": 2, "Excellent": 3}
+housing["condition_encoded"] = housing["condition"].map(condition_map)
+```
+
+See also: [Label encoding](#label-encoding), [Cookbook: Apply functions to columns, rows and groups](#apply-functions-to-columns-rows-and-groups)
+
+<a id="apply"></a>
+
+### .apply()
+
+_pandas_
+
+Runs a function on each value of a Series, or on each column (`axis=0`) or each row (`axis=1`) of a DataFrame. Flexible but slower than vectorized code, so use it when there's no built-in alternative.
+
+```python
+movies["n_chars"] = movies["title"].apply(len)
+# actors_list is text like "[u'Tim Robbins', u'Morgan Freeman']": pull the names into a real list
+movies["cleanlist"] = movies["actors_list"].str.findall(r"u['\"](.+?)['\"](?=,|\])")
+movies["actor_0"] = movies["cleanlist"].apply(lambda actors: actors[0])
+movies[["title", "actor_0"]].head(3)
+```
+
+See also: [Cookbook: Apply functions to columns, rows and groups](#apply-functions-to-columns-rows-and-groups)
+
+<a id="str-accessor"></a>
+
+### .str accessor
+
+_pandas_
+
+Gives access to vectorized string methods for a whole text column: `.str.upper()`, `.str.strip()`, `.str.replace()`, `.str.contains()`, `.str.startswith()`, `.str.split()` and slicing like `.str[-2:]`.
+
+```python
+loans["title_upper"] = loans["Loan Title"].str.upper()
+loans[loans["title_upper"].str.contains("DEBT", na=False)].shape
+bonds_raw["country_code"] = bonds_raw["int_rt,geo\\time"].str[-2:]   # last two characters
+bonds_raw["country_code"].head(3).tolist()                         # ['AT', 'BE', 'BG']
+```
+
+> **Watch out:** `.str.contains()` returns `NaN` for missing text, which breaks filtering. Drop or fill missing values first, or pass `na=False`.
+
+See also: [Cookbook: Standardise text: spacing, case and punctuation](#standardise-text-spacing-case-and-punctuation)
+
+<a id="cleaning-text-categories"></a>
+
+### Cleaning text categories
+
+_pandas_
+
+The same category often arrives spelled several ways: `"Cardiology"`, `" cardiology "`, `"CARDIO"`. Standardise it in a fixed order, then check the result:
+
+1. `.str.strip()` removes spaces at the ends.
+2. `.str.lower()` (or `.str.title()`) makes the case consistent.
+3. `.replace()` or `.map()` with a dictionary merges the known variants.
+4. Compare the unique values against the list of allowed values.
+
+The Module 2.2 code-along also uses `.str.fullmatch()` to check that every ID follows its pattern.
+
+```python
+raw = pd.Series([" Cardiology", "cardiology", "CARDIO", "Neurology ", None])
+clean = (raw.str.strip()
+            .str.lower()
+            .replace({"cardio": "cardiology"}))
+clean.value_counts(dropna=False)
+
+allowed = {"cardiology", "neurology"}
+set(clean.dropna()) - allowed                       # set(): every value is allowed
+
+ids = pd.Series(["APT-0001", "APT-12", "apt-0003"])
+ids.str.fullmatch(r"APT-\d{4}")                     # True, False, False
+```
+
+See also: [.str accessor](#str-accessor), [.replace()](#replace), [Raw string (r"...")](#raw-string-r), [Cookbook: Standardise text: spacing, case and punctuation](#standardise-text-spacing-case-and-punctuation), [Cookbook: Fix misspelled and inconsistent categories](#fix-misspelled-and-inconsistent-categories)
+
+<a id="groupby"></a>
+
+### groupby()
+
+_pandas_
+
+Splits rows into groups by one or more columns, applies a calculation to each group, and combines the results into a new table. This pattern is called **split-apply-combine**. On its own, `groupby()` does nothing visible until you add a calculation.
+
+```python
+lego.groupby("Theme_Group")["USD_MSRP"].median()
+lego.groupby("Theme_Group")["Current_Price"].describe()
+titanic.groupby(["Pclass", "Sex"])["Age"].mean()
+```
+
+See also: [Split-apply-combine](#split-apply-combine), [.agg()](#agg), [.transform()](#transform), [Cookbook: Summarise by group](#summarise-by-group)
+
+<a id="split-apply-combine"></a>
+
+### Split-apply-combine
+
+_pandas, Concept_
+
+The idea behind `groupby`: **split** the data into groups, **apply** a function (mean, count, max...) to each group separately, then **combine** the answers into one result. It's how you answer "which theme group is most expensive?" in one line.
+
+<a id="agg"></a>
+
+### .agg()
+
+_pandas_
+
+Calculates several statistics at once. Pass a list to apply the same functions to everything, or a dictionary to apply different functions to different columns.
+
+```python
+lego["USD_MSRP"].agg(["min", "max"])
+lego.groupby("Theme_Group").agg({"USD_MSRP": "median", "Pieces": "max"})
+movies.groupby("genre")["star_rating"].agg(["count", "mean"])
+```
+
+See also: [Cookbook: Summarise by group](#summarise-by-group)
+
+<a id="named-aggregation"></a>
+
+### Named aggregation
+
+_pandas_
+
+A way to write `.agg()` so you name each output column yourself: `new_name=("column", "function")`. The result has flat, readable column names instead of a two-level header, which makes it easy to sort, plot or merge. The Module 2.3 code-along uses it for every grouped summary.
+
+```python
+theme_summary = (lego.groupby("Theme_Group")
+                     .agg(n_sets=("Set_ID", "size"),
+                          median_price=("USD_MSRP", "median"),
+                          max_pieces=("Pieces", "max"),
+                          n_themes=("Theme", "nunique"))
+                     .sort_values("n_sets", ascending=False))
+theme_summary.head()
+```
+
+See also: [.agg()](#agg), [groupby()](#groupby), [MultiIndex](#multiindex), [Cookbook: Summarise by group](#summarise-by-group)
+
+<a id="transform"></a>
+
+### .transform()
+
+_pandas_
+
+Like `.agg()` after a `groupby`, but returns a result **the same length as the original**, with each row getting its group's value. That makes it perfect for group-based imputation.
+
+```python
+group_means = titanic.groupby(["Pclass", "Sex"])["Age"].transform("mean")
+titanic["Age"] = titanic["Age"].fillna(group_means)
+```
+
+See also: [Group-based imputation](#group-based-imputation)
+
+<a id="rank"></a>
+
+### .rank()
+
+_pandas_
+
+Gives each value its position in sorted order (1 = smallest, or largest with `ascending=False`). `method=` decides what happens to ties (`"average"`, `"min"`, `"dense"`, `"first"`), and `pct=True` returns percentile ranks between 0 and 1. With [groupby()](#groupby) it ranks within each group: the Module 2.5 "group-relative rank" step finds each record's position within its own department.
+
+```python
+lego["price_rank_in_theme"] = (lego.groupby("Theme_Group")["USD_MSRP"]
+                                   .rank(ascending=False, method="dense"))
+lego["pieces_pct"] = lego["Pieces"].rank(pct=True)
+lego.loc[lego["price_rank_in_theme"] == 1, ["Theme_Group", "Name", "USD_MSRP"]].head()
+```
+
+See also: [.transform()](#transform), [Percentile / quantile](#percentile-quantile)
+
+<a id="shift-diff-and-cumulative-sums"></a>
+
+### .shift(), .diff() and cumulative sums
+
+_pandas_
+
+Calculations that look at **neighbouring rows**, so the row order matters: sort first.
+
+- `.shift(1)` moves values down one row, giving each row the **previous** value (the first row gets NaN).
+- `.diff()` is the change from the previous row.
+- `.cumsum()` is a running total, and `.cumcount()` numbers the rows within each group (0, 1, 2, …).
+
+Combined with `groupby`, these build **history features** such as "this patient's previous wait" or "number of earlier visits". This is the Module 2.5 "prior history without leakage" step: each row only sees rows that came before it.
+
+```python
+yearly = lego.groupby("Year").size().rename("n_sets").to_frame()
+yearly["prev_year"] = yearly["n_sets"].shift(1)
+yearly["change"] = yearly["n_sets"].diff()
+yearly["running_total"] = yearly["n_sets"].cumsum()
+yearly.tail(3)
+
+sets = lego.sort_values(["Theme", "Year"])
+sets["nth_set_in_theme"] = sets.groupby("Theme").cumcount()          # 0 for each theme's first set
+sets["prev_price_in_theme"] = sets.groupby("Theme")["USD_MSRP"].shift(1)
+```
+
+> **Watch out:** a feature such as "average of all this customer's visits" that includes the current and later rows leaks the future into each row. Use `shift(1)` before `cumsum()` or `expanding().mean()` so each row only uses earlier ones.
+
+See also: [.transform()](#transform), [Data leakage](#data-leakage), [Lag, backshift and shift (Unit 3)](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#lag-backshift-and-shift)
+
+<a id="size-and-count"></a>
+
+### .size() and .count()
+
+_pandas_
+
+After a `groupby`, `.size()` counts rows per group (including missing values) and `.count()` counts non-missing values per column.
+
+```python
+lego.groupby("Year").size()
+```
+
+<a id="idxmin-and-idxmax"></a>
+
+### .idxmin() and .idxmax()
+
+_pandas_
+
+Return the **index label** where the minimum or maximum value sits, rather than the value itself. Answers "which country had the lowest rate?" directly.
+
+```python
+jan_rates = bonds.set_index("Country")["2020M01"]
+jan_rates.idxmin()      # the country (index label) with the lowest January 2020 yield
+jan_rates.idxmax()
+```
+
+<a id="pd-crosstab"></a>
+
+### pd.crosstab()
+
+_pandas_
+
+Builds a frequency table counting combinations of two categorical columns. `normalize="index"` turns each row into proportions. A crosstab is ready to plot as a heatmap.
+
+```python
+pd.crosstab(lego["Theme_Group"], lego["Category"])
+pd.crosstab(lego["Theme_Group"], lego["Category"], normalize="index") * 100
+```
+
+See also: [Cookbook: EDA charts: categories and the target](#eda-charts-categories-and-the-target)
+
+<a id="pivot-table-and-pivot"></a>
+
+### .pivot_table() and .pivot()
+
+_pandas_
+
+`.pivot_table()` is spreadsheet-style summarising: pick the rows (`index`), the columns (`columns`), the numbers (`values`) and how to combine them (`aggfunc`, default mean). `margins=True` adds totals, and `fill_value=` replaces empty cells. `.pivot()` only **reshapes** long data to wide without aggregating, so it raises an error if any row/column pair appears twice.
+
+```python
+lego.pivot_table(index="Theme_Group", columns="Category", values="USD_MSRP",
+                 aggfunc="median").round(2).head()
+titanic.pivot_table(index="Pclass", columns="Sex", values="Survived",
+                    aggfunc="mean", margins=True).round(2)
+
+bonds_long = bonds.melt(id_vars=["Country", "country_code"], var_name="month", value_name="rate")
+bonds_long.pivot(index="country_code", columns="month", values="rate").shape   # back to one row per code
+```
+
+See also: [pd.crosstab()](#pd-crosstab), [.melt()](#melt), [Wide vs long (tidy) format](#wide-vs-long-tidy-format), [groupby()](#groupby), [Cookbook: Reshape between wide and long formats](#reshape-between-wide-and-long-formats)
+
+<a id="set-index-and-reset-index"></a>
+
+### .set_index() and .reset_index()
+
+_pandas_
+
+`.set_index(col)` moves a column into the index (e.g. dates, for time-series work). `.reset_index()` does the reverse, turning the index back into a normal column. It's useful after a `groupby` or `stack` to get a tidy DataFrame back.
+
+```python
+lego["year_date"] = pd.to_datetime(lego["Year"], format="%Y")   # 2014 -> 2014-01-01
+lego.set_index("year_date").resample("YS").size()             # needs a DatetimeIndex
+lego.groupby("Theme_Group")["Pieces"].median().reset_index()   # index back to a column
+```
+
+<a id="wide-vs-long-tidy-format"></a>
+
+### Wide vs long (tidy) format
+
+_pandas, Concept_
+
+In **wide** format, one variable is spread across many columns (one column per month). In **long** (or narrow, or tidy) format, each row is a single observation: one country, one month, one rate. Long format makes grouping and seaborn plotting much easier; wide format suits line plots with one line per column.
+
+See also: [.stack() and .unstack()](#stack-and-unstack), [.melt()](#melt), [Cookbook: Reshape between wide and long formats](#reshape-between-wide-and-long-formats)
+
+<a id="stack-and-unstack"></a>
+
+### .stack() and .unstack()
+
+_pandas_
+
+`.stack()` pivots columns into rows (wide to long). `.unstack()` pivots an index level into columns (long to wide). Often followed by `.reset_index()` and `.rename()` to tidy the result.
+
+```python
+long = (bonds.drop(columns="country_code")
+             .set_index("Country")
+             .stack()
+             .reset_index()
+             .rename(columns={"level_1": "month", 0: "rate"}))
+
+ufo["Year"] = pd.to_datetime(ufo["Time"], format="%m/%d/%Y %H:%M").dt.year
+state_year = ufo.groupby("State")["Year"].value_counts()
+state_year.unstack()      # one column per year
+```
+
+See also: [Cookbook: Reshape between wide and long formats](#reshape-between-wide-and-long-formats)
+
+<a id="multiindex"></a>
+
+### MultiIndex
+
+_pandas_
+
+An index with more than one level, for example (`Pclass`, `Sex`). You get one from a `groupby` on two columns or from `.agg()` with several functions per column. Select from it with tuples (`.loc[(1, "female")]`), move levels into columns with [.reset_index()](#set-index-and-reset-index), and flatten two-level column names before exporting.
+
+```python
+survival = titanic.groupby(["Pclass", "Sex"])["Survived"].mean()
+survival.loc[(1, "female")]                  # first-class women
+survival.unstack()                           # Sex becomes the columns
+
+stats_table = titanic.groupby("Pclass").agg({"Age": ["mean", "median"], "Fare": ["mean"]})
+stats_table.columns = ["_".join(col) for col in stats_table.columns.to_flat_index()]
+stats_table.columns.tolist()                 # ['Age_mean', 'Age_median', 'Fare_mean']
+stats_table.rename_axis("passenger_class").reset_index()
+```
+
+See also: [groupby()](#groupby), [Named aggregation](#named-aggregation), [.stack() and .unstack()](#stack-and-unstack)
+
+<a id="melt"></a>
+
+### .melt()
+
+_pandas_
+
+An alternative to `.stack()` for going from wide to long that lets you name the output columns directly.
+
+```python
+long = bonds.melt(id_vars=["Country", "country_code"], var_name="month", value_name="rate")
+long.head()
+```
+
+See also: [Cookbook: Reshape between wide and long formats](#reshape-between-wide-and-long-formats)
+
+<a id="t-transpose"></a>
+
+### .T (transpose)
+
+_pandas_
+
+Swaps rows and columns. Used to turn "one row per country, one column per month" into "one row per month, one column per country", ready for a time-series line plot. `.transpose()` does the same.
+
+```python
+time_series = bonds.drop(columns="country_code").set_index("Country").T   # months become rows
+time_series.index = pd.to_datetime(time_series.index, format="%YM%m")
+time_series[["Germany", "Italy"]].plot(title="10-year bond yields")
+```
+
+<a id="pd-concat"></a>
+
+### pd.concat()
+
+_pandas_
+
+Sticks DataFrames together. `axis=0` stacks them on top of each other (more rows); `axis=1` places them side by side (more columns), matching rows by index.
+
+```python
+early = lego[lego["Year"] == 2021]
+late = lego[lego["Year"] == 2022]
+both_years = pd.concat([early, late], axis=0)        # stack rows
+len(both_years) == len(early) + len(late)            # True
+
+extra = pd.DataFrame({"decade": lego["Year"] // 10 * 10})
+pd.concat([lego[["Name", "Year"]], extra], axis=1).head(3)   # add columns side by side
+```
+
+> **Watch out:** Unlike `merge`, `concat` doesn't match on a key column. Side-by-side concatenation lines rows up by index, so the indexes must correspond.
+
+See also: [Cookbook: Join DataFrames safely](#join-dataframes-safely)
+
+<a id="join"></a>
+
+### Join
+
+_Concept_
+
+Combining two tables by matching values in a shared **key** column (like `userId` or `Year`), so each row gains information from the other table. The type of join decides what happens to rows that have no match.
+
+See also: [Inner join](#inner-join), [Left / right join](#left-right-join), [Outer join](#outer-join), [.merge()](#merge)
+
+<a id="inner-join"></a>
+
+### Inner join
+
+_Concept, pandas_
+
+Keeps only rows whose key appears in **both** tables. Unmatched rows from either side are dropped. pandas' default for `.merge()`. Use it when only complete records matter.
+
+```python
+merged = lego.merge(cpi, on="Year")      # how="inner" is the default
+len(lego), len(merged)                   # rows lost if some years lack CPI
+```
+
+<a id="left-right-join"></a>
+
+### Left / right join
+
+_Concept, pandas_
+
+A **left join** keeps every row of the left table and fills in missing matches from the right table with `NaN`. A **right join** is the mirror image. The slides group left and right joins under "outer joins". In pandas, though, `how="outer"` means a **full** outer join, which keeps unmatched rows from both tables, while `how="left"` and `how="right"` are separate options. Use one when you can't afford to lose rows.
+
+```python
+merged = lego.merge(cpi, on="Year", how="left")       # every LEGO row kept
+bonds_named = bonds.merge(codes, left_on="country_code", right_on="Alpha-2 code", how="left")
+bonds_named.loc[bonds_named["Alpha-2 code"].isna(), "country_code"].tolist()
+# ['EA', 'EL', '19', '28', 'UK']: rows with no match in codes get NaN
+```
+
+> **Watch out:** Always compare `len()` before and after a merge. Fewer rows means an inner join dropped data; more rows means the key had duplicates in the other table.
+
+<a id="outer-join"></a>
+
+### Outer join
+
+_Concept, pandas_
+
+Keeps **all** rows from both tables, matched where possible and filled with `NaN` where not. In pandas this is `how="outer"`. (The slides also use "outer join" as the family name for left and right joins.)
+
+<a id="merge"></a>
+
+### .merge()
+
+_pandas_
+
+pandas' join method. `on=` names the shared key column; use `left_on=` and `right_on=` when the key has different names in each table; `how=` picks `"inner"` (default), `"left"`, `"right"`, `"outer"` or `"cross"`.
+
+```python
+merged = lego.merge(cpi, on="Year", how="left")
+```
+
+See also: [Cookbook: Join DataFrames safely](#join-dataframes-safely)
+
+<a id="adding-rows-with-loc"></a>
+
+### Adding rows with .loc
+
+_pandas_
+
+Assigning to a new label with `.loc` adds a row: `df.loc["Total"] = df.sum()`. It's handy for a totals row in a small summary table. The table must already have columns, so build it first and then append the row. In the police API lab, the summary is created from the API results before the total is added.
+
+```python
+summary = lego.groupby("Theme_Group").agg(n_sets=("Set_ID", "size"), pieces=("Pieces", "sum"))
+summary.loc["Total"] = summary.sum()
+summary.tail(3)
+```
+
+> **Watch out:** `df.loc["Total"] = ...` on an empty DataFrame (for example, when an API call returned nothing) raises `ValueError: cannot set a frame with no defined columns`. Check `df.empty` first. To add many rows, collect them in a list and use [pd.concat()](#pd-concat) once.
+
+See also: [.loc[]](#loc), [pd.concat()](#pd-concat), [.agg()](#agg)
+
+<a id="validating-a-merge"></a>
+
+### Validating a merge
+
+_pandas_
+
+Two `.merge()` options turn a join into a checked step. `validate="many_to_one"` (or `"one_to_one"`, `"one_to_many"`) makes pandas raise an error if the keys don't have the relationship you expect. `indicator=True` adds a `_merge` column saying whether each row was found in `both` tables, `left_only` or `right_only`. The Module 2.3 code-along checks keys before joining, validates the join, inspects `_merge`, and then drops it.
+
+```python
+merged = lego.merge(cpi, on="Year", how="left", validate="many_to_one", indicator=True)
+merged["_merge"].value_counts()          # LEGO years with no CPI value show as left_only
+assert len(merged) == len(lego)          # a left join on a unique right key keeps the row count
+merged = merged.drop(columns="_merge")
+```
+
+> **Watch out:** if the right-hand table has **duplicate keys**, every matching left row is copied once per duplicate, so the row count grows. `validate="many_to_one"` catches this immediately.
+
+See also: [.merge()](#merge), [Checking join keys](#checking-join-keys), [Left / right join](#left-right-join), [assert](#assert), [Cookbook: Join DataFrames safely](#join-dataframes-safely)
+
+<a id="checking-join-keys"></a>
+
+### Checking join keys
+
+_Concept, pandas_
+
+Before joining, compare the key values in the two tables. Keys that look alike can still fail to match, because of different codes, spellings, spaces, case or types (the number `2014` doesn't match the text `"2014"`). Set operations show the mismatches.
+
+The EU bonds exercise is a real example. Eurostat codes Greece as `EL` and the United Kingdom as `UK`, but the ISO country-code table uses `GR` and `GB`. The bonds file also has aggregate rows (`EA`, `19`, `28`) that aren't countries at all. A left join quietly gives those rows missing country names.
+
+```python
+bond_keys = set(bonds["country_code"])
+code_keys = set(codes["Alpha-2 code"])
+sorted(bond_keys - code_keys)            # ['19', '28', 'EA', 'EL', 'UK']: no match in codes
+
+fixes = {"EL": "GR", "UK": "GB"}         # map the two real countries to ISO codes
+bonds["iso_code"] = bonds["country_code"].replace(fixes)
+named = bonds.merge(codes, left_on="iso_code", right_on="Alpha-2 code", how="left")
+named.loc[named["Alpha-2 code"].isna(), "country_code"].tolist()   # ['EA', '19', '28']: aggregates
+```
+
+See also: [Validating a merge](#validating-a-merge), [Join](#join), [.str accessor](#str-accessor), [Cookbook: Join DataFrames safely](#join-dataframes-safely)
+
+<a id="pd-to-datetime"></a>
+
+### pd.to_datetime()
+
+_pandas_
+
+Converts text or numbers into real dates (`datetime64`). Time-series charts need actual dates, _not strings that look like dates_. Use `format=` to describe the layout, e.g. `"%Y"` for a year or `"%m/%d/%Y %H:%M"`.
+
+```python
+lego["year_date"] = pd.to_datetime(lego["Year"], format="%Y")
+ufo["Time"] = pd.to_datetime(ufo["Time"], format="%m/%d/%Y %H:%M")
+```
+
+> **Watch out:** if a column mixes date formats (`"2024-01-05"` and `"05/02/2024"`), pandas 2 and 3 raise a `ValueError` rather than guessing row by row. Pass the exact `format=` when you know it, `format="mixed"` if the formats really are mixed, and `errors="coerce"` to turn unparseable values into `NaT` (missing). Then count the `NaT`s.
+
+See also: [Cookbook: Clean and validate dates and times](#clean-and-validate-dates-and-times)
+
+<a id="timestamp-timedelta-and-date-arithmetic"></a>
+
+### Timestamp, Timedelta and date arithmetic
+
+_pandas_
+
+A `pd.Timestamp` is one moment in time, and a `pd.Timedelta` is a length of time. Subtracting two datetime columns gives a Timedelta column. `.dt.days` turns it into a number of days, and `.dt.total_seconds()` into seconds. The Module 2.2 code-along derives a booking lead time (appointment date minus booking date) this way, then flags negative lead times as errors.
+
+```python
+ufo["Time"] = pd.to_datetime(ufo["Time"], format="%m/%d/%Y %H:%M")
+latest = ufo["Time"].max()
+ufo["years_ago"] = (latest - ufo["Time"]).dt.days / 365.25
+ufo["Time"].min() + pd.Timedelta(days=30)          # 30 days after the first sighting
+pd.Timestamp("2024-03-01") - pd.Timestamp("2024-02-01")   # Timedelta('29 days'): 2024 is a leap year
+```
+
+See also: [pd.to_datetime()](#pd-to-datetime), [.dt accessor](#dt-accessor), [Features from dates](#features-from-dates), [Cookbook: Clean and validate dates and times](#clean-and-validate-dates-and-times)
+
+<a id="dt-accessor"></a>
+
+### .dt accessor
+
+_pandas_
+
+Pulls date parts out of a datetime column: `.dt.year`, `.dt.month`, `.dt.day`, `.dt.dayofweek`, `.dt.hour` and more.
+
+```python
+ufo["Time"] = pd.to_datetime(ufo["Time"], format="%m/%d/%Y %H:%M")   # text -> datetime first
+ufo["Year"] = ufo["Time"].dt.year
+ufo["Month"] = ufo["Time"].dt.month
+ufo["Weekday"] = ufo["Time"].dt.day_name()
+```
+
+See also: [Cookbook: Clean and validate dates and times](#clean-and-validate-dates-and-times)
+
+<a id="resample"></a>
+
+### .resample()
+
+_pandas_
+
+Groups a time series into regular time periods, like a `groupby` for dates. Needs a DatetimeIndex. Common codes: `"D"` daily, `"W"` weekly, `"MS"` month start, `"YS"` year start. Choosing the period is choosing the **granularity**.
+
+```python
+lego["year_date"] = pd.to_datetime(lego["Year"], format="%Y")
+annual_count = lego.set_index("year_date").resample("YS").size()
+annual_price = lego.set_index("year_date").resample("YS")["USD_MSRP"].median()
+```
+
+> **Watch out:** pandas 2.2 renamed the "end of period" codes and pandas 3 removed the old ones: `"M"` is now `"ME"` (month end), `"Y"`/`"A"` is `"YE"`, `"Q"` is `"QE"` and `"H"` is `"h"`. The "start of period" codes `"MS"`, `"QS"` and `"YS"` are unchanged. Older notebooks that use `resample("M")` now raise a `ValueError`.
+
+See also: [Granularity](#granularity)
+
+<a id="to-period"></a>
+
+### .to_period()
+
+_pandas_
+
+Converts timestamps to **periods** (a whole month, quarter or year) instead of exact moments. `ufo["Time"].dt.to_period("M")` labels each sighting with its month, such as `1930-06`, which makes clean group keys and axis labels.
+
+```python
+ufo["Time"] = pd.to_datetime(ufo["Time"], format="%m/%d/%Y %H:%M")
+ufo["month"] = ufo["Time"].dt.to_period("M")
+ufo.groupby("month").size().tail(3)
+ufo["Time"].dt.to_period("Q").head(2)                   # quarters such as 1930Q2
+```
+
+See also: [.resample()](#resample), [Granularity](#granularity), [.dt accessor](#dt-accessor)
+
+<a id="granularity"></a>
+
+### Granularity
+
+_Concept_
+
+The level of detail of time-series data: per minute, daily, weekly, monthly, yearly. Too fine and the chart is noisy; too coarse and you hide the pattern. Pick the level that matches the question.
+
+**In Unit 3:** [Resample for time series](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#resample-for-time-series), [Rolling statistics](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#rolling-statistics)
+
+<a id="floordiv-and-mul"></a>
+
+### .floordiv() and .mul()
+
+_pandas_
+
+Method versions of `//` and `*`, handy inside chains. Floor-dividing by 10 then multiplying by 10 turns a year into its decade.
+
+```python
+lego["decade"] = lego["Year"].floordiv(10).mul(10)   # 1987 -> 1980
+```
+
+---
+
+<a id="s5-descriptive-statistics-and-distributions"></a>
+
+## 5. Descriptive statistics and distributions
+
+_The vocabulary for describing a dataset: what a typical value is, how much values vary, and what shape the data takes. The running example is the four-customer table from the slides, with ages 55, 43, 36 and 31._
+
+**In your capstone:** report the median and IQR (not only the mean and standard deviation) for skewed columns such as prices and counts. Use the shape of each distribution to decide on transformations and on how to treat outliers. Every number in your write-up should say which statistic it is. Copy-paste recipes: [Detect and treat outliers](#detect-and-treat-outliers), [Summarise by group](#summarise-by-group).
+
+<a id="exploratory-data-analysis-eda"></a>
+
+### Exploratory Data Analysis (EDA)
+
+_Concept_
+
+The process of getting to know a dataset before drawing conclusions or building models: looking at it, summarising it, visualising it and checking its quality. The course splits it into **EDA for exploration** (understanding the data) and **EDA for modeling** (finding relationships and building features for machine learning).
+
+See also: [EDA for exploration](#eda-for-exploration), [EDA for modeling](#eda-for-modeling)
+
+<a id="eda-for-exploration"></a>
+
+### EDA for exploration
+
+_Concept_
+
+Understanding what's in a dataset. Typical tasks: look at the data at a glance, identify continuous vs categorical columns, investigate missing values, calculate summary statistics and visualise distributions.
+
+```python
+lego.head(); lego.info(); lego.describe()
+lego.isnull().sum()
+lego["USD_MSRP"].hist(bins=50)
+```
+
+In the LEGO data, the first exploration question already turns something up: only **5,837 of 14,936** sets have a US retail price. In practice you always explore before you model, because you can't judge relationships in data you don't yet trust. The unit follows that order: lessons 02–05 cover exploration, and lessons 06–07 cover EDA for modeling and feature engineering.
+
+See also: [Cookbook: Profile a dataset quickly](#profile-a-dataset-quickly)
+
+<a id="statistic"></a>
+
+### Statistic
+
+_Concept_
+
+Any single value computed from data, such as a mean, median or count. "Mean age: 41.25" is a statistic.
+
+<a id="descriptive-statistics"></a>
+
+### Descriptive statistics
+
+_Concept, pandas_
+
+Statistics that summarise one or more variables in a dataset (centre, spread, shape), as opposed to inferential statistics, which use a sample to draw conclusions about a wider population.
+
+See also: [Inferential statistics](#inferential-statistics)
+
+<a id="variable"></a>
+
+### Variable
+
+_Concept_
+
+A single **column** of data measuring one characteristic, e.g. customer age. In machine learning, variables are called **features**.
+
+<a id="observation"></a>
+
+### Observation
+
+_Concept_
+
+A single **row** of data: one record, e.g. one customer. Also called a record, case or sample.
+
+<a id="continuous-variable"></a>
+
+### Continuous variable
+
+_Concept_
+
+A numeric variable that can take any value within a range, including decimals: height, temperature, price. Continuous variables are summarised with means, medians and spread, and visualised with histograms and box plots. The two subtypes are **interval** and **ratio**.
+
+<a id="discrete-categorical-variable"></a>
+
+### Discrete / categorical variable
+
+_Concept_
+
+A variable whose values fall into distinct groups or countable values: colour, job title, star rating. Categorical variables are used to **slice and group** data and are summarised with counts (`value_counts()`). The two subtypes are **nominal** and **ordinal**.
+
+> **Watch out:** Numbers can be categorical. ZIP codes, product IDs and customer IDs are labels, so averaging them is meaningless.
+
+> **Watch out:** "discrete" also describes **counts**, such as number of pieces or minifigures. These are whole numbers, but they aren't categories: you can average them and compare their size. Keep the two ideas separate. "Categorical vs numeric" is about what the values mean, and "nominal / ordinal / interval / ratio" is a further way to classify them (see [Nominal](#nominal), [Ordinal](#ordinal), [Interval](#interval) and [Ratio](#ratio)).
+
+<a id="nominal"></a>
+
+### Nominal
+
+_Concept_
+
+Categories with **no natural order**: colour, city, brand, LEGO theme. Encode with one-hot encoding, not numbers that imply an order.
+
+<a id="ordinal"></a>
+
+### Ordinal
+
+_Concept_
+
+Categories with a **natural order** but uneven gaps: ratings out of 5 (Likert scale), education level, "Poor / Fair / Good / Excellent". Label encoding preserves the order.
+
+> **Watch out:** a number that looks like a rating isn't automatically ordinal. LEGO's `Rating` column is a decimal average rating with 30 distinct values, and 7,898 of its values are 0, which most likely means "not rated". Treat it as numeric, and treat the zeros as missing, before analysing it.
+
+<a id="interval"></a>
+
+### Interval
+
+_Concept_
+
+Continuous data where differences are meaningful but **zero doesn't mean "none"**: temperature in °C (0°C isn't "no temperature"), calendar years. You can't say 20°C is "twice as hot" as 10°C.
+
+In the LEGO data, `Year` is interval: differences between years are meaningful, but year 0 doesn't mean "no time".
+
+<a id="ratio"></a>
+
+### Ratio
+
+_Concept_
+
+Continuous data where **zero means an absence**, so ratios make sense: height, weight, price, number of pieces. A 2,000-piece set really is twice the size of a 1,000-piece set.
+
+In the LEGO data, `USD_MSRP`, `Current_Price` and `Pieces` are ratio: $0 or 0 pieces really means "none", so a $200 set costs twice as much as a $100 set.
+
+<a id="central-tendency"></a>
+
+### Central tendency
+
+_Concept_
+
+A "typical" value for a column. The main measures are the **mean**, **median** and **mode**. Which one is right depends on skew and outliers.
+
+<a id="mean"></a>
+
+### Mean
+
+_Concept, pandas_
+
+The average: add up the values and divide by how many there are. **Sensitive to outliers**: a single extreme value can drag it a long way.
+
+```python
+customers["age"].mean()    # (55 + 43 + 36 + 31) / 4 = 41.25
+```
+
+> **Watch out:** In the slides, adding one 899-year-old customer pushes the mean from 41.25 to 212.8, while the median only moves from 39.5 to 43.
+
+<a id="median"></a>
+
+### Median
+
+_Concept, pandas_
+
+The middle value once the data is sorted (the 50th percentile). With an even count, it's the mean of the two middle values. **Robust to outliers**, so it's often a better "typical value" for skewed data like prices or income.
+
+```python
+customers["age"].median()  # sorted: 31, 36, 43, 55 -> (36 + 43) / 2 = 39.5
+```
+
+<a id="worked-example-mean-vs-median-with-an-outlier"></a>
+
+### Worked example: mean vs median with an outlier
+
+_Concept_
+
+The slides' four customers are aged 55, 43, 36 and 31. Their mean age is 41.25 and their median is 39.5, close together, so either describes a "typical" customer well. Now add one data-entry error, an age of 899. The mean jumps to 212.8, an age nobody has. The median only moves to 43, the middle of 31, 36, 43, 55 and 899.
+
+One extreme value can drag the mean anywhere, but it can only move the median one position. That's what makes the median a [robust statistic](#robust-statistic), and why skewed data such as prices is usually summarised with the median.
+
+```python
+ages = customers["age"]
+ages.mean(), ages.median()                     # (41.25, 39.5)
+
+with_error = pd.concat([ages, pd.Series([899])], ignore_index=True)
+with_error.mean(), with_error.median()         # (212.8, 43.0)
+```
+
+The same thing happens in the LEGO data. By **median** pieces, the theme group with the biggest sets is Model making (258 pieces). By **mean**, it's Art and crafts (775.3 pieces), pulled up by the 11,695-piece World Map. So "which group has the biggest sets on average?" has two answers. Say which statistic you used.
+
+```python
+pieces = lego.groupby("Theme_Group")["Pieces"]
+pieces.median().idxmax(), pieces.median().max()            # ('Model making', 258.0)
+pieces.mean().idxmax(), round(pieces.mean().max(), 1)      # ('Art and crafts', 775.3)
+lego.loc[lego["Pieces"].idxmax(), ["Name", "Pieces"]]      # World Map, 11695
+```
+
+See also: [Mean](#mean), [Median](#median), [Outlier](#outlier), [Skewness](#skewness)
+
+<a id="mode"></a>
+
+### Mode
+
+_Concept, pandas_
+
+The most common value. Most useful for categorical data, and for spotting **multimodal** continuous data (several peaks). `.mode()` returns a Series because there can be ties, so take `[0]` for a single value.
+
+```python
+titanic["Embarked"].mode()[0]     # 'S'
+```
+
+<a id="spread-dispersion"></a>
+
+### Spread (dispersion)
+
+_Concept_
+
+How much the values vary. The main measures are the **range**, **variance**, **standard deviation** and **interquartile range**.
+
+<a id="deviation"></a>
+
+### Deviation
+
+_Concept_
+
+The distance of one value from the mean: x minus the mean. The average of the raw deviations is always zero because positives and negatives cancel out, which is why variance squares them.
+
+<a id="variance"></a>
+
+### Variance
+
+_Concept, pandas_
+
+The average **squared** deviation from the mean, written s² for a sample. It measures spread, but in squared units (years², dollars²), which is hard to interpret. pandas divides by n − 1 (the sample variance).
+
+```python
+customers["age"].var()     # 108.25 (years squared)
+```
+
+<a id="bessel-s-correction-ddof"></a>
+
+### Bessel's correction (ddof)
+
+_Concept, pandas, NumPy_
+
+A **sample** variance divides by **n − 1** rather than n. That's **Bessel's correction**: a sample's values sit a little closer to their own mean than to the true population mean, so dividing by n would underestimate the spread. The "minus one" is the **degrees of freedom** used up by estimating the mean. The slides' formula for s² uses n − 1.
+
+pandas and NumPy have different defaults. pandas `.var()` and `.std()` use `ddof=1` (sample), and NumPy's `np.var()` and `np.std()` use `ddof=0` (population). For the four customers that's 108.25 versus 81.19.
+
+```python
+customers["age"].var()                 # 108.25  (divides by n - 1 = 3)
+np.var(customers["age"])               # 81.1875 (divides by n = 4)
+np.var(customers["age"], ddof=1)       # 108.25  (same as pandas)
+customers["age"].std(ddof=0)           # 9.01    (population SD, the NumPy default)
+```
+
+> **Watch out:** if pandas and NumPy give you different standard deviations for the same column, check `ddof` before anything else. scikit-learn's `StandardScaler` uses the population SD (`ddof=0`).
+
+See also: [Variance](#variance), [Standard deviation](#standard-deviation), [Population vs sample](#population-vs-sample)
+
+<a id="standard-deviation"></a>
+
+### Standard deviation
+
+_Concept, pandas_
+
+The square root of the variance, which puts spread back into the original units. Roughly, a typical distance of values from the mean. Also used to flag outliers (e.g. values more than 3 SDs from the mean).
+
+```python
+customers["age"].std()     # 10.40 years
+```
+
+<a id="range-2"></a>
+
+### Range
+
+_Concept_
+
+Maximum minus minimum. Simple, but determined entirely by the two most extreme values, so it's very sensitive to outliers.
+
+```python
+customers["age"].max() - customers["age"].min()   # 55 - 31 = 24
+```
+
+<a id="percentile-quantile"></a>
+
+### Percentile / quantile
+
+_Concept, pandas_
+
+The p-th **percentile** is the value below which p% of the data lies. **Quantile** is the same idea written as a fraction (0.25 rather than 25%). The 50th percentile is the median.
+
+```python
+lego["USD_MSRP"].quantile(0.25)
+lego["USD_MSRP"].quantile([0.1, 0.5, 0.9])
+```
+
+<a id="quartiles-q1-q3"></a>
+
+### Quartiles (Q1, Q3)
+
+_Concept_
+
+The values that split sorted data into four equal parts. **Q1** is the 25th percentile, **Q2** the median, **Q3** the 75th percentile.
+
+<a id="interquartile-range-iqr"></a>
+
+### Interquartile range (IQR)
+
+_Concept, pandas_
+
+Q3 − Q1: the spread of the middle 50% of the data. Robust to outliers. Used to draw box plots, to define outliers, and in robust scaling.
+
+```python
+q1, q3 = lego["Pieces"].quantile([0.25, 0.75])
+iqr = q3 - q1
+```
+
+See also: [Cookbook: Detect and treat outliers](#detect-and-treat-outliers)
+
+<a id="iqr-outlier-fences"></a>
+
+### IQR outlier fences
+
+_Concept, pandas_
+
+The rule a box plot uses to flag **potential outliers**: anything below **Q1 − 1.5 × IQR** or above **Q3 + 1.5 × IQR**. It's based on quartiles, so the outliers themselves can't distort it the way they distort a rule based on the mean and SD. A flagged point isn't automatically an error. It's a value to investigate (a typo, a special case, or real but rare), and you decide what to do with it.
+
+For heavily right-skewed data such as LEGO prices, the upper fence flags many genuine, expensive sets. That's a sign to look at the distribution, or a log scale, rather than to delete rows.
+
+```python
+price = lego["USD_MSRP"].dropna()
+q1, q3 = price.quantile([0.25, 0.75])
+iqr = q3 - q1
+lower, upper = q1 - 1.5 * iqr, q3 + 1.5 * iqr
+flagged = price[(price < lower) | (price > upper)]
+print(f"fences: {lower:.2f} to {upper:.2f}; {len(flagged)} of {len(price)} prices flagged")
+```
+
+See also: [Interquartile range (IQR)](#interquartile-range-iqr), [Box plot](#box-plot), [Outlier](#outlier), [Outlier decisions](#outlier-decisions), [Cookbook: Detect and treat outliers](#detect-and-treat-outliers)
+
+<a id="five-number-summary"></a>
+
+### Five-number summary
+
+_Concept, pandas_
+
+Minimum, Q1, median, Q3 and maximum: a compact description of a variable's shape. `.describe()` includes it, and a box plot draws it.
+
+<a id="outlier"></a>
+
+### Outlier
+
+_Concept_
+
+A value far from the rest. It might be an error (a 1071 release year) or a genuine extreme (a 12,000-piece set). Two common rules flag outliers: beyond **Q1 − 1.5 × IQR or Q3 + 1.5 × IQR** (the box-plot rule), or more than **3 standard deviations** from the mean. Investigate before removing anything.
+
+```python
+q1, q3 = lego["USD_MSRP"].quantile([0.25, 0.75])
+iqr = q3 - q1
+is_outlier = (lego["USD_MSRP"] < q1 - 1.5 * iqr) | (lego["USD_MSRP"] > q3 + 1.5 * iqr)
+is_outlier.sum()
+```
+
+See also: [Cookbook: Detect and treat outliers](#detect-and-treat-outliers)
+
+<a id="robust-statistic"></a>
+
+### Robust statistic
+
+_Concept_
+
+A statistic that isn't thrown off much by outliers: the median and IQR are robust; the mean, standard deviation and range are not.
+
+<a id="distribution"></a>
+
+### Distribution
+
+_Concept_
+
+The pattern of how often each value occurs across a variable: where most values sit, how spread out they are, and the overall shape. Histograms, box plots and KDE plots all visualise distributions.
+
+<a id="normal-gaussian-distribution"></a>
+
+### Normal (Gaussian) distribution
+
+_Concept_
+
+The symmetric "bell curve", where mean = median = mode and most values sit near the centre. Common in natural measurements like height. Many statistical tests and linear models assume normality.
+
+```python
+np.random.normal(loc=170, scale=10, size=1000)
+```
+
+<a id="skewness"></a>
+
+### Skewness
+
+_Concept, pandas, SciPy_
+
+A measure of asymmetry. **Positive (right) skew** has a long tail to the right and mean > median, e.g. prices, income, counts. **Negative (left) skew** has a long tail to the left and mean < median, e.g. exam scores near a ceiling. Values beyond roughly ±1 count as strongly skewed.
+
+```python
+from scipy import stats
+lego["USD_MSRP"].skew()                   # about 4.67: strongly right-skewed
+stats.skew(lego["USD_MSRP"].dropna())     # SciPy needs the NaNs removed first
+```
+
+> **Watch out:** If the mean and median are far apart, suspect skew. Report the median or transform the variable.
+
+<a id="long-tail"></a>
+
+### Long tail
+
+_Concept_
+
+A stretch of rare, extreme values on one side of a distribution. LEGO prices have a long right tail: most sets are cheap, a few cost hundreds of dollars.
+
+<a id="kurtosis"></a>
+
+### Kurtosis
+
+_Concept, SciPy_
+
+A measure of how heavy a distribution's tails are compared with a normal distribution. High kurtosis means more extreme values than a normal curve would produce. `scipy.stats.kurtosis` returns 0 for a normal distribution by default.
+
+```python
+from scipy import stats
+lego["USD_MSRP"].kurt()                         # pandas: excess kurtosis (normal = 0)
+stats.kurtosis(lego["USD_MSRP"].dropna())       # SciPy: also excess kurtosis by default
+stats.kurtosis(np.random.default_rng(0).normal(size=100_000))   # close to 0 for normal data
+```
+
+<a id="uniform-distribution"></a>
+
+### Uniform distribution
+
+_Concept_
+
+Every value in a range is equally likely, giving a flat histogram. Random numbers and simulation inputs often look like this.
+
+```python
+np.random.uniform(18, 80, 1000)
+```
+
+<a id="bimodal-multimodal-distribution"></a>
+
+### Bimodal / multimodal distribution
+
+_Concept_
+
+A distribution with two or more peaks, often a sign that two different groups are mixed together (casual vs loyal customers, day vs night readings). A single mean describes it badly.
+
+<a id="zero-inflated-data"></a>
+
+### Zero-inflated data
+
+_Concept_
+
+Data with far more zeros than a standard distribution would predict, such as daily defect counts where most days have none. The many zeros sit at the low end, and the few large values form a long tail to the right, so zero-inflated data is **right-skewed** (positive skew). It needs special care in modeling.
+
+<a id="q-q-plot"></a>
+
+### Q-Q plot
+
+_Concept, SciPy_
+
+A quantile-quantile plot compares your data's quantiles with those of a theoretical distribution. If the points follow the straight line, the data roughly matches that distribution (usually the normal).
+
+```python
+from scipy import stats
+fig, ax = plt.subplots()
+stats.probplot(housing_df["median_house_value"], dist="norm", plot=ax)
+ax.set_title("Q-Q plot: median house value vs a normal distribution")
+```
+
+<a id="shapiro-wilk-test"></a>
+
+### Shapiro-Wilk test
+
+_Concept, SciPy_
+
+A statistical test of whether data comes from a normal distribution. The null hypothesis is "the data is normal", so p < 0.05 suggests it isn't.
+
+```python
+from scipy import stats
+sample = housing_df["housing_median_age"].sample(500, random_state=42)
+stat, p_value = stats.shapiro(sample)
+p_value < 0.05          # True means: evidence that the data isn't normal
+```
+
+> **Watch out:** with large samples, tiny departures from normality give small p-values. SciPy also warns that the p-value may be inaccurate above 5,000 rows, which is why the example tests a random sample of 500. Always look at a histogram or Q-Q plot too.
+
+<a id="scipy-stats"></a>
+
+### scipy.stats
+
+_SciPy_
+
+SciPy's statistics module, imported with `from scipy import stats`. The course uses it for distribution checks (`skew`, `kurtosis`, `shapiro`, `probplot`), correlation tests (`pearsonr`, `spearmanr`, `kendalltau`) and hypothesis tests (`ttest_ind`).
+
+---
+
+<a id="s6-data-visualization"></a>
+
+## 6. Data visualization
+
+_Choosing the right chart, and making it with pandas, matplotlib, seaborn or plotly. Rule of thumb from the slides: bar charts for categorical comparisons, scatter plots for correlations, line charts for trends over time, heatmaps for multi-dimensional relationships. The Module 2.4 stepped code-along builds a full visual EDA in this style._
+
+**In your capstone:** plot every variable you model (histogram or bar chart) and the target against each strong candidate feature. Use the object-oriented `fig, ax = plt.subplots()` style so you can title, label and save each figure. Every chart in your presentation needs a title that states the finding, labelled axes with units, and a source. Copy-paste recipes: [EDA charts: distributions](#eda-charts-distributions), [EDA charts: categories and the target](#eda-charts-categories-and-the-target), [EDA charts: relationships, correlation and time](#eda-charts-relationships-correlation-and-time), [Reusable EDA plotting helpers](#reusable-eda-plotting-helpers).
+
+<a id="choosing-a-chart-type"></a>
+
+### Choosing a chart type
+
+_Concept_
+
+Match the chart to the question. **Bar**: compare a number across categories. **Scatter**: relationship between two numeric variables. **Line**: change over time (ordered x-axis). **Histogram / box / violin**: distribution of one numeric variable. **Heatmap**: a grid of values, such as a correlation matrix or crosstab.
+
+> **Watch out:** Don't draw a line chart when the x-axis has no natural order (like continents). The line suggests a trend that doesn't exist.
+
+<a id="univariate-bivariate-and-multivariate-analysis"></a>
+
+### Univariate, bivariate and multivariate analysis
+
+_Concept_
+
+**Univariate**: one variable at a time (histograms, box plots, bar charts of counts). **Bivariate**: two variables together (scatter plots, correlation). **Multivariate**: many at once (heatmaps, pair plots, PCA, clustering).
+
+<a id="matplotlib"></a>
+
+### matplotlib
+
+_matplotlib_
+
+Python's foundational plotting library. pandas and seaborn both draw their charts with matplotlib, so matplotlib commands can customise any of them. Imported as `import matplotlib.pyplot as plt`.
+
+<a id="pyplot-state-based-interface"></a>
+
+### pyplot (state-based) interface
+
+_matplotlib_
+
+The quick way of using matplotlib: call `plt.` functions and they act on "the current" chart behind the scenes. Fine for one quick chart; confusing when you have several.
+
+```python
+lego["USD_MSRP"].plot(kind="hist", bins=20)
+plt.title("Retail prices")
+plt.xlabel("Price ($)")
+plt.show()
+```
+
+<a id="object-oriented-interface"></a>
+
+### Object-oriented interface
+
+_matplotlib_
+
+The preferred way to use matplotlib: create the **Figure** and **Axes** objects explicitly with `plt.subplots()`, then call methods on them. You always know which chart you're changing, which gives you full control.
+
+```python
+fig, ax = plt.subplots(figsize=(10, 6))
+lego["Category"].value_counts().sort_values().plot(kind="barh", ax=ax)
+ax.set(title="Most products are 'Normal'", xlabel="Number of products")
+fig.savefig("my_chart.png")
+```
+
+<a id="figure"></a>
+
+### Figure
+
+_matplotlib_
+
+The whole canvas or window that holds one or more charts. You size it, give it an overall title (`fig.suptitle()`), and save it (`fig.savefig()`).
+
+<a id="axes"></a>
+
+### Axes
+
+_matplotlib_
+
+One individual chart (plot area) inside a Figure, with its own x-axis, y-axis, title and data. Not to be confused with "axis" (a single x or y line). Pass `ax=ax` to pandas and seaborn so they draw on the Axes you chose.
+
+<a id="plt-subplots"></a>
+
+### plt.subplots()
+
+_matplotlib_
+
+Creates a Figure and one or more Axes in a grid. `plt.subplots(2, 3)` gives a 2-row, 3-column grid, and `axes[row, col]` (or `axes[row][col]`) picks one.
+
+```python
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+axes[0].hist(lego["USD_MSRP"], bins=30)
+axes[1].hist(np.log(lego["USD_MSRP"].dropna()), bins=30)
+plt.tight_layout()
+```
+
+See also: [Cookbook: Reusable EDA plotting helpers](#reusable-eda-plotting-helpers)
+
+<a id="subplot-grids-subplot-add-subplot-delaxes-and-suptitle"></a>
+
+### Subplot grids: subplot, add_subplot, delaxes and suptitle
+
+_matplotlib_
+
+Several ways to arrange panels.
+
+- `fig, axes = plt.subplots(2, 3)` returns a grid of Axes. `axes.flatten()` (or `.ravel()`) lets you loop over them in order.
+- `fig.add_subplot(2, 2, 4)` (or `224`) adds one panel to an existing figure. Pass `projection="3d"` for a 3-D one.
+- `fig.delaxes(ax)` removes an unused panel, for example the sixth slot when you only have five charts.
+- `fig.suptitle()` puts one title over the whole figure.
+
+The EDA for modeling notebook draws a 3 × 2 grid of distributions and deletes the empty sixth panel.
+
+```python
+cols = ["housing_median_age", "total_rooms", "population", "median_income", "median_house_value"]
+fig, axes = plt.subplots(3, 2, figsize=(10, 9))
+axes = axes.flatten()
+for ax, col in zip(axes, cols):
+    housing_df[col].plot(kind="hist", bins=40, ax=ax, title=col)
+fig.delaxes(axes[5])                       # five charts, six slots
+fig.suptitle("California housing: distributions", fontsize=14)
+fig.tight_layout()
+```
+
+See also: [plt.subplots()](#plt-subplots), [Figure](#figure), [Axes](#axes), [3-D plots](#3-d-plots)
+
+<a id="3-d-plots"></a>
+
+### 3-D plots
+
+_matplotlib_
+
+`fig.add_subplot(projection="3d")` creates an Axes with a third axis, so `ax.scatter(x, y, z)` and `ax.set_zlabel()` work. The EDA for modeling notebook uses one to show how three standardized features sit together. 3-D charts look striking but are hard to read on a flat page. A pair plot or colour-coded 2-D scatter usually communicates better in a presentation.
+
+```python
+sample = housing_df.sample(800, random_state=42)
+fig = plt.figure(figsize=(7, 6))
+ax = fig.add_subplot(projection="3d")
+points = ax.scatter(sample["median_income"], sample["housing_median_age"],
+                    sample["median_house_value"], c=sample["median_house_value"], cmap="viridis", s=8)
+ax.set(xlabel="Median income", ylabel="House age")
+ax.set_zlabel("House value")
+fig.colorbar(points, ax=ax, label="House value", shrink=0.6)
+```
+
+See also: [Subplot grids: subplot, add_subplot, delaxes and suptitle](#subplot-grids-subplot-add-subplot-delaxes-and-suptitle), [Colorbar](#colorbar), [Pair plot / scatter matrix](#pair-plot-scatter-matrix)
+
+<a id="axes-methods"></a>
+
+### Axes methods
+
+_matplotlib_
+
+Common ways to label and adjust a single chart: `ax.set_title()`, `ax.set_xlabel()`, `ax.set_ylabel()`, or several at once with `ax.set(title=..., xlabel=..., ylabel=...)`. Also `ax.legend()`, `ax.axhline(y)` / `ax.axvline(x)` for reference lines, and `ax.tick_params()` for tick labels.
+
+```python
+fig, ax = plt.subplots(figsize=(8, 4))
+time_series = bonds.drop(columns="country_code").set_index("Country").T
+ax.plot(time_series.index, time_series["Germany"], label="Germany")
+ax.set(title="Bond yields over time", xlabel="Month", ylabel="Rate (%)")
+ax.axhline(0, linestyle="dashed", color="black", alpha=0.5)
+ax.tick_params(axis="x", rotation=45)
+ax.legend()
+```
+
+<a id="annotations-text-reference-lines-and-legends"></a>
+
+### Annotations: text, reference lines and legends
+
+_matplotlib_
+
+Annotations make a chart's point obvious.
+
+- `ax.axvline(x)` and `ax.axhline(y)` draw reference lines, such as a mean or a target.
+- `ax.text(x, y, "label")` writes text at a data position. Add `transform=ax.transAxes` to place it as a fraction of the panel instead (0 to 1), and `bbox=dict(...)` to give it a box.
+- `ax.annotate()` adds text with an arrow.
+- `ax.bar_label(bars)` writes each bar's value on it.
+- `ax.legend()` shows the `label=` of each plotted item.
+
+```python
+fig, ax = plt.subplots(figsize=(8, 4))
+price = lego["USD_MSRP"].dropna()
+ax.hist(price[price < 300], bins=60, color="steelblue", alpha=0.7, edgecolor="white")
+ax.axvline(price.mean(), color="red", linestyle="--", label=f"mean {price.mean():.2f}")
+ax.axvline(price.median(), color="black", linestyle="-", label=f"median {price.median():.2f}")
+ax.text(0.97, 0.9, "right-skewed:\nmean > median", transform=ax.transAxes, ha="right",
+        bbox=dict(boxstyle="round", facecolor="white", alpha=0.8))
+ax.set(title="LEGO prices under $300", xlabel="USD", ylabel="Number of sets")
+ax.legend()
+
+fig2, ax2 = plt.subplots()
+counts = lego["Theme_Group"].value_counts().head(5)
+bars = ax2.barh(counts.index, counts.values)
+ax2.bar_label(bars, padding=3)
+ax2.invert_yaxis()                     # biggest at the top
+```
+
+See also: [Axes methods](#axes-methods), [Histogram](#histogram), [Bar chart](#bar-chart)
+
+<a id="ticks-and-axis-limits"></a>
+
+### Ticks and axis limits
+
+_matplotlib_
+
+The tick marks and their labels are controlled separately from the data.
+
+- `ax.set_xlim()` and `ax.set_ylim()` set the axis range.
+- `ax.set_xticks(positions)` sets where the ticks go, and `ax.set_xticklabels(labels)` or `ax.set_xticks(positions, labels=...)` sets their text.
+- `ax.tick_params(axis="x", rotation=45)` rotates labels so long ones don't overlap. `plt.xticks(rotation=45, ha="right")` does the same in the pyplot style.
+- `ax.invert_yaxis()` puts the first category at the top.
+
+```python
+import calendar
+
+monthly = ufo.assign(month=pd.to_datetime(ufo["Time"], format="%m/%d/%Y %H:%M").dt.month)
+counts = monthly["month"].value_counts().sort_index()
+
+fig, ax = plt.subplots(figsize=(8, 4))
+ax.bar(counts.index, counts.values)
+ax.set_xticks(range(1, 13), labels=calendar.month_abbr[1:13])
+ax.tick_params(axis="x", rotation=45)
+ax.set_ylim(0, counts.max() * 1.1)
+ax.set(title="UFO sightings by month", ylabel="Sightings")
+```
+
+> **Watch out:** setting tick **labels** without first fixing the tick **positions** gives a `UserWarning` about a `FixedLocator`, and the labels can end up next to the wrong ticks. Set positions and labels together, as above.
+
+See also: [Axes methods](#axes-methods), [calendar module](#calendar-module)
+
+<a id="plt-tight-layout"></a>
+
+### plt.tight_layout()
+
+_matplotlib_
+
+Automatically adjusts spacing so subplot titles and labels don't overlap. Call it after drawing everything and before `plt.show()`.
+
+<a id="savefig"></a>
+
+### savefig()
+
+_matplotlib_
+
+Saves a figure to an image file. The extension sets the format (`.png`, `.jpg`, `.svg`, `.pdf`).
+
+```python
+fig, ax = plt.subplots()
+lego["Pieces"].plot(kind="hist", bins=40, ax=ax, title="LEGO set sizes")
+fig.savefig("my_chart.png", dpi=150, bbox_inches="tight")   # bbox_inches trims extra white space
+```
+
+<a id="style-sheets-and-rcparams"></a>
+
+### Style sheets and rcParams
+
+_matplotlib_
+
+`plt.style.use()` applies a ready-made look to every chart that follows (`"ggplot"`, `"fivethirtyeight"`, `"seaborn-v0_8-whitegrid"`). `plt.rcParams` sets defaults like figure size and font size.
+
+```python
+print(plt.style.available)
+plt.style.use("ggplot")
+plt.rcParams["figure.figsize"] = (8, 6)
+```
+
+> **Watch out:** matplotlib 3.6 renamed the built-in seaborn styles, so `plt.style.use("seaborn")` or `"seaborn-darkgrid"` now fails. Use `"seaborn-v0_8-darkgrid"` (the EDA for modeling notebook does), or better, `sns.set_theme()`. `plt.style.available` lists the names your version has.
+
+<a id="pandas-plot"></a>
+
+### pandas .plot()
+
+_pandas, matplotlib_
+
+Draws a chart straight from a Series or DataFrame using matplotlib. Pick the chart with `kind=`: `"line"` (default), `"bar"`, `"barh"`, `"hist"`, `"box"`, `"scatter"`, `"density"`. Useful options: `title`, `xlabel`, `ylabel`, `figsize`, `color`, `alpha` (transparency), `bins`, `rot` (label rotation), `xlim`/`ylim`, `stacked`, `ax`.
+
+```python
+lego["Theme_Group"].value_counts().plot(kind="barh", title="Sets per theme group")
+lego.plot(kind="scatter", x="Pieces", y="USD_MSRP", alpha=0.2)
+lego.groupby("Year").size().plot(xlabel="Year", ylabel="Products released")
+```
+
+<a id="pandas-plot-options"></a>
+
+### pandas .plot() options
+
+_pandas, matplotlib_
+
+Every pandas plot passes its keyword arguments through to matplotlib, so a single call can do most of the styling. The options used in the data-viz lab:
+
+| Option                                           | Effect                                                                                  |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| `kind=`                                          | `"line"`, `"bar"`, `"barh"`, `"hist"`, `"box"`, `"kde"`, `"area"`, `"scatter"`, `"pie"` |
+| `figsize=(w, h)`                                 | size in inches                                                                          |
+| `title=`, `xlabel=`, `ylabel=`                   | text                                                                                    |
+| `color=`, `colormap=`                            | one colour, or a colormap for several columns                                           |
+| `style=`, `lw=`, `alpha=`                        | line style (`"--"`, `":"`, `"o-"`), line width, transparency                            |
+| `xlim=`, `ylim=`, `xticks=`, `rot=`, `fontsize=` | axis range, tick positions, label rotation and size                                     |
+| `stacked=True`                                   | stacked bars or areas                                                                   |
+| `subplots=True`, `layout=`                       | one panel per column                                                                    |
+| `ax=`                                            | draw on an Axes you created with `plt.subplots()`                                       |
+
+`.hist()` also takes `by=` (one panel per group), `bins=`, `sharex=` and `sharey=`.
+
+```python
+by_group = lego.pivot_table(index="Theme_Group", columns="Category", values="Set_ID",
+                            aggfunc="count", fill_value=0)
+by_group.plot(kind="barh", stacked=True, figsize=(8, 6), colormap="viridis",
+              title="Sets per theme group, by category")
+
+lego.groupby("Year")["Pieces"].median().plot(style="o-", lw=2, alpha=0.8, xlim=(1990, 2023),
+                                              title="Median pieces per set", rot=45)
+
+titanic.hist(column="Age", by="Pclass", bins=20, layout=(1, 3), figsize=(12, 3), sharey=True)
+```
+
+See also: [pandas .plot()](#pandas-plot), [Object-oriented interface](#object-oriented-interface), [Bar chart](#bar-chart)
+
+<a id="bar-chart"></a>
+
+### Bar chart
+
+_Concept, pandas, matplotlib_
+
+Bars whose length shows a number for each category. Use it to compare groups (sales by region, median price by theme). Horizontal bars (`barh`) make long category names readable; sorting the bars makes the ranking obvious.
+
+```python
+(lego.groupby("Theme_Group")["USD_MSRP"].median()
+     .sort_values()
+     .plot(kind="barh", xlabel="Median retail price ($)"))
+```
+
+See also: [Cookbook: EDA charts: categories and the target](#eda-charts-categories-and-the-target)
+
+<a id="scatter-plot"></a>
+
+### Scatter plot
+
+_Concept, pandas, matplotlib_
+
+One dot per observation, plotting one numeric variable against another. Shows correlation, clusters and outliers. Lower `alpha` when points overlap, and use `c=` / `colormap=` or seaborn's `hue=` to colour by a third variable.
+
+```python
+lego.plot(kind="scatter", x="USD_MSRP", y="Current_Price", alpha=0.2)
+auto.plot(kind="scatter", x="displacement", y="horsepower", c="mpg", colormap="Blues_r")
+```
+
+**Worked example.** For the 3,612 LEGO sets with both a retail and a current price, plotting one against the other shows that most sets now sell **above** retail: the median current price is 1.5 times the retail price, and only 22.5% are within ±20% of it. Compute a summary like this to check what a scatter plot seems to show.
+
+```python
+both = lego.dropna(subset=["USD_MSRP", "Current_Price"])
+ratio = both["Current_Price"] / both["USD_MSRP"]
+len(both), round(ratio.median(), 2), round(ratio.between(0.8, 1.2).mean() * 100, 1)   # 3612, 1.5, 22.5
+```
+
+See also: [Cookbook: EDA charts: relationships, correlation and time](#eda-charts-relationships-correlation-and-time)
+
+<a id="line-chart"></a>
+
+### Line chart
+
+_Concept, pandas, matplotlib_
+
+Points joined in order, used for **trends over time**. Needs a real date or ordered x-axis at a sensible granularity. A DataFrame with dates as the index and one column per series draws one line per column.
+
+```python
+lego["year_date"] = pd.to_datetime(lego["Year"], format="%Y")
+annual_price = lego.set_index("year_date").resample("YS")["USD_MSRP"].median()
+annual_price.plot(title="Median LEGO price by year", ylabel="USD")
+```
+
+> **Watch out:** a trend can be produced by how the data was collected. The LEGO dataset has exactly **500 sets for every year from 2010 to 2023** (2009 has 487), which looks like a cap in the collection rather than LEGO's real release numbers. A line chart of sets per year therefore flattens after 2010 for reasons that have nothing to do with LEGO. Count rows per period before you interpret a trend.
+
+<a id="histogram"></a>
+
+### Histogram
+
+_Concept, pandas, matplotlib_
+
+Splits a numeric variable into ranges (**bins**) and draws a bar for how many values fall in each. Shows the shape of the data, whether it looks normal, skew, and outliers. Try several bin counts, because too few hide detail and too many look noisy.
+
+```python
+lego["USD_MSRP"].hist(bins=50)
+lego["USD_MSRP"].plot(kind="hist", bins=20)
+lego.hist(column="Pieces", by="Theme_Group", sharex=True)   # one per group
+```
+
+See also: [Cookbook: EDA charts: distributions](#eda-charts-distributions)
+
+<a id="choosing-histogram-bins"></a>
+
+### Choosing histogram bins
+
+_Concept_
+
+The number of bins changes what a histogram seems to say. Too few bins hide features such as a second peak, and too many turn it into noise. The data-viz lab shows the same data looking quite different at different bin counts. Try several values, or a rule such as `bins="auto"`. For integer data (ratings, counts), put the bin edges between the integers so each value gets its own bar.
+
+```python
+fig, axes = plt.subplots(1, 3, figsize=(12, 3))
+for ax, b in zip(axes, [5, 30, "auto"]):
+    ax.hist(titanic["Age"].dropna(), bins=b, edgecolor="white")
+    ax.set_title(f"bins={b}")
+
+fig2, ax = plt.subplots()
+ax.hist(sodas["rating"], bins=np.arange(0.5, 11.5, 1), edgecolor="white")   # one bar per rating
+ax.set_xticks(range(1, 11))
+```
+
+See also: [Histogram](#histogram), [Density plot / KDE](#density-plot-kde)
+
+<a id="trend-lines-regplot-and-lmplot"></a>
+
+### Trend lines: regplot and lmplot
+
+_seaborn_
+
+`sns.regplot()` (axes-level) and `sns.lmplot()` (figure-level) draw a scatter plot with a fitted regression line and a 95% confidence band. `order=2` fits a curve, `lowess=True` a flexible smoother (needs statsmodels), `ci=None` hides the band, and `scatter_kws=` styles the points. In `lmplot`, `fit_reg=False` draws the points without a line. The Module 2.4 code-along adds a fitted trend "cautiously": a line describes the pattern in this data. It doesn't prove that one variable drives the other.
+
+```python
+auto_hp = pd.read_csv(VIZ + "autoMPG.csv", na_values=["?"])
+fig, ax = plt.subplots()
+sns.regplot(data=auto_hp, x="horsepower", y="mpg", order=2,
+            scatter_kws={"s": 10, "alpha": 0.5}, line_kws={"color": "red"}, ax=ax)
+ax.set_title("Fuel economy falls with horsepower (quadratic fit)")
+```
+
+> **Watch out:** in `regplot` and `lmplot`, `ci=` is still the right name for the band around the line. The `ci=` to `errorbar=` change applies to the aggregating functions such as `barplot` and `lineplot`.
+
+See also: [np.poly1d()](#np-poly1d), [Scatter plot](#scatter-plot), [Correlation does not imply causation](#correlation-does-not-imply-causation)
+
+<a id="box-plot"></a>
+
+### Box plot
+
+_Concept, pandas, seaborn_
+
+Draws the five-number summary. The box spans Q1 to Q3 with a line at the median. The **whiskers** usually reach to the furthest points within 1.5 × IQR of the box, and points beyond them are drawn individually as potential **outliers**. Great for comparing distributions across groups.
+
+```python
+lego.boxplot("USD_MSRP", orientation="horizontal")
+lego.boxplot(column="USD_MSRP", by="Theme_Group", rot=90)
+sns.boxplot(data=lego, x="USD_MSRP", y="Theme_Group")
+```
+
+> **Watch out:** older code draws horizontal box plots with `vert=False`. matplotlib 3.10 added `orientation="horizontal"` as the replacement, and 3.11 deprecated `vert`, with removal planned for 3.13. Until then `vert` gives a `MatplotlibDeprecationWarning`. That includes pandas' `.boxplot()`, which passes the argument through to matplotlib. In seaborn, put the numeric column on `x` instead. If you pass group names to matplotlib's own `ax.boxplot()` or `plt.boxplot()`, use `tick_labels=`: it replaced `labels=` in matplotlib 3.9, and `labels=` was removed in 3.11, so old code now stops with `TypeError: ... unexpected keyword argument 'labels'`.
+>
+> With seaborn 0.13.2 and matplotlib 3.11, every `sns.boxplot()` call shows the `vert` deprecation warning even when your code doesn't use `vert`, because seaborn passes it internally. It's harmless and you can ignore it. Check whether your installed seaborn version still does this. pandas' horizontal `.boxplot()` can likewise print a harmless `set_ticklabels()` warning from inside pandas.
+
+See also: [Cookbook: EDA charts: distributions](#eda-charts-distributions)
+
+<a id="density-plot-kde"></a>
+
+### Density plot / KDE
+
+_Concept, pandas, seaborn_
+
+A smooth curve estimating a distribution's shape, like a smoothed histogram. KDE stands for **kernel density estimate**.
+
+```python
+lego["Pieces"].plot(kind="density")
+sns.kdeplot(data=auto["mpg"], fill=True)
+sns.histplot(titanic["Age"], kde=True)     # histogram with KDE overlay
+```
+
+<a id="heatmap"></a>
+
+### Heatmap
+
+_Concept, seaborn_
+
+A grid where colour shows the size of each value. The standard way to show a correlation matrix or a crosstab. `annot=True` writes the numbers in each cell, `cmap=` sets the colours, and `center=0` makes a diverging palette balance on zero.
+
+```python
+corr = lego.corr(numeric_only=True)
+sns.heatmap(corr, annot=True, cmap="coolwarm", center=0, fmt=".2f")
+
+counts = pd.crosstab(lego["Category"], lego["Year"])
+sns.heatmap(counts, cmap="Blues")
+```
+
+See also: [Cookbook: EDA charts: relationships, correlation and time](#eda-charts-relationships-correlation-and-time)
+
+<a id="colormap-palette"></a>
+
+### Colormap / palette
+
+_matplotlib, seaborn_
+
+The set of colours a chart uses. **Sequential** maps (`"Blues"`, `"Greens"`, `"viridis"`) suit values from low to high; **diverging** maps (`"coolwarm"`, `sns.diverging_palette(230, 20)`) suit values above and below a midpoint, like correlations. Add `_r` to reverse one (`"Blues_r"`).
+
+<a id="colorbar"></a>
+
+### Colorbar
+
+_matplotlib_
+
+The key that explains what each colour means in a heatmap or a colour-coded scatter plot. `fig.colorbar(mappable, ax=ax, label="...")` adds one, where the "mappable" is what the plotting call returned (`ax.scatter(...)`, `ax.imshow(...)`). seaborn heatmaps add their own, and you can label it with `cbar_kws={"label": "..."}`.
+
+```python
+fig, ax = plt.subplots()
+pts = ax.scatter(housing_df["longitude"], housing_df["latitude"], c=housing_df["median_house_value"],
+                 cmap="plasma", s=2, alpha=0.5)
+fig.colorbar(pts, ax=ax, label="Median house value (USD)")
+ax.set(title="California house values", xlabel="Longitude", ylabel="Latitude")
+```
+
+See also: [Colormap / palette](#colormap-palette), [Heatmap](#heatmap), [Scatter plot](#scatter-plot)
+
+<a id="seaborn"></a>
+
+### seaborn
+
+_seaborn_
+
+A statistical plotting library built on matplotlib and closely integrated with pandas. It produces nicer-looking charts with less code and has chart types matplotlib lacks. Most functions take `data=` (a DataFrame), `x=`, `y=` and `hue=` (a column that sets colour).
+
+```python
+import seaborn as sns
+sns.scatterplot(data=lego, x="Pieces", y="USD_MSRP", hue="Theme_Group", alpha=0.6)
+```
+
+<a id="figure-level-vs-axes-level-seaborn-functions"></a>
+
+### Figure-level vs axes-level seaborn functions
+
+_seaborn_
+
+seaborn has two kinds of plotting function.
+
+- **Axes-level** functions (`histplot`, `kdeplot`, `boxplot`, `violinplot`, `scatterplot`, `lineplot`, `barplot`, `heatmap`, `regplot`) draw on one matplotlib Axes. They accept `ax=`, so they fit into your own `plt.subplots()` grid.
+- **Figure-level** functions (`displot`, `relplot`, `catplot`, `lmplot`, `pairplot`, `jointplot`) create a whole new figure, managed by a `FacetGrid`. They can split into **small multiples** with `col=` and `row=`, and are sized with `height=` and `aspect=`, not `figsize`.
+
+```python
+fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+sns.histplot(data=titanic, x="Age", hue="Survived", ax=axes[0])     # axes-level: goes where you put it
+sns.violinplot(data=titanic, x="Pclass", y="Age", ax=axes[1])
+
+g = sns.displot(data=titanic, x="Age", col="Pclass", height=3, aspect=1.1)   # figure-level
+g.set_titles("Class {col_name}")
+g.set_axis_labels("Age", "Passengers")
+```
+
+> **Watch out:** passing `ax=` to a figure-level function such as `lmplot` or `displot` doesn't work, because they always make their own figure. Use the axes-level equivalent (`regplot`, `histplot`) inside a grid.
+
+See also: [seaborn](#seaborn), [Small multiples](#small-multiples), [plt.subplots()](#plt-subplots)
+
+<a id="sweetviz-eda-visualisation-library"></a>
+
+### sweetviz EDA visualisation library
+
+_sweetviz_
+
+sweetviz is a library that generates an interactive EDA report in HTML format. It can be installed via pip if not already installed.
+
+```python
+# !pip install sweetviz
+import sweetviz as sv
+
+# Analyze the dataset (and optionally specify a target variable)
+edareport = sv.analyze(df)
+
+# Generate and open the interactive HTML report
+edareport.show_html("titanic_eda_report.html")
+
+```
+
+> **Watch out:** sweetviz can be slow on large datasets. If you have a large dataset, consider sampling it before generating the report.
+> It should not be used as a default for EDA, but it can be a useful tool to quickly get an overview of the dataset and identify potential issues or areas for further investigation.
+> Nothing beats careful EDA with the methods and tools you know!
+
+See also: [Cookbook: Profile a dataset quickly](#profile-a-dataset-quickly)
+
+<a id="small-multiples"></a>
+
+### Small multiples
+
+_Concept, seaborn_
+
+A grid of small charts that share axes, one for each group, so the eye can compare shapes across groups. It's often clearer than overlaying many colours in one chart. The Module 2.4 code-along uses them to compare appointment waits by department. In seaborn, pass `col=` (and `row=`) to a figure-level function. In pandas, use `.hist(by=)` or `subplots=True`.
+
+```python
+sns.relplot(data=auto, x="weight", y="mpg", col="origin", height=3)
+sns.catplot(data=titanic, x="Sex", y="Survived", col="Pclass", kind="bar", height=3, errorbar=None)
+```
+
+See also: [Figure-level vs axes-level seaborn functions](#figure-level-vs-axes-level-seaborn-functions), [hue](#hue)
+
+<a id="sns-lineplot-sns-barplot-and-error-bars"></a>
+
+### sns.lineplot(), sns.barplot() and error bars
+
+_seaborn_
+
+`sns.lineplot()` and `sns.barplot()` **aggregate for you**. When several rows share an x value, they plot the mean and draw an **error bar** or shaded band showing its uncertainty. `errorbar=` controls this:
+
+- `("ci", 95)`: the default, a 95% bootstrap confidence interval.
+- `"sd"`: one standard deviation.
+- `"se"`: the standard error.
+- `None`: no bar at all.
+
+`estimator="median"` changes what's averaged.
+
+```python
+fig, axes = plt.subplots(1, 2, figsize=(11, 4))
+sns.lineplot(data=lego, x="Year", y="Pieces", estimator="median", errorbar=None, ax=axes[0])
+axes[0].set_title("Median pieces per set by year")
+sns.barplot(data=sodas, x="soda", y="rating", errorbar="sd", ax=axes[1])
+axes[1].set_title("Mean rating ± 1 SD")
+```
+
+> **Watch out:** seaborn 0.12 replaced `ci=` with `errorbar=`. Old code such as `ci=None` or `ci=95` now gives a `FutureWarning`. Use `errorbar=None` or `errorbar=("ci", 95)`.
+
+See also: [seaborn relationship and category plots](#seaborn-relationship-and-category-plots), [Line chart](#line-chart), [Bar chart](#bar-chart)
+
+<a id="themes-and-palettes-sns-set-theme"></a>
+
+### Themes and palettes: sns.set_theme()
+
+_seaborn, matplotlib_
+
+`sns.set_theme(style="whitegrid", palette="deep", context="notebook")` sets the look of every following chart, including plain matplotlib ones. `sns.set_palette()` changes just the colours. `sns.color_palette("viridis", 5)` returns a list of colours to pass to `palette=` or `color=`. For correlation heatmaps, `sns.diverging_palette(240, 10, as_cmap=True)` makes a two-colour scale centred on zero, so negative and positive correlations stand out.
+
+```python
+sns.set_theme(style="whitegrid", context="talk")         # larger text for slides
+sns.set_palette("colorblind")                            # colour-blind-safe colours
+cmap = sns.diverging_palette(240, 10, as_cmap=True)
+fig, ax = plt.subplots(figsize=(7, 6))
+sns.heatmap(housing_df.corr(numeric_only=True), cmap=cmap, center=0, vmin=-1, vmax=1,
+            square=True, linewidths=0.5, cbar_kws={"shrink": 0.7, "label": "r"}, ax=ax)
+sns.set_theme()                                          # back to the defaults
+```
+
+> **Watch out:** with seaborn 0.13.2 and matplotlib 3.11, `sns.heatmap(..., center=0)` prints a `PendingDeprecationWarning` about `set_bad` from inside seaborn. Your code is fine and the chart is correct, so you can ignore it.
+
+See also: [Style sheets and rcParams](#style-sheets-and-rcparams), [Colormap / palette](#colormap-palette), [Heatmap](#heatmap)
+
+<a id="hue"></a>
+
+### hue
+
+_seaborn, plotly_
+
+A seaborn parameter naming a column whose values set the colour of each point, bar or line, so you can compare groups within one chart. plotly calls it `color=`.
+
+```python
+sns.histplot(data=sodas, x="rating", hue="soda", bins=8)
+```
+
+<a id="seaborn-distribution-plots"></a>
+
+### seaborn distribution plots
+
+_seaborn_
+
+`sns.histplot()` (histogram, add `kde=True` for a curve), `sns.kdeplot()` (smooth curve), `sns.boxplot()` (box plot), `sns.violinplot()` (box plot plus mirrored density) and `sns.swarmplot()` (every point, spread out so none overlap).
+
+```python
+bonds_long = bonds.melt(id_vars=["Country", "country_code"], var_name="month", value_name="rate")
+sns.violinplot(data=bonds_long, x="rate", y="Country")
+plt.figure()
+sns.swarmplot(data=auto, x="model year", y="mpg", hue="cylinders", size=3)
+```
+
+<a id="seaborn-relationship-and-category-plots"></a>
+
+### seaborn relationship and category plots
+
+_seaborn_
+
+`sns.scatterplot()` (scatter with `hue`), `sns.lineplot()` (line with a confidence band), `sns.lmplot()` (scatter with a fitted regression line), `sns.barplot()` (mean of y per category with error bars), `sns.countplot()` (count of rows per category), and `sns.jointplot()` (scatter with histograms on the margins).
+
+```python
+auto = auto[auto["horsepower"] != "?"].copy()       # '?' marks missing horsepower
+auto["horsepower"] = auto["horsepower"].astype(float)   # text such as "130.0" -> number
+sns.lmplot(data=auto, x="displacement", y="horsepower")
+sns.catplot(data=auto, x="model year", hue="cylinders", kind="count")
+sns.jointplot(data=auto, x="displacement", y="mpg", kind="kde")
+```
+
+<a id="pair-plot-scatter-matrix"></a>
+
+### Pair plot / scatter matrix
+
+_seaborn, pandas_
+
+A grid of scatter plots for every pair of numeric columns, with distributions on the diagonal. A fast first look at all relationships. It gets slow and cluttered with many columns, so pick a subset with `vars=`.
+
+```python
+sns.pairplot(houses, vars=["LotArea", "YearBuilt", "OverallQual", "SalePrice"])
+pd.plotting.scatter_matrix(drinks[["beer_servings", "spirit_servings", "wine_servings"]], figsize=(10, 8))
+```
+
+<a id="plotly-plotly-express"></a>
+
+### plotly (plotly express)
+
+_plotly_
+
+A library for **interactive** charts: hover for details, zoom and pan. `plotly.express` (imported as `px`) makes a chart in one line, and `fig.show()` displays it. `hover_data=` and `hover_name=` choose what appears on hover; `color=` and `size=` encode extra variables.
+
+```python
+import plotly.express as px
+fig = px.scatter(houses, x="YearBuilt", y="SalePrice",
+                 color="HouseStyle", hover_data=["Neighborhood"])
+fig.show()
+px.histogram(houses, x="GarageArea", title="Spread of garage areas")
+top_ten = (houses.groupby("Neighborhood", as_index=False)["SalePrice"].median()
+                 .nlargest(10, "SalePrice"))
+px.bar(top_ten, x="Neighborhood", y="SalePrice", title="Top 10 neighbourhoods by median price")
+px.imshow(houses.corr(numeric_only=True))      # interactive heatmap
+```
+
+More `px` options used in the plotly practice notebook: `hover_name=` (bold title in the tooltip), `size=` and `size_max=` (bubble size), `color_discrete_sequence=` (your own colours), `opacity=`, `title=` and `facet_col=` (small multiples). `fig.write_html("chart.html")` saves an interactive chart you can open in any browser.
+
+```python
+import plotly.express as px
+fig = px.scatter(houses, x="GrLivArea", y="SalePrice", size="GarageArea", size_max=15,
+                 hover_name="Neighborhood", color="OverallQual", opacity=0.6,
+                 title="Price vs living area (bubble = garage size)")
+fig2 = px.histogram(houses, x="SalePrice", color_discrete_sequence=["indianred"], nbins=50)
+fig.write_html("price_vs_area.html")
+```
+
+<a id="other-visualization-libraries"></a>
+
+### Other visualization libraries
+
+_Concept_
+
+Beyond matplotlib, seaborn and plotly: **Altair** builds charts "declaratively" (you describe what to show, not how to draw it), and **plotnine** copies R's ggplot2 grammar of graphics, which is familiar to R users.
+
+<a id="misleading-charts"></a>
+
+### Misleading charts
+
+_Concept_
+
+A chart can be accurate and still mislead. The Module 2.4 code-along's design checklist covers the usual ways:
+
+- A **truncated bar axis**: bars must start at zero, or small differences look huge.
+- An unlabelled or **inconsistent scale** between panels.
+- **3-D or pie charts** that distort area.
+- **Too many colours** for the eye to separate.
+- **Unequal time gaps** on a line chart.
+- **Cherry-picked date ranges**.
+
+Line charts may zoom in on the y-axis, because their message is the change, but say so in the label.
+
+```python
+means = sodas.groupby("soda")["rating"].mean()
+fig, axes = plt.subplots(1, 2, figsize=(9, 3))
+means.plot(kind="bar", ax=axes[0], ylim=(5, 8), title="Truncated axis: exaggerates the gap", rot=0)
+means.plot(kind="bar", ax=axes[1], ylim=(0, 10), title="Axis from zero: honest", rot=0)
+```
+
+See also: [Choosing a chart type](#choosing-a-chart-type), [Bar chart](#bar-chart)
+
+---
+
+<a id="s7-experimental-design-and-hypothesis-testing"></a>
+
+## 7. Experimental design and hypothesis testing
+
+_How to set up a fair test (the BIG Sodas taste test, the 2008 Obama campaign page, red vs blue buttons) and how to decide whether a difference in the results is real or just chance._
+
+**In your capstone:** most capstones use observational data, so this section mainly keeps your claims honest: say "is associated with", not "causes", unless the data came from a randomized experiment. If you compare two groups, state H₀ and H₁ and α before you look, pick the test that matches the design (independent or paired), and report the effect size alongside the p-value.
 
 <a id="experiment"></a>
 
@@ -233,1255 +4323,195 @@ _Concept_
 
 _Concept_
 
-Any clearly defined process with an outcome: flipping a coin twice, rolling a die, drawing a marble. ("Lab coat optional.") Not to be confused with a designed experiment from Unit 2, though the idea is related.
+A study where you deliberately change something (the treatment) and measure the effect, assigning units to treatments yourself, ideally at random. The slides give four purposes: determine causes, compare effects at different settings, find the conditions for a maximum or minimum response, and build a model to predict future responses.
 
-See also: [Experiment (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#experiment)
+<a id="four-purposes-of-experiments"></a>
 
-<a id="outcome"></a>
-
-### Outcome
+### Four purposes of experiments
 
 _Concept_
 
-A single possible result of an experiment, such as rolling a 4 or flipping HT.
+Following the statisticians Dean and Voss, the course gives four reasons to run an experiment:
 
-<a id="sample-space"></a>
+| Purpose            | Question it answers                              | Family                          |
+| ------------------ | ------------------------------------------------ | ------------------------------- |
+| Determine causes   | Does changing X change Y?                        | inferential statistics          |
+| Compare effects    | Is treatment A better than B, and by how much?   | inferential statistics          |
+| Find extremes      | Which settings give the best (or worst) outcome? | machine learning / optimization |
+| Predict the future | What will happen under conditions not yet seen?  | machine learning                |
 
-### Sample space
+In the BIG Sodas case, the company wants to compare effects (is Zero rated higher than Diet?) to decide which formula to make.
+
+See also: [Experiment](#experiment), [Inferential statistics](#inferential-statistics), [Four steps of experimental design](#four-steps-of-experimental-design)
+
+<a id="inferential-statistics"></a>
+
+### Inferential statistics
 
 _Concept_
 
-The set of **all** possible outcomes of an experiment, usually written S (or Ω). Flip a coin twice: S = {HH, HT, TH, TT}. Roll one die: S = {1, 2, 3, 4, 5, 6}.
+Using a sample of data to draw conclusions about a larger population or about causes, with a measure of uncertainty. Hypothesis tests are inferential statistics. Determining causes and comparing effects are the experiment goals that fall under this heading.
 
-**Order matters** in sequential experiments: HT (heads then tails) and TH are different outcomes, so two coin flips have 2² = 4 outcomes, not 3. Listing them separately prevents undercounting. With S = {HH, HT, TH, TT}: P(both heads) = 1/4 and P(at least one head) = P({HH, HT, TH}) = 3/4.
+<a id="four-steps-of-experimental-design"></a>
 
-<a id="event"></a>
-
-### Event
+### Four steps of experimental design
 
 _Concept_
 
-Any collection of outcomes, i.e. a subset of the sample space. For one die roll: A = {1}, B = {an even number} = {2, 4, 6}, C = {a prime number} = {2, 3, 5}.
+1. **Define the objectives**: a precise, short list of questions to answer. 2. **Identify sources of variation**: experimental units, treatment factors and blocking factors. 3. **Choose a rule for assigning units to treatments**: randomly, within- or between-subject. 4. **Decide on measurements** and the analysis procedure. The summary slide adds a fifth: **define the null and alternative hypotheses** and identify the statistical tests.
 
-> **Watch out:** 1 is neither prime nor composite, so the primes on a standard die are 2, 3 and 5. Notice that B and C share the outcome 2: that overlap is an intersection.
+<a id="experimental-unit"></a>
 
-<a id="set-and-element"></a>
+### Experimental unit
 
-### Set and element
+_Concept_
 
-_Concept, Python_
+The basic "thing" you experiment on: a participant, a website visitor, a patient. It's usually what each row of your final dataset represents.
 
-A **set** is an unordered collection of distinct objects; each object in it is an **element**. Sets ignore order and duplicates: {1, 2} = {2, 1}, and `set([1, 1, 2])` is `{1, 2}`. `{Chloe, 17, 😂}` is a set with three elements. Python's built-in `set` behaves the same way and supports the set operations below.
+<a id="treatment-factor"></a>
+
+### Treatment factor
+
+_Concept_
+
+A source of variation you deliberately control to see its effect on the response: the soda formula, the button colour, the drug. Each version is a **level**; the Obama campaign had two factors (6 images and 4 buttons), giving 6 × 4 = 24 **treatment combinations**.
+
+<a id="control-group"></a>
+
+### Control group
+
+_Concept_
+
+The units that receive no treatment (or the current standard), giving a baseline to compare against. Choosing the wrong control, or none when one is needed, is a source of bias.
+
+<a id="placebo"></a>
+
+### Placebo
+
+_Concept_
+
+A fake treatment that looks like the real one (a sugar pill), so that participants' expectations affect both groups equally.
+
+<a id="blocking-factor"></a>
+
+### Blocking factor
+
+_Concept_
+
+A source of variation you **can't** manipulate and don't really care about, but which affects the response: age, gender, device type, time of day. Also called a **nuisance variable**. You record it and account for it (e.g. compare treatments within each age band) so it doesn't muddy the result.
+
+<a id="blinding"></a>
+
+### Blinding
+
+_Concept_
+
+Keeping participants (and, in a **double-blind** study, the people running it) unaware of which treatment each person gets. In the BIG Sodas taste test, tasters don't see the brand. Otherwise their existing opinions of "Diet" and "Zero" would colour their ratings, and you'd measure the label instead of the flavour. A [Placebo](#placebo) in a drug trial does the same job.
+
+See also: [Placebo](#placebo), [Bias](#bias), [Control group](#control-group)
+
+<a id="randomization"></a>
+
+### Randomization
+
+_Concept_
+
+Assigning units to treatments at random. It's the most important rule in experimental design and the only way to make sure unmeasured factors are spread evenly across the groups.
 
 ```python
-A = {2, 4, 6, 8}
-B = {2, 3, 5, 7}
-A & B          # {2}                    intersection
-A | B          # {2, 3, 4, 5, 6, 7, 8}  union
-S = set(range(1, 9))
-S - A          # {1, 3, 5, 7}           complement of A within S
-S - (A | B)    # {1}
+rng = np.random.default_rng(42)
+participants = pd.DataFrame({"participant_id": range(1, 21)})
+participants["group"] = rng.permutation(["A"] * 10 + ["B"] * 10)   # exactly 10 per group, in random order
+participants["group"].value_counts()
 ```
 
-Python sets also give very fast membership tests (`x in my_set`), which is why converting a long list to a set before repeated lookups is a common speed-up.
+<a id="completely-randomized-design-crd"></a>
 
-See also: [Set (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#set)
-
-<a id="intersection-a-b"></a>
-
-### Intersection (A ∩ B)
+### Completely Randomized Design (CRD)
 
 _Concept_
 
-The elements in **both** A and B ("A and B"). For an 8-sided die with A = {2, 4, 6, 8} and B = {2, 3, 5, 7}, A ∩ B = {2}.
+An experiment where every unit is randomly assigned to a treatment. With blocks involved (randomizing within each block), the slides call it a **Completely Randomized Block Design (CRBD)**.
 
-Memory hint: **∩ looks like an A, for AND**. In SQL this is `INTERSECT`; in pandas it's combining boolean masks with `&`.
+<a id="completely-randomized-block-design-crbd"></a>
 
-<a id="union-a-b"></a>
-
-### Union (A ∪ B)
+### Completely Randomized Block Design (CRBD)
 
 _Concept_
 
-The elements in A **or** B, or both. With the sets above, A ∪ B = {2, 3, 4, 5, 6, 7, 8}.
-
-In probability, "or" is **inclusive** (A, B or both) unless stated otherwise. In SQL this is `UNION`; in pandas, `|`.
-
-<a id="complement-a"></a>
-
-### Complement (Aᶜ)
-
-_Concept_
-
-Everything in the sample space that is **not** in A. With S = {1, …, 8} and A = {2, 4, 6, 8}, Aᶜ = {1, 3, 5, 7}, and (A ∪ B)ᶜ = {1}.
-
-In SQL this is `NOT IN` / `EXCEPT`; in pandas, `~mask`.
-
-<a id="de-morgan-s-laws"></a>
-
-### De Morgan's laws
-
-_Concept_
-
-Two rules for complements of unions and intersections: **(A ∪ B)ᶜ = Aᶜ ∩ Bᶜ** ("not (A or B)" = "not A and not B") and **(A ∩ B)ᶜ = Aᶜ ∪ Bᶜ**. With the 8-sided die, (A ∪ B)ᶜ = {1} = {1, 3, 5, 7} ∩ {1, 4, 6, 8}. The same rule applies to boolean filters in pandas: `~(a | b)` is the same as `~a & ~b`.
+Usually called a **Randomized Complete Block Design (RCBD)**, which is the name to search for. Group the experimental units into **blocks** of similar units first, for example age bands or "regular diet-soda drinker or not", then randomize to treatments **within each block**. Each block ends up with a fair share of every treatment, so the block's effect can be separated from the treatment effect. That removes a source of noise and makes a real difference easier to detect. Compare the [Completely Randomized Design (CRD)](#completely-randomized-design-crd), which randomizes everyone in one go.
 
 ```python
-S, A, B = set(range(1, 9)), {2, 4, 6, 8}, {2, 3, 5, 7}
-S - (A | B) == (S - A) & (S - B)      # True
+rng = np.random.default_rng(7)
+tasters = pd.DataFrame({"taster": range(1, 13),
+                        "age_band": ["18-34"] * 6 + ["35+"] * 6})
+tasters["soda"] = (tasters.groupby("age_band")["taster"]
+                          .transform(lambda s: rng.permutation(["Zero", "Diet"] * (len(s) // 2))))
+pd.crosstab(tasters["age_band"], tasters["soda"])     # 3 of each soda in each age band
 ```
 
-<a id="disjoint-mutually-exclusive-events"></a>
+See also: [Blocking factor](#blocking-factor), [Randomization](#randomization), [Completely Randomized Design (CRD)](#completely-randomized-design-crd)
 
-### Disjoint (mutually exclusive) events
+<a id="full-factorial-design"></a>
 
-_Concept_
-
-Events that can't happen together, so P(A ∩ B) = 0. "Both marbles are blue" and "both marbles are red" are disjoint. For disjoint events, the union rule simplifies to P(A ∪ B) = P(A) + P(B).
-
-A single coin flip landing heads **and** tails is the simplest example. In the urn problem, "both blue" and "both red" can't both happen, so P(same colour) = 11/46 + 11/46 = **11/23 ≈ 0.478** exactly.
-
-<a id="key-probability-facts-kolmogorov-s-axioms"></a>
-
-### Key probability facts (Kolmogorov's axioms)
+### Full factorial design
 
 _Concept_
 
-Three facts that always hold, known as **Kolmogorov's axioms**: **P(S) = 1** (something in the sample space happens), **P(∅) = 0** (the probability of the empty set, an impossible event, is zero), and **0 ≤ P(A) ≤ 1** for any event A. If a calculation gives you a probability of 1.3 or −0.2, something has gone wrong. In ML, a model "probability" outside [0, 1] usually means you are looking at an unnormalized raw score (such as a logit, before the sigmoid or softmax is applied) or a bug.
+An experiment that tests **every combination** of the levels of two or more treatment factors. The number of combinations is the product of the number of levels. In the 2008 Obama campaign landing-page test, 6 media options (images and videos) × 4 sign-up button texts gave 6 × 4 = 24 versions, and each visitor was shown one at random.
 
-See also: [Logistic (sigmoid) function](#logistic-sigmoid-function)
-
-<a id="conditional-probability"></a>
-
-### Conditional probability
-
-_Concept_
-
-The probability of A **given** that B has already happened, written P(A | B). Drawing marbles without replacement is the classic case: once a blue marble is out, the chance the next one is blue drops from 12/24 to 11/23.
-
-Read the vertical bar **|** as "given that".
-
-See also: [Bayes' theorem](#bayes-theorem)
-
-<a id="statistical-independence"></a>
-
-### Statistical independence
-
-_Concept_
-
-Two events are **independent** if learning that one happened gives you no information about the other: **P(A | B) = P(A)**. Equivalent statements are P(B | A) = P(B) and **P(A ∩ B) = P(A) · P(B)**. If P(A | B) ≠ P(A), the events are **dependent**.
-
-The course's knowledge check sorts five pairs:
-
-- **Independent:** a coin flip and a die roll; you hitting snooze and a stranger in Paris hitting snooze.
-- **Dependent (behaviour):** pizza for lunch makes pizza for dinner less likely.
-- **Dependent (confounding variable):** shark attacks and ice-cream sales rise together because warm weather drives both, not because one causes the other.
-- **Dependent (autocorrelation):** today's and tomorrow's temperature, a time series.
-
-Independence comes up again and again: it's the **I** in the LINE assumptions, Naive Bayes classifiers assume features are independent given the class, and time series data violate it by design.
-
-See also: [Independence (I)](#independence-i), [Time series](#time-series), [Confounding variable (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#confounding-variable), [Correlation does not imply causation (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#correlation-does-not-imply-causation)
-
-<a id="complement-rule"></a>
-
-### Complement rule
-
-_Concept_
-
-Rule 1: **P(Aᶜ) = 1 − P(A)**. Often the easiest route to a hard probability: P(at least one six in four rolls) = 1 − P(no sixes) = 1 − (5/6)⁴.
-
-Why it holds: A and Aᶜ split the sample space into two non-overlapping pieces that together make S, so P(A) + P(Aᶜ) = P(S) = 1. Calculating "at least one…" directly often needs many cases; "1 − P(none)" needs one.
-
-<a id="multiplication-rule-intersections"></a>
-
-### Multiplication rule (intersections)
-
-_Concept_
-
-Rule 2: **P(A ∩ B) = P(A) · P(B | A)**. With an urn of 12 red and 12 blue marbles, drawing twice without replacement, P(both blue) = (12/24) × (11/23) = 11/46 ≈ 0.239. If A and B are independent this reduces to P(A) · P(B).
-
-The urn calculation, step by step: P(B₁) = 12/24. After one blue ball is removed, 11 blue and 12 red remain (23 in total), so P(B₂ | B₁) = 11/23. Both the numerator and the denominator drop because we sample **without replacement**. By symmetry, P(both red) is also 11/46.
-
-<a id="addition-rule-unions"></a>
-
-### Addition rule (unions)
-
-_Concept_
-
-Rule 3: **P(A ∪ B) = P(A) + P(B) − P(A ∩ B)**. You subtract the intersection because adding P(A) and P(B) counts the overlap twice. P(both marbles the same colour) = P(both blue) + P(both red) − 0 = 0.239 + 0.239 = 0.478, since the two events are disjoint.
-
-Picture it as a Venn diagram: shading circle A and then circle B colours the overlap twice, so you subtract it once to get the true area of A ∪ B.
-
-<a id="sampling-with-and-without-replacement"></a>
-
-### Sampling with and without replacement
-
-_Concept, NumPy_
-
-**With replacement**, each item goes back before the next draw, so draws are independent and the same item can be picked twice (a bootstrap sample works this way). **Without replacement**, each item can be picked only once, so later draws depend on earlier ones (the urn problems).
+Testing all combinations measures each factor's **main effect** and also **interactions**, where the best image depends on which button it's paired with. The six media options were three images and three videos. According to the campaign's own write-up (by Dan Siroker), the winning combination (a family photo with a "Learn More" button) raised the sign-up rate from 8.26% to 11.6%, a 40.6% improvement. Over the campaign that meant about 10 million sign-ups instead of about 7.12 million. Each email address went on to donate an average of $21, so the roughly 2.88 million extra addresses were worth about $60 million. The 2.88 million is a projection from the improved rate, not a measured count.
 
 ```python
-urn = np.array([np.repeat("red", 12), np.repeat("blue", 12)]).ravel()
-np.random.choice(urn, size=2, replace=False)   # two different marbles
-np.random.choice(urn, size=2, replace=True)    # could be the same marble twice
+import itertools
+media = [f"media_{i}" for i in range(1, 7)]
+buttons = ["Sign Up", "Learn More", "Join Us Now", "Sign Up Now"]
+variants = pd.DataFrame(list(itertools.product(media, buttons)), columns=["media", "button"])
+len(variants)          # 24 treatment combinations
 ```
 
-See also: [Bootstrap sample](#bootstrap-sample)
+See also: [Treatment factor](#treatment-factor), [A/B test](#a-b-test), [Randomization](#randomization)
 
-<a id="simulation-monte-carlo"></a>
+<a id="observational-study"></a>
 
-### Simulation (Monte Carlo)
+### Observational study
 
-_Concept, Python_
+_Concept_
 
-Estimating a probability by running an experiment many times in code and counting how often the event happens: P(A) ≈ (times A occurs) ÷ n. When problems get too hard to do by hand, "why do the maths?" Every problem in the probability notebook follows the same pattern: a counter, a loop, an `if`, and a division.
+A study where you can't assign the treatment, so you analyse data that already exists (e.g. smoking and lung health, where random assignment would be unethical). Useful, but on its own it **cannot prove causation**. Causal inference methods (the Judea Pearl reading in the experimental design lesson) exist to draw careful causal conclusions from observational data. They need extra assumptions, so at this level treat observational results as associations.
+
+<a id="within-subject-design"></a>
+
+### Within-subject design
+
+_Concept_
+
+Every participant experiences every treatment (everyone tastes both sodas) and you measure the difference for each person. Each subject is their own control, so you need fewer people, but the order of treatments can bias results.
+
+<a id="between-subject-design"></a>
+
+### Between-subject design
+
+_Concept_
+
+Each participant gets only one treatment (each person tastes one soda) and you compare the group averages. Avoids order effects, but needs more participants. A/B tests on websites are usually between-subject.
+
+<a id="order-and-carryover-effects"></a>
+
+### Order and carryover effects
+
+_Concept_
+
+The main risk of a [Within-subject design](#within-subject-design). The first treatment can change how people respond to the second: through **fatigue**, **learning**, or **carryover** (the second soda tastes less sweet straight after the first). The fix is **counterbalancing**: half the participants get A then B and half get B then A, assigned at random, so order effects cancel out on average. You can also leave a gap between treatments, such as water between sips.
 
 ```python
-dice = [1, 2, 3, 4, 5, 6]
-
-def odd_roll(n):
-    count = 0
-    for i in range(n):
-        if np.random.choice(dice) % 2 != 0:   # is the roll odd?
-            count += 1
-    return count / n
-
-odd_roll(1_000_000)    # ≈ 0.5
+rng = np.random.default_rng(3)
+panel = pd.DataFrame({"taster": range(1, 11)})
+panel["order"] = rng.permutation(["Zero first", "Diet first"] * 5)
+panel["order"].value_counts()          # 5 and 5
 ```
 
-In modern data science, a quick simulation is often faster and less error-prone than hand-calculating complex combinatorics, and it's a good way to **check** an analytical answer. Monte Carlo methods get their own treatment in the simulation section.
-
-See also: [Law of Large Numbers (LLN)](#law-of-large-numbers-lln), [Monte Carlo simulation](#monte-carlo-simulation)
-
-<a id="law-of-large-numbers-lln"></a>
-
-### Law of Large Numbers (LLN)
-
-_Concept_
-
-As you repeat an experiment more and more times, the simulated probability of an event gets closer and closer to the true probability. Formally, for independent, identically distributed (i.i.d.) random variables X₁, …, Xₙ with mean μ, the sample mean (1/n)ΣXᵢ converges to μ as n → ∞. Flip a coin 10 times and you might see 7 heads; simulate 1,000,000 flips and the proportion settles very close to 0.500. That's why `odd_roll(1_000_000)` is closer to 0.5 than `odd_roll(1_000)`, and it's the justification for every simulation in the course.
-
-> **Watch out:** The LLN is **not** the Gambler's fallacy. Coins have no memory: after five heads in a row, the next flip is still 50/50. The proportion converges because a huge number of later flips dilutes the early run, not because the results "balance out".
-
-See also: [Gambler's fallacy](#gambler-s-fallacy)
-
-<a id="gambler-s-fallacy"></a>
-
-### Gambler's fallacy
-
-_Concept_
-
-The mistaken belief that independent random outcomes "balance out" in the short run: "red has come up six times, so black is due". Each spin or flip is independent, so past results don't change the next probability. It's a common misreading of the Law of Large Numbers.
-
-<a id="np-random-choice"></a>
-
-### np.random.choice()
-
-_NumPy_
-
-Picks random items from a list or array. `size` sets how many, `replace` sets whether an item can be picked twice, and `p` sets the probability of each item, which lets you simulate an unfair coin.
-
-```python
-np.random.choice(dice)                                   # one die roll
-np.random.choice(["heads", "tails"], p=[0.2, 0.8])       # unfair coin, 20% heads
-np.random.choice(urn, size=2, replace=False)              # two draws, no replacement
-```
-
-See also: [Random number generators (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#random-number-generators)
-
-<a id="np-random-randint-and-np-random-uniform"></a>
-
-### np.random.randint() and np.random.uniform()
-
-_NumPy_
-
-`np.random.randint(low, high)` returns a random integer from `low` up to but **not including** `high`: `randint(1, 7)` is a die roll and `randint(0, 2)` a coin flip. `np.random.uniform(low, high)` returns a random decimal, used in the "break a stick in two places" interview problem.
-
-```python
-np.random.randint(1, 7)       # 1, 2, 3, 4, 5 or 6
-np.random.randint(0, 2)       # 0 or 1
-np.random.uniform(0, 1)       # e.g. 0.3745...
-```
-
-> **Watch out:** The upper bound is exclusive. `randint(1, 6)` never rolls a 6.
-
-<a id="while-loop"></a>
-
-### while loop
-
-_Python_
-
-Repeats a block **as long as** a condition is true, which suits "keep flipping until you get heads". Use `while True:` with `break` when the stopping condition is easier to check inside the loop.
-
-```python
-rolls = 1
-while np.random.randint(0, 2) == 0:   # keep flipping while we get tails
-    rolls += 1
-```
-
-> **Watch out:** If the condition can never become false (say, a probability of heads of 0), the loop runs forever. Guard against impossible inputs first.
-
-See also: [for loop (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#for-loop), [continue and break (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#continue-and-break)
-
----
-
-<a id="s13-machine-learning-foundations-and-linear-regression"></a>
-
-## 13. Machine learning foundations and linear regression
-
-_What machine learning is, the two big families of models, and the first model in the toolkit: ordinary least squares linear regression. Covers fitting, interpreting and checking a model in scikit-learn and statsmodels, using the electricity demand (`elecdemand.csv`) and bikeshare (`bikeshare.csv`) notebooks._
-
-**In your capstone:** A linear regression is often your first and most interpretable model for a numeric target. Check the LINEM assumptions before interpreting coefficients, and always state effects with their units.
-
-<a id="machine-learning"></a>
-
-### Machine learning
-
-_Concept_
-
-Letting a computer use data to learn the relationship between some **predictors** (x-variables) and a **response** (y-variable). The slides call it "a fancy way of saying statistical modeling". Examples: predicting a house's sale price from size, location and rooms, or whether a customer will cancel their subscription next month from their recent activity.
-
-"Learning" has a precise meaning: the model has adjustable numbers called **parameters** (for linear regression, the intercept and slopes), and learning means choosing values for them that make the model fit the data well.
-
-A useful test for "is it ML?": **was the behaviour learned from data, or programmed as rules?** From the course discussions:
-
-- An online house-price estimate (an automated valuation model trained on past sales): **ML**, specifically supervised regression.
-- A factory robot following pre-programmed motion paths: **automation**, not ML (though defect-spotting cameras on the same line might use ML).
-- A mortgage calculator applying a fixed income multiple: **rules-based**, not ML (though the bank's real lending decision may use an ML credit score).
-
-See also: [AI, machine learning and deep learning](#ai-machine-learning-and-deep-learning)
-
-<a id="ai-machine-learning-and-deep-learning"></a>
-
-### AI, machine learning and deep learning
-
-_Concept_
-
-Three nested terms. **Artificial intelligence (AI)** is any system that performs tasks we associate with intelligence. **Machine learning** is the part of AI where systems learn from data. **Deep learning** is the part of ML that uses large neural networks. A single "neuron" in a neural network is essentially a linear regression (a weighted sum of inputs plus an intercept) passed through a non-linear function.
-
-The xkcd joke in the deck has a true core: most ML really is linear algebra, with data stored as matrices that models multiply by learned numbers.
-
-<a id="statistical-modeling"></a>
-
-### Statistical modeling
-
-_Concept_
-
-Combining data with statistical theory to model the real-world relationship between predictors and a response: "a more down-to-earth way of saying machine learning". Statisticians and ML engineers often describe the same thing in different words, which is why so many terms below have synonyms.
-
-Statistician Leo Breiman described "two cultures" (2001): one focused on **inference** (understanding how x relates to y and testing hypotheses) and one on **prediction** (getting accurate y values, even from black-box models). Linear regression sits in both camps. "All models are wrong, but some are useful" (George Box): a model is a simplified representation of reality that never captures everything but can capture enough to be useful.
-
-<a id="predictor-and-response-and-their-many-names"></a>
-
-### Predictor and response (and their many names)
-
-_Concept_
-
-Because ML grew out of several fields, the same thing has many names. The **predictor** is also called an independent variable, feature, covariate or input (e.g. square footage). The **response** is also called a dependent variable, target, label or output (e.g. house price). Conventionally, predictors go in `X` and the response in `y`.
-
-Tip for spotting which is which: the dependent variable is the thing **being predicted or affected**. "The effect of X on Y" and "predicting Y using X" give it away. "Independent variable" is a slightly misleading name: predictors are often correlated with each other; it means "the variable we vary", not "statistically independent".
-
-See also: [Feature (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#feature-independent-variable), [Target (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#target-dependent-variable)
-
-<a id="types-of-variables"></a>
-
-### Types of variables
-
-_Concept_
-
-The type of each variable decides how a model can use it, and the type of the **target** decides the problem type (numeric → regression, categorical → classification).
-
-- **Numerical, continuous:** any value in a range (height, weight, temperature). Scales may round, but the quantity is continuous.
-- **Numerical, discrete:** countable with gaps (bedrooms: you can't have 2.5).
-- **Categorical, nominal:** labels with no order (eye colour, city).
-- **Categorical, ordinal:** labels with an order but uneven gaps (poor < fair < good < excellent).
-
-Linear models do arithmetic, so categorical features must be converted to numbers first (one-hot encoding). **Month** is the tricky case: ordinal, and also **cyclical** (December sits next to January). Coding it 1–12 tells a linear model December is "12 times January", which is why the bikeshare notebook treats season and hour as categories.
-
-See also: [Nominal (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#nominal), [Ordinal (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#ordinal), [Dummy variables in regression](#dummy-variables-in-regression)
-
-<a id="supervised-learning"></a>
-
-### Supervised learning
-
-_Concept_
-
-Learning from data where the answer is known: "given X, can we predict Y?" Every row has a label, and the model learns to map features to that label. Supervised learning splits into **regression** and **classification**.
-
-See also: [Unsupervised learning](#unsupervised-learning), [Regression vs classification tasks](#regression-vs-classification-tasks)
-
-<a id="unsupervised-learning"></a>
-
-### Unsupervised learning
-
-_Concept_
-
-Learning from data with **no** y-variable: "what does X look like, really?" Used to find groups (clustering) or to compress many variables into a few (dimensionality reduction). There's no right answer to score against, so results need human interpretation.
-
-See also: [Clustering](#clustering), [Principal component analysis (PCA)](#principal-component-analysis-pca)
-
-<a id="reinforcement-learning"></a>
-
-### Reinforcement learning
-
-_Concept_
-
-A third family where an **agent** takes actions, receives rewards or penalties, and learns by trial and error to do better next time (game-playing AIs such as AlphaGo, robotics). It's a well-established field, also used in training today's large language models, but it's outside the scope of this course.
-
-See also: [Semi-supervised learning](#semi-supervised-learning)
-
-<a id="regression-vs-classification-tasks"></a>
-
-### Regression vs classification tasks
-
-_Concept_
-
-The two kinds of supervised learning. **Regression**: the y-variable is numeric (tomorrow's closing price, this year's harvest yield, a home's price). **Classification**: the y-variable is a category (will they buy, will it rain, will they pass). A yes/no target is **binary** classification; three or more classes is **multiclass**.
-
-Some problems can be framed either way: "how many mm of rain tomorrow?" is regression; "will it rain tomorrow?" is classification. "How long until this machine fails?" is regression; "will it fail this week?" is classification. Classification models usually output a **probability** for each class, which a threshold turns into a decision.
-
-See also: [Regression vs classification (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#regression-vs-classification), [Binary and multiclass classification](#binary-and-multiclass-classification)
-
-<a id="ingredients-of-a-supervised-model"></a>
-
-### Ingredients of a supervised model
-
-_Concept_
-
-From the slides, to build a supervised model you need: a **problem statement**, a **data set**, a choice of **independent variables**, a choice of **model**, and a way to **measure how good the model is**. Leaving out the last one is the most common mistake.
-
-Mapped onto the first notebook: problem statement, predict electricity demand in Victoria; data set, half-hourly demand and temperature for 2014; independent variable, temperature; model, OLS linear regression; measurement, MSE, RMSE and R². The steps influence each other: the problem decides what data you need, and the data limits which features you can use.
-
-<a id="linear-regression"></a>
-
-### Linear regression
-
-_Concept, scikit-learn_
-
-A supervised, white-box regression model that assumes y changes in a straight-line way with each x: y = β₀ + β₁x₁ + … + βₚxₚ + ε. Its big selling point is that the **coefficients are interpretable**. Its weakness is the list of assumptions (LINEM) that need to hold before you trust them.
-
-**Linear** means "linear in the parameters": the prediction is a weighted sum. You can include x² as a feature and it's still linear regression, because the betas still just multiply things and get added.
-
-A little history: the least-squares method was published by Legendre (1805) and Gauss (around 1809). The word "regression" comes from Francis Galton in the 1880s, who noticed that children of very tall parents tended to be tall but closer to average: their heights "regressed" towards the mean.
-
-See also: [Ordinary least squares (OLS)](#ordinary-least-squares-ols), [LINEM assumptions](#linem-assumptions)
-
-<a id="ordinary-least-squares-ols"></a>
-
-### Ordinary least squares (OLS)
-
-_Concept_
-
-The standard way to fit a linear regression: choose the β values that **minimize the sum of squared residuals**, hence "least squares". It is one of the very few models with a closed-form solution, so it doesn't need gradient descent.
-
-Why square the residuals rather than just add them?
-
-1. Positive and negative residuals would otherwise cancel out: a terrible line could have residuals summing to zero.
-2. Squaring punishes big misses much more than small ones (an error of 10 counts 100; an error of 2 counts 4).
-3. The maths is smooth, which gives an exact formula for the best betas.
-
-For simple regression the formulas are β̂₁ = Σ(xᵢ − x̄)(yᵢ − ȳ) / Σ(xᵢ − x̄)² and β̂₀ = ȳ − β̂₁x̄. One consequence: **the OLS line always passes through the point (x̄, ȳ)**.
-
-> **Watch out:** Because squaring magnifies large errors, OLS is sensitive to outliers: one extreme point can pull the line noticeably.
-
-See also: [Matrix form of OLS](#matrix-form-of-ols), [Line of best fit](#line-of-best-fit)
-
-<a id="simple-linear-regression"></a>
-
-### Simple linear regression
-
-_Concept_
-
-Linear regression with **one** predictor: ŷ = β̂₀ + β̂₁x. In the notebook: electricity demand predicted from temperature, giving ŷ = 2.32 + 0.11·temp.
-
-<a id="multiple-linear-regression"></a>
-
-### Multiple linear regression
-
-_Concept_
-
-Linear regression with **more than one** predictor: ŷ = β̂₀ + β̂₁x₁ + … + β̂ₚxₚ. Adds one assumption (no multicollinearity) and changes how you interpret coefficients ("holding all else constant").
-
-<a id="error-term"></a>
-
-### Error term (ε)
-
-_Concept_
-
-The part of y the model can't explain: random noise inherent in any prediction "because nothing will be perfect". It captures variables we didn't measure, measurement error and genuine randomness. The model is y = β₀ + β₁x + ε; observation = model + error.
-
-**Error vs residual:** ε is the gap from the **true, unknown** line; the **residual** e = y − ŷ is the gap from **our fitted** line. Residuals are our observable stand-in for errors, which is why assumption checks use residuals. Sign convention: a **positive** residual means the actual value is above the line (the model **under**estimated). For an OLS model with an intercept, the residuals always sum (and average) to exactly zero.
-
-```python
-resids = y - y_pred
-resids.mean()        # 0 (up to rounding) for OLS with an intercept
-```
-
-See also: [Residual (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#residual)
-
-<a id="intercept"></a>
-
-### Intercept (β₀)
-
-_Concept, scikit-learn_
-
-The expected value of y when every x is zero, i.e. where the line crosses the y-axis. It doesn't always make sense: with y = 12000 + 250x for house price and square footage, "a house with no floor area sells for $12,000" is meaningless. In scikit-learn: `model.intercept_`.
-
-The house example is an **extrapolation**: no house in the data is anywhere near 0 sq ft. Even when its interpretation is meaningless, we still need the intercept to anchor the line. To make it meaningful, **centre** the feature (subtract its mean): the intercept then becomes "the predicted price of an average-sized house".
-
-<a id="slope-coefficient"></a>
-
-### Slope / coefficient (β₁)
-
-_Concept, scikit-learn_
-
-The rate of change between x and y: **for every 1-unit increase in x, we expect y to change by β₁**. In the house example, each extra square foot adds about $250. In scikit-learn: `model.coef_` (an array, one value per feature).
-
-Worked example with y = 12000 + 250x: a 1,000 sq ft house is predicted at 12,000 + 250 × 1,000 = $262,000, and a 1,100 sq ft house at $287,000. The 100 sq ft difference is worth 100 × $250 = $25,000. The sign gives direction, the size gives strength **in the units of x and y** (always state them). The word "expect" matters: individual houses deviate, and this is an **association**, not necessarily a causal effect.
-
-<a id="extrapolation"></a>
-
-### Extrapolation
-
-_Concept_
-
-Predicting for x-values far outside the range of the training data. The fitted line may not hold there: the electricity model was trained on temperatures above 15 °C, so its "demand at 0 °C" (the intercept, 2.32 GW) is a guess, not evidence. Predictions are most reliable inside the range the model has seen.
-
-<a id="hat-notation"></a>
-
-### Hat notation (ŷ, β̂)
-
-_Concept_
-
-A hat means "estimated" or "predicted". **ŷ** ("y-hat") is a prediction; **β̂** is a coefficient estimated from data. A bold **y** means the whole vector of responses, and **n** is the sample size.
-
-Betas **without** hats describe the true relationship in the whole population, which we can never know exactly; β̂ ("beta-hat") is our estimate from one sample, and a different sample would give slightly different estimates. That uncertainty is what p-values and confidence intervals describe. There's no ε in the ŷ equation because a prediction is our best guess of the average; the error is unknown at prediction time.
-
-<a id="line-of-best-fit"></a>
-
-### Line of best fit
-
-_Concept, seaborn_
-
-The straight line that minimizes the sum of squared residuals. seaborn draws it for you, which is a quick visual check before fitting anything.
-
-```python
-sns.regplot(x="temp", y="demand", data=elec, ci=None,
-            scatter_kws={"s": 1}, line_kws={"color": "red"})
-plt.axhline(elec["demand"].mean(), color="orange", lw=3)  # the null model, for comparison
-```
-
-`sns.lmplot()` does the same but as a figure-level plot.
-
-Before fitting, read the scatter plot for **direction** (up or down), **form** (straight or curved), **strength** (how tightly the dots cluster, summarized by the correlation r) and **unusual points** (outliers). The variable you want to predict goes on the y-axis.
-
-<a id="interpreting-coefficients"></a>
-
-### Interpreting coefficients
-
-_Concept_
-
-**Simple regression:** "For every 1-unit increase in x, we expect y to increase by β." **Multiple regression:** add "**holding all other variables constant**". **Dummy variables:** the effect is relative to the baseline category. From the bikeshare model: "holding temperature constant, it being Summer means 105 fewer riders per hour relative to Winter"; "for every one-degree increase in temperature, about 14 more riders per hour".
-
-A worked dummy-variable example: if price = 50 + 10·Spring + 20·Summer + 5·Fall (in $k) with Winter as the baseline, predictions are Winter 50, Spring 60, Summer 70, Fall 55: "summer houses sell for $20k more than winter ones, on average, all else equal". The negative Summer coefficient in the bikeshare model surprises students: summer is hot, and once temperature is accounted for, "being summer" adds nothing extra.
-
-> **Watch out:** Always check the units. In the Advertising data, budgets are in thousands of dollars and sales in thousands of units, so a radio coefficient of 0.1885 means each extra $1,000 of radio spend is associated with about **189 more units sold** . It's easy to misread this as "$0.19M more sales"; write the units out in full whenever you interpret a coefficient.
-
-See also: [Dummy variables in regression](#dummy-variables-in-regression), [Coefficients are not importance](#coefficients-are-not-importance)
-
-<a id="coefficients-are-not-importance"></a>
-
-### Coefficients are not importance
-
-_Concept_
-
-A common pitfall: coefficients don't tell you which variable has the biggest impact. Each one is in its feature's own units, so a coefficient of 250 for square feet and 15,000 for bedrooms can't be compared. You can only compare them if all features are on the same scale (for example, after standardizing).
-
-The bikeshare notebook shows this directly: measuring temperature in °F instead of °C shrinks the coefficient by a factor of 1.8, yet the predictions are identical. A coefficient of 0.5 per square foot and 20,000 per bedroom doesn't mean bedrooms matter 40,000 times more; adding a bedroom is simply a much bigger change than adding a square foot. Standardize first, and each coefficient becomes "change in y per one-standard-deviation change in x", which is comparable. With multicollinearity, coefficients can't be trusted for ranking at all.
-
-See also: [Feature importance](#feature-importance)
-
-<a id="linearregression"></a>
-
-### LinearRegression
-
-_scikit-learn_
-
-scikit-learn's OLS model, in `sklearn.linear_model`. It follows the six-step workflow below.
-
-```python
-from sklearn.linear_model import LinearRegression
-
-X = elec[["temp"]]          # 2D: a DataFrame
-y = elec["demand"]          # 1D: a Series
-lr = LinearRegression()
-lr.fit(X, y)
-lr.intercept_, lr.coef_     # (2.32..., array([0.11...]))
-```
-
-`LinearRegression()` adds the intercept automatically (`fit_intercept=True` by default), so you never add a column of 1s yourself. Every scikit-learn model follows the same create → `.fit()` → `.predict()` pattern, so learning it here transfers to dozens of models.
-
-See also: [The modeling workflow in scikit-learn](#the-modeling-workflow-in-scikit-learn)
-
-<a id="the-modeling-workflow-in-scikit-learn"></a>
-
-### The modeling workflow in scikit-learn
-
-_scikit-learn, Concept_
-
-The six core steps used for linear regression and then reused for every model in the course:
-
-1. **Assemble** predictors `X` (a DataFrame) and target `y` (a Series).
-2. **Instantiate** the model.
-3. **Fit** the model on training data.
-4. **Check out and interpret** the coefficients.
-5. **Make predictions** with `.predict()`.
-6. **Evaluate** the model, ideally against a baseline.
-
-```python
-X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
-model = LinearRegression()                       # 2
-model.fit(X_train, y_train)                      # 3
-dict(zip(X.columns, model.coef_))                # 4
-y_pred = model.predict(X_test)                   # 5
-metrics.root_mean_squared_error(y_test, y_pred)  # 6
-```
-
-See also: [fit / predict (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#fit-predict)
-
-<a id="x-is-2d-y-is-1d"></a>
-
-### X is 2D, y is 1D
-
-_scikit-learn_
-
-scikit-learn expects `X` to be two-dimensional (n rows × p features) even when there is only one feature, and `y` to be one-dimensional (length n). That's why the notebooks write `elec[["temp"]]` (double brackets → DataFrame) but `elec["demand"]` (single brackets → Series).
-
-> **Watch out:** `lr.fit(elec["temp"], y)` raises "Expected 2D array, got 1D array". Use double brackets or `.reshape(-1, 1)`. The same applies when predicting one new value: `lr.predict([[25]])`, not `lr.predict([25])`.
-
-See also: [reshape(-1, 1) (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#reshape-1-1)
-
-<a id="coef-and-intercept"></a>
-
-### .coef* and .intercept*
-
-_scikit-learn_
-
-Fitted attributes (note the trailing underscore: scikit-learn's convention for "learned from data"). Pair coefficients with column names to read them.
-
-```python
-pd.Series(model.coef_, index=X.columns).sort_values()
-```
-
-> **Watch out:** It's tempting to pair names and coefficients with `set(zip(X.columns, model.coef_))`, but sets have no order, so the output can come back shuffled; `dict(zip(...))` or a `pd.Series` keeps the pairing readable.
-
-<a id="score"></a>
-
-### .score()
-
-_scikit-learn_
-
-A built-in evaluation shortcut on every model. For **regressors** it returns **R²**; for **classifiers** it returns **accuracy**. `lr.score(X_test, y_test)` is the same as `metrics.r2_score(y_test, lr.predict(X_test))`.
-
-> **Watch out:** `model.score()` returns ordinary R², not adjusted R², and it's easy to label it wrongly. Compute adjusted R² yourself or read it from a statsmodels summary.
-
-See also: [R² (coefficient of determination)](#r2-coefficient-of-determination), [Accuracy](#accuracy)
-
-<a id="null-model-baseline-for-regression"></a>
-
-### Null model (baseline) for regression
-
-_Concept_
-
-The simplest possible regression model: always predict the **mean** of y, whatever the input. Every real model should beat it. Its MSE is the variance of y, and its R² is 0 by definition.
-
-```python
-y_bar = np.mean(y)
-null_mse = np.mean((y - y_bar) ** 2)
-```
-
-Its MSE equals the variance of y, and it's exactly the "null SSE" model inside the R² formula, so R² is literally "how much better than the baseline". Context is everything: a model RMSE of 50 is a big improvement if the baseline RMSE is 200, and nearly worthless if it's 52.
-
-```python
-baseline_rmse = np.sqrt(np.mean((y - y.mean()) ** 2))
-```
-
-See also: [Baseline model (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#baseline-model), [Null accuracy](#null-accuracy)
-
-<a id="linem-assumptions"></a>
-
-### LINEM assumptions
-
-_Concept_
-
-What has to hold for OLS results (especially the coefficients) to be trustworthy:
-
-- **L**inearity: the relationship between x and y is roughly a straight line.
-- **I**ndependence: observations don't affect each other.
-- **N**ormality: residuals are roughly normally distributed.
-- **E**qual variance (homoscedasticity): residuals have about the same spread for every predicted value.
-- **M**ulticollinearity absent: predictors aren't strongly correlated with each other (multiple regression only).
-
-Why they matter depends on your goal. For **prediction**, violations usually mean the model is less accurate than it could be. For **inference** (interpreting coefficients, p-values, confidence intervals), violations can make your conclusions misleading. Most checks look at the residuals.
-
-See also: [Linear model assumptions (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#linear-model-assumptions)
-
-<a id="linearity-l"></a>
-
-### Linearity (L)
-
-_Concept, matplotlib_
-
-Checked with a scatter plot of each x against y (or `sns.pairplot`). A gentle curve may be acceptable; a strong curve suggests a transformation or polynomial terms.
-
-```python
-plt.scatter(elec["temp"], elec["demand"], s=1)
-```
-
-An apparent non-linearity often means a **missing variable**. The course's insurance-costs plot shows separate bands (plausibly smokers vs non-smokers): one straight line through all of them fits nobody, but adding a smoker indicator would fix much of it. For genuine curves, transform y or x, or add polynomial terms.
-
-<a id="independence-i"></a>
-
-### Independence (I)
-
-_Concept_
-
-Usually checked by thinking about how the data were collected rather than with a plot. The most common violation is **time series data**, where each observation depends on the previous ones. (The bikeshare data are hourly, so this assumption is "probably violated".)
-
-Both walkthrough datasets are time series (half-hourly electricity demand, hourly bike rentals), so independence is very likely violated. It's easy to wave this assumption through: think about how the data were collected. The consequence: coefficients are usually still reasonable, but the model is **overconfident** (standard errors too small, p-values too optimistic). Other violations: repeated measurements on the same person, students in the same school, neighbouring houses.
-
-See also: [Durbin–Watson statistic](#durbin-watson-statistic)
-
-See also: [Statistical independence](#statistical-independence), [Generalized least squares (GLS)](#generalized-least-squares-gls)
-
-<a id="durbin-watson-statistic"></a>
-
-### Durbin–Watson statistic
-
-_statsmodels_
-
-A test for autocorrelation in regression residuals, printed in every statsmodels OLS summary. Values range from 0 to 4: **around 2 suggests no autocorrelation**, well below 2 suggests positive autocorrelation (typical of time series), and above 2 negative autocorrelation.
-
-```python
-from statsmodels.stats.stattools import durbin_watson
-durbin_watson(results.resid)
-```
-
-<a id="normality-of-residuals-n"></a>
-
-### Normality of residuals (N)
-
-_Concept, matplotlib_
-
-Plot a histogram of residuals; it should look roughly bell-shaped and centred on zero. Strong skew is a warning sign.
-
-```python
-resids = y - y_pred
-plt.hist(resids, bins=50)
-```
-
-> **Watch out:** A common misconception is that x or y must be normally distributed. They don't: the assumption is about the **residuals**. It matters most for p-values and confidence intervals with small samples; mild non-normality rarely hurts predictions. Severe skew is still a red flag that the model is missing something.
-
-See also: [Q–Q plot](#q-q-plot)
-
-<a id="q-q-plot"></a>
-
-### Q–Q plot
-
-_statsmodels, SciPy_
-
-A quantile–quantile plot compares the residuals' quantiles with those of a normal distribution. If the residuals are normal, the points fall along a straight diagonal line; curves at the ends signal skew or heavy tails. More precise than eyeballing a histogram.
-
-```python
-import statsmodels.api as sm
-sm.qqplot(resids, line="45", fit=True)
-
-from scipy import stats
-stats.probplot(resids, dist="norm", plot=plt)    # SciPy alternative
-```
-
-See also: [Normal distribution (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#normal-gaussian-distribution)
-
-<a id="equal-variance-homoscedasticity-e"></a>
-
-### Equal variance / homoscedasticity (E)
-
-_Concept, matplotlib_
-
-Residuals should have roughly the same spread at every predicted value. Check with a residual plot: you want a random, patternless cloud around zero. A **fan shape** (spread growing with ŷ) is **heteroscedasticity**; a curve means the linearity assumption is also failing.
-
-Consequence of heteroscedasticity: the coefficients are still unbiased on average, but their **standard errors are wrong**, so p-values and confidence intervals can't be trusted, and predictions are more uncertain in some regions than others. (Pronounced "HOH-moh-skeh-das-TIS-ih-tee": "homo" = same, "scedastic" = scatter.)
-
-See also: [Residual plot](#residual-plot), [Homoscedasticity (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#homoscedasticity)
-
-<a id="residual-plot"></a>
-
-### Residual plot
-
-_matplotlib_
-
-Predicted values on the x-axis, residuals on the y-axis, with a horizontal line at zero. The single most useful diagnostic for a regression model.
-
-```python
-plt.scatter(y_pred, resids, s=1)
-plt.axhline(0, color="orange")
-```
-
-One plot checks two assumptions: **uneven spread** (a fan or clusters) is an equal-variance problem, while a **curved band** is strictly a linearity problem. Real data rarely looks perfectly random; the standard is "no obvious pattern".
-
-<a id="no-multicollinearity-m"></a>
-
-### No multicollinearity (M)
-
-_Concept, pandas_
-
-Predictors shouldn't be strongly correlated with each other (e.g. number of cars a garage holds vs garage size). Multicollinearity doesn't hurt predictions but "completely destroys model inference": coefficients become unstable and unreliable. Check with a correlation matrix or heatmap and keep only one of a correlated pair.
-
-```python
-X.corr()
-np.corrcoef(bike.temp, bike.atemp)     # temp and "feels like" temp: almost 1
-```
-
-Symptoms: coefficients swing wildly or even **flip sign** with small changes in the data, and their standard errors balloon. Fixes: drop one of a correlated pair, combine them into one feature, or use regularization (ridge regression shares the credit between correlated features).
-
-See also: [Variance inflation factor (VIF)](#variance-inflation-factor-vif)
-
-See also: [Multicollinearity (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#multicollinearity)
-
-<a id="variance-inflation-factor-vif"></a>
-
-### Variance inflation factor (VIF)
-
-_statsmodels_
-
-A per-feature measure of multicollinearity: how much a coefficient's variance is inflated because that feature can be predicted from the others. **1 = no correlation with the other features**; a common rule of thumb treats values **above 5–10 as concerning**. Better than a correlation matrix because it catches one feature being a combination of several others.
-
-```python
-import statsmodels.api as sm
-from statsmodels.stats.outliers_influence import variance_inflation_factor
-
-Xc = sm.add_constant(X)
-vif = pd.Series([variance_inflation_factor(Xc.values, i) for i in range(Xc.shape[1])],
-                index=Xc.columns).drop("const")
-vif.sort_values(ascending=False)
-```
-
-<a id="log-transforming-the-target"></a>
-
-### Log-transforming the target
-
-_Concept, NumPy_
-
-A common fix when residuals are right-skewed, fan-shaped, or the relationship is slightly curved: model log(y) instead of y. The log compresses large values more than small ones, so it pulls in a long right tail, stabilizes spread that grows with y, and turns multiplicative relationships into additive ones. Prices, incomes and costs are classic candidates. Remember to undo it with `np.exp()` before reporting predictions.
-
-```python
-y_log = np.log(df["apps"])
-lr_log = LinearRegression().fit(X_train, y_train_log)
-preds = np.exp(lr_log.predict(X_test))   # back to the original units
-```
-
-Interpretation changes too: with log(y), a coefficient β roughly means "a one-unit increase in x is associated with about **100 × β % change** in y" (accurate for small β).
-
-> **Watch out:** Don't confuse "log regression" (modelling log(y)) with **logistic regression** (a classification model). Forgetting to exponentiate means your "predictions" are in log units, and `np.log` fails on zeros: use `np.log1p` / `np.expm1` if y can be 0. Back-transforming gives roughly the median rather than the mean prediction, a small known bias.
-
-See also: [Log transformation (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#log-transformation), [Comparing models on the same scale](#comparing-models-on-the-same-scale)
-
-<a id="design-matrix"></a>
-
-### Design matrix
-
-_Concept_
-
-The data matrix X used to fit a model: each **row** is an observation, each **column** a variable, and (mathematically) a first column of 1s for the intercept. scikit-learn adds the intercept column for you; statsmodels needs `sm.add_constant()`.
-
-Notation: xᵢⱼ is the value in row i, column j (observation i's value of feature j). Shape: n rows × (p + 1) columns. The column of 1s lets the intercept be treated like any other coefficient: prediction = β₀×1 + β₁x₁ + β₂x₂ + …
-
-<a id="matrix-form-of-ols"></a>
-
-### Matrix form of OLS
-
-_Concept_
-
-With a design matrix, OLS is written compactly as **y = Xβ + ε**, and its closed-form solution is **β̂ = (XᵀX)⁻¹Xᵀy**. You won't compute it by hand, but it explains why perfectly collinear columns break the model: XᵀX can't be inverted.
-
-```python
-Xd = np.column_stack([np.ones(len(X)), X])           # add the column of 1s
-beta_hat = np.linalg.inv(Xd.T @ Xd) @ Xd.T @ y       # same as LinearRegression
-```
-
-This formula is called the **normal equation**. Dimension check: (n × (p+1)) times ((p+1) × 1) gives (n × 1), which matches y. The inverse (XᵀX)⁻¹ only exists if no column of X can be built from the others, which is exactly what fails in the dummy variable trap.
-
-<a id="dummy-variables-in-regression"></a>
-
-### Dummy variables in regression
-
-_Concept, pandas_
-
-To use a categorical predictor with k levels, create k − 1 dummy (0/1) columns. The dropped level becomes the **baseline category**, and every dummy coefficient is interpreted relative to it. In the bikeshare model, Winter (season code 1) is dropped, so `season_3` means "Summer compared with Winter". Binary features (workday, holiday) can go in directly as a single 0/1 column.
-
-Why not just code the levels 1, 2, 3, 4? That forces the categories into an order with equal spacing and a single slope, so level 4's effect would have to be four times level 1's. One-hot encoding lets each category have its own independent effect.
-
-```python
-X = bike[["season", "temp"]]
-X = pd.get_dummies(X, columns=["season"], drop_first=True, dtype=int)
-```
-
-Choosing the baseline yourself (any baseline gives identical predictions; it only changes interpretation, so pick the most common or most natural comparison):
-
-```python
-df["season"] = pd.Categorical(df["season"], categories=["Winter", "Spring", "Summer", "Fall"])
-pd.get_dummies(df, columns=["season"], drop_first=True, dtype=int)   # Winter is the baseline
-
-from sklearn.preprocessing import OneHotEncoder
-OneHotEncoder(drop=["Winter"])                                      # same idea in scikit-learn
-```
-
-> **Watch out:** `pd.get_dummies` drops nothing unless you pass `drop_first=True`, and then it drops the category that **sorts first**: for text labels that's alphabetical, so Fall/Spring/Summer/Winter drops **Fall**, not Winter. In recent pandas it also returns `True`/`False` columns unless you pass `dtype=int`.
-
-See also: [One-hot encoding (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#one-hot-encoding), [Rank deficiency](#rank-deficiency)
-
-<a id="rank-deficiency"></a>
-
-### Rank deficiency
-
-_Concept_
-
-What happens if you keep **all** k dummy columns: they always add up to 1, which is exactly the intercept column. The design matrix is "rank-deficient" (a column is a combination of others), so the model can't be fitted uniquely. Dropping one dummy fixes it. In Unit 2 this was called the dummy variable trap.
-
-**Rank** = the number of genuinely independent columns: five columns (intercept + four seasons) but only four independent ones. There are infinitely many equally good solutions (add 1,000 to every season coefficient and subtract 1,000 from the intercept: identical predictions), so the coefficients have no unique meaning.
-
-> **Watch out:** In practice scikit-learn and statsmodels use a pseudo-inverse and will still return numbers, sometimes without any warning. Nothing crashes, but the individual coefficients are arbitrary, which makes the trap more dangerous.
-
-See also: [Dummy variable trap (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#dummy-variable-trap)
-
-<a id="feature-scale-in-linear-regression"></a>
-
-### Feature scale in linear regression
-
-_Concept_
-
-Changing the units of a feature (Celsius to Fahrenheit) doesn't change OLS predictions; it just rescales the coefficient. The bikeshare model predicts the same riders for 25 °C as the Fahrenheit model does for 77 °F. Scale **does** matter for regularized models, kNN, SVMs, k-means and PCA.
-
-See also: [Standardize before regularizing](#standardize-before-regularizing)
-
-<a id="statsmodels-ols"></a>
-
-### statsmodels OLS
-
-_statsmodels_
-
-An alternative to scikit-learn that gives a full statistical summary: coefficients with standard errors, p-values, confidence intervals, R², adjusted R², AIC/BIC and the Durbin–Watson statistic. Note the argument order (**y first**, the opposite of scikit-learn's `fit(X, y)`) and that you must add the intercept column yourself.
-
-```python
-import statsmodels.api as sm
-
-X = sm.add_constant(elec[["temp", "workday"]])
-y = elec["demand"]
-ols = sm.OLS(y, X).fit()
-ols.summary()
-```
-
-> **Watch out:** Without `sm.add_constant()`, the model is forced through the origin (no intercept), a classic bug. New data needs the constant too, or `predict` raises a shape error.
-
-<a id="reading-a-statsmodels-results-object"></a>
-
-### Reading a statsmodels results object
-
-_statsmodels_
-
-The fitted results expose everything in the summary as attributes. `.params` gives coefficients, `.rsquared` gives R², `.pvalues` gives p-values, and `.predict()` gives predictions (new data needs a constant column too).
-
-```python
-results.params["const"]        # or results.params.iloc[0]
-results.rsquared
-results.pvalues
-results.t_test([0, 1]).pvalue   # test the second coefficient
-Xnew = sm.add_constant([20, 21])
-results.predict(Xnew)
-```
-
-**Reading a p-value:** the probability of seeing an estimate this far from zero if the true coefficient were actually zero. Below 0.05 means "unlikely to be zero". In the review lab, the slope's p-value is about 3.8 × 10⁻¹⁸ (overwhelming evidence of a relationship) while the intercept's is about 0.39 (not distinguishable from zero); the fitted line is Y = −0.0857 + 0.290X with R² ≈ 0.986.
-
-> **Watch out:** `results.params[0]` raises a `KeyError` on pandas 3, because params is labelled ('const', 'X'). Use `results.params["const"]` or `.iloc[0]`.
-
-See also: [p-value (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#p-value)
-
-<a id="polynomial-regression"></a>
-
-### Polynomial regression
-
-_Concept_
-
-Fitting a curve with linear regression by adding powers of x as extra features: x, x², x³, … The model is still "linear" in its coefficients. Higher degrees make the model more flexible ("responsive") and much more prone to overfitting.
-
-In the review lab, a degree-5 polynomial on 20 points lowers the training SSE from about 0.79 to 0.28 and raises R² from 0.986 to 0.995: a closer fit to the training data, but a degree-5 curve on 20 points risks overfitting.
-
-See also: [np.polyfit() and np.polyval()](#np-polyfit-and-np-polyval)
-
-See also: [PolynomialFeatures](#polynomialfeatures), [Model complexity](#model-complexity)
-
-<a id="polynomialfeatures"></a>
-
-### PolynomialFeatures
-
-_scikit-learn_
-
-A transformer that creates powers and **interaction terms** (products such as x₁·x₂) of your features. Used in the review lab for a degree-5 fit and in the regularization notebook to deliberately overfit the wine data.
-
-```python
-from sklearn.preprocessing import PolynomialFeatures
-
-poly = PolynomialFeatures(degree=2, include_bias=False)
-X_poly = poly.fit_transform(X)
-poly.get_feature_names_out(X.columns)   # 'fixed_acidity', 'fixed_acidity^2', 'fixed_acidity density', ...
-```
-
-> **Watch out:** The number of columns explodes: 12 features at degree 2 become 90. Combine with regularization.
-
-<a id="interaction-term"></a>
-
-### Interaction term
-
-_Concept_
-
-A feature made by multiplying two others (x₁x₂), letting the effect of one depend on the value of the other. Written in model formulas like `y ~ x1 + x2 + x1x2`. Tree-based models capture interactions automatically.
-
-In the generalization slides' model notation, `y ~ x1 + x2 + x1x2 + x3²`, "~" means "is modelled using", x₁x₂ is an interaction and x₃² a squared term.
-
----
-
-<a id="s14-regression-metrics"></a>
-
-## 14. Regression metrics
-
-_How to put a number on "how good is this regression model?": distance-based error measures, R², and comparison with the null model. Examples use the advertising data (`Advertising.csv`), where `sales` is predicted from TV, radio and newspaper spend. "All models are wrong, but some are useful."_
-
-**In your capstone:** Report one error metric in real units (RMSE or MAE) and R², always next to the null-model baseline and on test or cross-validated data.
-
-<a id="euclidean-distance"></a>
-
-### Euclidean distance
-
-_Concept, NumPy_
-
-The straight-line distance between two points, from Pythagoras: √Σ(aᵢ − bᵢ)². Treating y and ŷ as two points in n-dimensional space, their distance is a natural measure of error, and it's the starting point for SSE, MSE and RMSE. It reappears as the distance measure in kNN and k-means.
-
-```python
-y = np.array([4, 18, 9, 2, 7, 5])
-y_hat = np.array([3, 15, 8, 1, 8, 12])
-np.sqrt(np.sum((y - y_hat) ** 2))
-```
-
-Worked example: the residuals above are 1, 3, 1, 1, −1, −7, so the distance is √62 ≈ 7.87.
-
-> **Watch out:** Convert lists to arrays first: subtracting two Python lists raises a `TypeError`.
-
-See also: [Distance metrics (Euclidean, Manhattan, Minkowski)](#distance-metrics-euclidean-manhattan-minkowski)
-
-<a id="distance-metric-the-four-rules"></a>
-
-### Distance metric (the four rules)
-
-_Concept_
-
-In maths, a **distance metric** obeys four rules: (1) **non-negativity**, d(x, y) ≥ 0; (2) **identity**, d(x, y) = 0 only if x = y (zero error means perfect predictions); (3) **symmetry**, home-to-work equals work-to-home; (4) the **triangle inequality**, going directly from x to y is never longer than detouring via z.
-
-Euclidean distance, RMSE (Euclidean distance ÷ √n) and MAE obey all four. SSE and MSE break the triangle inequality (squaring stretches distances), and R² isn't a distance at all. In everyday ML, "metric" just means "evaluation measure", so all of them are still called metrics.
-
-<a id="sum-of-squared-errors-sse"></a>
-
-### Sum of squared errors (SSE)
-
-_Concept, NumPy_
-
-Add up the squared residuals: SSE = Σ(yᵢ − ŷᵢ)² (also called RSS, the residual sum of squares). This is the quantity OLS minimizes. Worked example: y = [4, 18, 9, 2, 7, 5] and ŷ = [3, 15, 8, 1, 8, 12] give residuals 1, 3, 1, 1, −1, −7, squares 1, 9, 1, 1, 1, 49, and **SSE = 62**. Notice that the single residual of −7 contributes 49 of the 62: squaring makes big errors dominate.
-
-```python
-sse = np.sum((y - y_hat) ** 2)
-```
-
-> **Watch out:** SSE grows with the number of rows, so only compare SSEs computed on the **same** data. It's in squared units ("dollars squared").
-
-<a id="mean-squared-error-mse"></a>
-
-### Mean squared error (MSE)
-
-_Concept, scikit-learn_
-
-The average squared residual: MSE = (1/n)Σ(yᵢ − ŷᵢ)². Lower is better (as with any metric with "error" in its name). Squaring punishes large errors heavily. It's the traditional metric for estimating the bias–variance trade-off.
-
-```python
-np.mean((y - y_hat) ** 2)
-metrics.mean_squared_error(y, y_hat)
-```
-
-From the SSE example, MSE = 62 ÷ 6 ≈ 10.33. Dividing by n means you can compare training MSE with test MSE even though the sets differ in size. MSE is also **differentiable** (smooth, no sharp corners), which is why it's the most common loss for regression and easy to minimize with calculus or gradient descent. On the training data, no other straight line has a lower MSE than the OLS line.
-
-<a id="root-mean-squared-error-rmse"></a>
-
-### Root mean squared error (RMSE)
-
-_Concept, scikit-learn_
-
-The square root of the MSE. Its advantage is that it's in the **same units as the target**, so an RMSE of 2,000 when predicting house prices means "on average, the model is off by roughly ±$2,000".
-
-```python
-np.sqrt(metrics.mean_squared_error(y, y_hat))
-metrics.root_mean_squared_error(y, y_hat)      # scikit-learn 1.4+
-```
-
-> **Watch out:** `root_mean_squared_error` only exists in scikit-learn 1.4 and later. On older versions use `np.sqrt(mean_squared_error(...))` (or `mean_squared_error(..., squared=False)`, which has since been removed).
-
-Think of it like standard deviation: MSE is an average squared distance; its square root brings you back to the original units. From the SSE example, RMSE = √10.33 ≈ 3.21 (which is also the Euclidean distance 7.87 ÷ √6). On the Advertising data the full model's RMSE is about 1.67 (thousand units) against a baseline RMSE of 5.20.
-
-> **Watch out:** RMSE is not literally "the average amount the model is wrong by"; that's the MAE. RMSE is a **typical** error size that weights large errors more heavily, and it's always ≥ MAE. If RMSE is much bigger than MAE, a few large errors are present. Always judge it relative to the scale of y and the baseline RMSE.
-
-<a id="mean-absolute-error-mae"></a>
-
-### Mean absolute error (MAE)
-
-_Concept, scikit-learn_
-
-The average absolute residual: (1/n)Σ|yᵢ − ŷᵢ|. Also in the target's units, and less sensitive to a few huge errors than RMSE.
-
-```python
-metrics.mean_absolute_error(y, y_hat)
-```
-
-An error of 10 counts 10 in MAE but 100 in MSE, which is why MAE is less sensitive to outliers. Advertising data: MAE ≈ 1.25 vs RMSE ≈ 1.67. Its absolute value has a sharp corner at zero, which historically made it harder to optimize.
-
-> **Watch out:** Don't confuse MAE with the **mean absolute deviation**, the average distance of values from their own mean. The names are easy to mix up, but MAE measures prediction errors.
-
-<a id="r2-coefficient-of-determination"></a>
-
-### R² (coefficient of determination)
-
-_Concept, scikit-learn_
-
-The **proportion of the variability in y that the model explains**: R² = 1 − SSE / SST. It usually runs from 0 to 1 (1 = perfect). "35.2% of the variability in electricity demand can be explained by temperature." On test data it can be negative if the model is worse than predicting the mean.
-
-```python
-1 - np.sum((y - y_hat)**2) / np.sum((y - np.mean(y))**2)   # by hand
-metrics.r2_score(y, y_hat)
-lm.score(X, y)
-```
-
-> **Watch out:** Training R² always goes up when you add features, even pure noise. Judge a model on test or cross-validated R².
-
-Advertising data: SSE ≈ 556.8 and null SSE ≈ 5,417.1, so R² = 1 − 556.8/5,417.1 ≈ **0.897**. For simple regression, R² equals the square of the correlation r between x and y. Cautions: a high R² doesn't prove the model is correct (assumptions, overfitting), and a low R² isn't always useless (human behaviour is noisy; 0.2 can be valuable). R² is unitless and complements RMSE rather than replacing it. Unlike error metrics, higher is better.
-
-See also: [Adjusted R²](#adjusted-r2), [Evaluation metrics (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#evaluation-metrics-r-mse-rmse-mae-accuracy)
-
-<a id="total-sum-of-squares-sst"></a>
-
-### Total sum of squares (SST)
-
-_Concept_
-
-Σ(yᵢ − ȳ)²: the SSE of the null model that always predicts the mean. R² compares your model's SSE with this. (Also written SSTO; `ssto` in code.)
-
-<a id="adjusted-r2"></a>
-
-### Adjusted R²
-
-_Concept_
-
-A version of R² that penalizes extra features, so it only rises if a new feature improves the fit more than chance would: adj R² = 1 − (1 − R²)(n − 1)/(n − p − 1), with p features. statsmodels reports it in `.summary()` (`results.rsquared_adj`); scikit-learn doesn't have it built in.
-
-```python
-r2 = metrics.r2_score(y, y_hat)
-n, p = X.shape
-adj_r2 = 1 - (1 - r2) * (n - 1) / (n - p - 1)
-```
-
-Why plain R² can't be trusted for comparing feature sets: OLS can always give a new feature a coefficient of 0, so adding a feature never lowers training R², even pure noise. Adjusted R² only rises when a feature helps more than chance would, and it can be negative. Advertising check: R² 0.8972 with n = 200 and p = 3 gives adjusted R² ≈ 0.8956, barely different because p is small relative to n. Comparing on held-out data or with cross-validation is the stronger modern practice.
-
-<a id="information-criteria-aic-bic-mallows-s-cp"></a>
-
-### Information criteria (AIC, BIC, Mallows's Cp)
-
-_Concept, statsmodels_
-
-Metrics that balance goodness of fit against model complexity, like adjusted R². For all of them, **lower is better**, and they only compare models fitted to the same data.
-
-- **AIC** = 2k − 2 ln(L), where k = number of parameters and L = the model's likelihood. **AICc** adds a small-sample correction.
-- **BIC** = k ln(n) − 2 ln(L). Its penalty grows with sample size, so it favours simpler models than AIC.
-- **Mallows's Cₚ** (pronounced "C-p") compares a smaller OLS model with the full model; values close to p suggest a good model.
-
-statsmodels prints AIC and BIC in every regression summary (`results.aic`, `results.bic`).
-
-> **Watch out:** Mallows's Cₚ is specific to OLS, but AIC and BIC apply to any model fitted by maximum likelihood, including logistic regression and ARIMA (where AIC is the go-to metric).
-
-See also: [AIC (Akaike Information Criterion)](#aic-akaike-information-criterion)
-
-<a id="sklearn-metrics"></a>
-
-### sklearn.metrics
-
-_scikit-learn_
-
-The module holding every scoring function: regression (`mean_squared_error`, `root_mean_squared_error`, `mean_absolute_error`, `r2_score`), classification (`accuracy_score`, `recall_score`, `precision_score`, `f1_score`, `confusion_matrix`, `roc_auc_score`), and clustering (`silhouette_score` and friends). The course usually imports the whole module: `from sklearn import metrics`.
-
-Every function takes `(y_true, y_pred)` in that order. It doesn't matter for MSE or MAE, but it does for R².
-
-<a id="choosing-a-regression-metric"></a>
-
-### Choosing a regression metric
-
-_Concept_
-
-Use **RMSE** or **MAE** when you need to explain errors in the target's units to a stakeholder (MAE if a few big misses shouldn't dominate). Use **MSE** when comparing models mathematically or as a loss. Use **R²** for "how much of the variation do we explain". Whatever you choose, always compare against the null model and compute it on **test** data.
-
-A good habit is to report **one error metric** (how big the errors are in real terms) and **one variance metric** (how much better than the baseline). The metric a model is trained with and the one you report don't have to match: a model trained with MSE can be reported to the business in MAE. Consistency across the models you compare matters more than which one you pick.
-
----
-
-<a id="s15-generalization-bias-variance-and-cross-validation"></a>
-
-## 15. Generalization, bias–variance and cross-validation
-
-_Why a model that's perfect on its training data can be useless, how to measure that, and how to choose a model that will work on data it has never seen. Includes the Bias–Variance Tradeoff deck's "fitting sine" exercise and the College applications model workflow._
-
-**In your capstone:** Decide your split and validation strategy before you model, and keep the test set untouched until the final check.
-
-<a id="generalization"></a>
-
-### Generalization
-
-_Concept_
-
-A model **generalizes** well if what it learned from a limited amount of training data works on new data. That's the goal of nearly every model you'll build: aiming for a balance between being underfit and overfit. "Having a good training MSE is unimpressive."
-
-The course's warm-up (adapted from David Spiegelhalter's _The Art of Statistics_) makes this concrete without maths. Predict your chance of surviving 10 years by finding people like you. Match on two features and you find 10,000 people: a **stable but generic** estimate (high bias). Match on many features and you find 2 people: **specific but unstable**, since two slightly different matches could flip the answer between 0% and 100% (high variance). The best answer is in between.
-
-<a id="underfitting"></a>
-
-### Underfitting
-
-_Concept_
-
-The model is too simple to capture the shape of the data (a straight line through a parabola). **High error on training data and on new data.** It has high bias.
-
-**Fixes:** a more flexible model, more or better features (including polynomial terms), less regularization. **More data does not fix high bias**: a straight line stays a straight line however many points you give it.
-
-<a id="overfitting"></a>
-
-### Overfitting
-
-_Concept_
-
-The model memorizes the training data, noise included, so it fails on new values. **Low training error, high error on new data.** It has high variance. Signs: training score much better than test score. "If we overfit our model, we're just modeling noise!"
-
-**Fixes:** a simpler model, fewer features, regularization, more training data. Unlike bias, **more data does help** with variance, because noise averages out. The extreme case: a polynomial of degree n − 1 passes exactly through n points, and a lookup table "memorizes" the training data perfectly.
-
-See also: [Reading train vs test scores](#reading-train-vs-test-scores), [Regularization](#regularization)
-
-<a id="balanced-model"></a>
-
-### Balanced model
-
-_Concept_
-
-The sweet spot between under- and overfitting: medium error on the training data and **low** error on new data. It captures the real pattern without memorizing the noise.
+See also: [Within-subject design](#within-subject-design), [Between-subject design](#between-subject-design), [Bias](#bias)
 
 <a id="bias"></a>
 
@@ -1489,1053 +4519,115 @@ The sweet spot between under- and overfitting: medium error on the training data
 
 _Concept_
 
-Error from a model's **inability to capture the true relationship**: plainly, "model badness". A straight line fitted to a sine curve is biased no matter how much data you give it. High bias = underfit. Loosely, bias is about "points within a model".
+A systematic error that pushes results in one direction. In experiments it can creep in at every step: misaligned objectives, the wrong treatment, missing blocking factors, non-random assignment, no control, the wrong study design, or measurements that are too crude.
 
-Sampling can be biased too. A poll that random-dials a phonebook misses people with mobile-only or unlisted numbers: polling 10,000 people from the same phonebook gives a more precise but **equally wrong** answer. That's sampling bias, related to but not the same as model bias: both are systematic errors that more of the same data won't fix.
+<a id="selection-bias"></a>
 
-See also: [Sampling bias](#sampling-bias)
-
-<a id="sampling-bias"></a>
-
-### Sampling bias
+### Selection bias
 
 _Concept_
 
-Systematic error from **how the data were collected**, so the sample doesn't represent the population. The classic case is the 1948 "Dewey Defeats Truman" headline: quota sampling produced unrepresentative samples and pollsters stopped polling weeks before the election, and Truman won. A larger sample collected the same way only makes the wrong answer more precise. Random sampling error (variance) shrinks with sample size; sampling bias doesn't.
+When the units in your study aren't chosen randomly, so they don't represent the population, e.g. testing only on existing loyal customers. **Self-selection bias** is the version where people choose to take part, such as volunteers for a taste test.
 
-See also: [Selection bias (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#selection-bias)
+<a id="internal-and-external-validity"></a>
 
-<a id="variance-model-variance"></a>
-
-### Variance (model variance)
+### Internal and external validity
 
 _Concept_
 
-Error from a model being **too sensitive to the particular training data** it saw: how much its prediction for the **same point** changes when it's trained on a different sample. If you split your data in half and fit the same kind of model to each half, variance is why you get different models. High variance = overfit. Loosely, bias is visible within one model ("points within a model"), while variance only shows up when you compare many models ("a point between many models").
+**Internal validity** asks whether the result is true for the people you studied: did the treatment really cause the difference, or did bias or confounding? **External validity** asks whether it holds for the wider population and real conditions you care about. A tightly controlled lab taste test can score high on internal validity but low on external validity, because people sipping in a lab aren't shoppers choosing a drink in a supermarket.
 
-> **Watch out:** It's easy to confuse model variance with the variance of the data (its spread). In the bias–variance sense, variance is the spread of the model's **predictions** across training samples, even though it uses the same maths as the variance of a column.
+See also: [Bias](#bias), [Selection bias](#selection-bias), [Proxy metric](#proxy-metric)
 
-<a id="irreducible-error"></a>
+<a id="proxy-metric"></a>
 
-### Irreducible error
-
-_Concept_
-
-Error caused by the randomness of the universe, sometimes just called **noise**. No model can remove it. It sets a floor on how good any model can be.
-
-<a id="bias-variance-decomposition"></a>
-
-### Bias–variance decomposition
+### Proxy metric
 
 _Concept_
 
-The expected squared error of a prediction splits into three parts:
+A measurement that stands in for the outcome you really care about because it's quicker or cheaper to collect, such as a 5-second taste rating standing in for months of repeat purchases. A proxy is only useful if it moves with the real outcome. The notes call a mismatch between the two a **proxy mismatch**, a source of bias at the objective-setting step. When you choose a metric, write down what it's a proxy for and why you believe they're linked.
 
-**Err(x) = Bias² + Variance + Irreducible error**
+See also: [Four steps of experimental design](#four-steps-of-experimental-design), [Internal and external validity](#internal-and-external-validity)
 
-where Bias² = (E[f̂(x)] − f(x))², Variance = E[(f̂(x) − E[f̂(x)])²], and the irreducible error is σ²ₑ. A residual mixes all three. You can't calculate bias and variance directly from one dataset; holdout methods estimate their combined effect.
+<a id="choosing-the-outcome-measure"></a>
 
-Read E[…] as "averaged over many possible training sets". Bias² = (average prediction − truth)²; variance = average squared distance of a prediction from the average prediction; σ²ₑ = the noise in y itself.
-
-> **Watch out:** The decomposition describes the **expected squared error averaged over many hypothetical training sets**, not any single residual from one model. It has **three** terms, and the true relationship f doesn't have to be linear.
-
-<a id="bias-variance-trade-off"></a>
-
-### Bias–variance trade-off
+### Choosing the outcome measure
 
 _Concept_
 
-Making a model more complex lowers bias but raises variance; simplifying it does the reverse. Total error is U-shaped against complexity, and the goal is the **optimum model complexity** at the bottom of the U. Almost every tuning choice in the course (k in kNN, alpha in regularization, tree depth, C in SVMs) is a move along this trade-off.
+Step 4 of the design decides what you record and how finely. A **continuous or fine-grained scale** (a 1–10 rating) keeps more information than a **binary** one (like / dislike). Real differences are then easier to detect, with fewer participants. Collapsing a rating into yes/no throws information away, and scales that are too short make everyone pile up at the top (a **ceiling effect**). The measurement also decides the test: compare means with a t-test, or proportions with a test for proportions.
 
-See also: [Model complexity](#model-complexity), [Training vs test error curve](#training-vs-test-error-curve)
+See also: [Four steps of experimental design](#four-steps-of-experimental-design), [Statistical power](#statistical-power), [t-test (stats.ttest_ind)](#t-test-stats-ttest-ind)
 
-<a id="bullseye-diagram"></a>
+<a id="hypothesis"></a>
 
-### Bullseye diagram
-
-_Concept_
-
-The classic picture of bias and variance: the bullseye is the true value and each dart is one model's prediction. **Low bias, low variance**: tight cluster on the centre (the goal). **Low bias, high variance**: scattered around the centre. **High bias, low variance**: tight cluster off-centre. **High bias, high variance**: scattered and off-centre. Which one you get depends on the training data available.
-
-The diagram comes from Scott Fortmann-Roe's essay "Understanding the Bias-Variance Tradeoff", a clear, non-technical read.
-
-<a id="model-complexity"></a>
-
-### Model complexity
+### Hypothesis
 
 _Concept_
 
-How complicated the model is to describe. More complexity gives finer control over predictions, which can be a bad thing. Things that raise complexity: more variables, "wiggliness" (polynomial terms x², x³), less regularization, and more complex architectures (neural nets vs OLS).
+A measurable statement that can be checked with data, e.g. "people rate BIG Lemon Zero higher than Diet BIG Lemon".
 
-Rule of thumb: **more complexity → lower bias, higher variance**. The three levers for managing it are complexity itself (degree, features, model type), the amount of data (more data lowers variance), and regularization (deliberately adding a little bias to cut variance).
+<a id="null-hypothesis-h"></a>
 
-<a id="training-vs-test-error-curve"></a>
-
-### Training vs test error curve
+### Null hypothesis (H₀)
 
 _Concept_
 
-Plot error against model complexity. **Training error** (blue) keeps falling as complexity rises. **Test / prediction error** (red) falls at first, bottoms out, then rises again: past that point the model is overfitting. It answers the classic question "why do we care about variance if more complexity always gives a more accurate model?": it's only more accurate on the data it has already seen.
+The "nothing is going on" or conventional-wisdom position that you look for evidence _against_: "there is no difference between the two sodas", "this medicine does nothing".
 
-The widening gap between the curves on the right is overfitting. Train-test splits and cross-validation are how we **estimate the red curve** in practice: compute the CV error at several complexity levels and choose the lowest.
+<a id="alternative-hypothesis-h"></a>
 
-> **Watch out:** It's model **complexity** beyond the sweet spot that signals overfitting: the further right of the minimum you go, the more overfit the model.
-
-<a id="fitting-sine-exercise"></a>
-
-### Fitting sine exercise
-
-_Concept, NumPy_
-
-From the Bias–Variance Tradeoff deck (after Caltech's _Learning From Data_, Yaser Abu-Mostafa). The target is y = sin(πx) for x from −1 to 1. Fit two **hypothesis sets** (the families of models you're allowed to choose from) using only **two points**: H₀: f(x) = b (all flat lines, one parameter) and H₁: f(x) = ax + b (all straight lines, two parameters). Team H₀ draws a flat line at the two points' average height; team H₁ draws the line through both points.
-
-- **With the whole curve visible**, H₁ wins (E_out 0.20 vs 0.50). That's pure bias: there's only one best line, so no variance.
-- **Averaged over every possible pair of points**, H₀ has bias² 0.50 + variance 0.25 = **0.75**, while H₁ has bias² 0.21 + variance 1.69 = **1.90**. The simpler model's expected error is less than half.
-
-The lesson: **choose model complexity to match the amount of data you have, not the complexity of the truth.** With lots of data, H₁'s variance would shrink and it would win. This simulation reproduces those numbers:
-
-```python
-rng = np.random.default_rng(42)
-xs = np.linspace(-1, 1, 201); truth = np.sin(np.pi * xs)
-preds0, preds1 = [], []
-for _ in range(10_000):
-    x = rng.uniform(-1, 1, 2); y = np.sin(np.pi * x)      # two random points
-    preds0.append(np.full_like(xs, y.mean()))               # H0: f(x) = b
-    a = (y[1] - y[0]) / (x[1] - x[0]); b = y[0] - a * x[0]
-    preds1.append(a * xs + b)                               # H1: f(x) = ax + b
-for name, P in [("H0", np.array(preds0)), ("H1", np.array(preds1))]:
-    bias2 = np.mean((P.mean(axis=0) - truth) ** 2)
-    var = np.mean(P.var(axis=0))
-    print(f"{name}: bias2={bias2:.2f} var={var:.2f} total={bias2 + var:.2f}")
-# H0: bias2=0.50 var=0.25 total=0.74
-# H1: bias2=0.21 var=1.69 total=1.90
-```
-
-ḡ(x) ("g-bar") is the **average model** over all samples; the grey band around it shows the variance.
-
-> **Watch out:** The "bias" figures in this comparison are **squared** bias, the term that appears in the decomposition.
-
-<a id="np-polyfit-and-np-polyval"></a>
-
-### np.polyfit() and np.polyval()
-
-_NumPy_
-
-`np.polyfit(x, y, deg)` fits a polynomial of the given degree by least squares and returns its coefficients; `np.polyval(coefs, x)` evaluates it. A quick way to see under- and overfitting live (older Java-based curve-fitting applets no longer run in modern browsers, so this is the easiest way to experiment). Degrees 0 and 1 underfit 10 noisy sine points, degree 3 looks about right, and degree 9 passes through every point and swings wildly between them.
-
-```python
-rng = np.random.default_rng(0)
-x = np.sort(rng.uniform(0, 1, 10))
-y = np.sin(2 * np.pi * x) + rng.normal(0, 0.2, 10)
-grid = np.linspace(0, 1, 200)
-for deg in [0, 1, 3, 9]:
-    coefs = np.polyfit(x, y, deg)
-    plt.plot(grid, np.polyval(coefs, grid), label=f"degree {deg}")
-plt.scatter(x, y, color="black"); plt.ylim(-2, 2); plt.legend()
-```
-
-NumPy may warn that the degree-9 fit is poorly conditioned; that's expected.
-
-<a id="out-of-sample-data"></a>
-
-### Out-of-sample data
+### Alternative hypothesis (H₁)
 
 _Concept_
 
-Data the model wasn't trained on. Performance on out-of-sample data is the honest measure of a model. Test sets and cross-validation folds are stand-ins for it.
+The finding you're looking for evidence _for_: "there is a difference", "the medicine helps".
 
-<a id="holdout-method"></a>
+<a id="hypothesis-testing"></a>
 
-### Holdout method
-
-_Concept_
-
-Any technique that sets data aside during training so it can be used to evaluate the model afterwards: train-test split, k-fold cross-validation, out-of-bag samples. Bias and variance are theoretical quantities, and holdout methods are how we estimate them in practice.
-
-To compute bias and variance exactly you'd need the true relationship and many independent training sets, which we never have. Holdout methods are the practical substitute: a big gap between training and holdout error suggests high variance; high error on both suggests high bias.
-
-<a id="train-test-split"></a>
-
-### Train-test split
-
-_scikit-learn_
-
-Divide the data into a **training set** (used to build the model) and a **testing set** (used to validate it). Fit on training data, compute a metric on both, and compare. The default split is 75/25.
-
-```python
-from sklearn.model_selection import train_test_split
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.3, random_state=1653
-)
-```
-
-The test set simulates future data. The **golden rule**: use it as little as possible while building the model. Every time you tweak a model based on test results, the test set becomes a little less "unseen", which is why more advanced workflows add a separate validation set.
-
-> **Watch out:** `train_test_split` returns `X_train, X_test, y_train, y_test` in that order; mixing them up is a common bug. Without `random_state`, the split (and your scores) changes on every run.
-
-See also: [train_test_split() (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#train-test-split), [test_size, stratify and shuffle](#test-size-stratify-and-shuffle)
-
-<a id="test-size-stratify-and-shuffle"></a>
-
-### test_size, stratify and shuffle
-
-_scikit-learn_
-
-Key arguments of `train_test_split`. `test_size` (or `train_size`) sets the proportion held out (default 0.25). `stratify=y` keeps the class proportions the same in both sets, which is important for imbalanced classification. `shuffle=False` keeps the original order, which is **required for time series** (you can't train on the future).
-
-```python
-train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
-train_test_split(y, test_size=0.1, shuffle=False)     # time series
-```
-
-> **Watch out:** `train_size=0.3` and `test_size=0.3` are opposites, and it's an easy slip: `train_size=0.3` trains on only 30% of the data. Use `test_size` when you mean the share held out.
-
-See also: [Time series train/test split](#time-series-train-test-split), [random_state (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#random-state)
-
-<a id="train-test-ratio-rule-of-thumb"></a>
-
-### Train-test ratio rule of thumb
+### Hypothesis testing
 
 _Concept_
 
-You want as much training data as possible, but enough test data to represent everything the model will meet. **Small data** (say 200 rows): hold out more, maybe 50/50. **Huge data** (100M rows): 99/1 is fine because 1M test rows is plenty. Otherwise 75/25 or 70/30 is usually fine.
+Using a statistical test to judge whether experimental data would be surprising if the null hypothesis were true. Steps: design the experiment and choose H₀ and H₁; collect the data; run an appropriate test; then **reject** or **fail to reject** the null. You never "prove" anything.
 
-What matters for a reliable test estimate is the **absolute number** of test rows, not the percentage. With small data a single split is unreliable whichever ratio you pick, which is a strong argument for cross-validation.
+<a id="statistical-test"></a>
 
-<a id="reading-train-vs-test-scores"></a>
+### Statistical test
 
-### Reading train vs test scores
+_Concept, SciPy_
 
-_Concept_
+A procedure that measures how likely your data would be in a world where the null hypothesis is true. Different problems need different tests: a **t-test** compares two group means, **ANOVA** compares three or more.
 
-Compare the same metric on training and test data. **Test much worse than train**: overfit (high variance). **Both bad**: underfit (high bias). **Both similar and good**: likely generalizes. Worked example: train RMSE 12.3 / test RMSE 658.2 is badly overfit; 233.9 / 252.1 is not overfit but weak; 132.7 / 200.5 is the best of the three because it has the best test score. Occasionally the test score beats the training score by chance; that's fine.
+<a id="test-statistic"></a>
 
-The lessons: pick the model with the best **test** (or cross-validated) score, then sanity-check the gap; and the **right** features matter more than the number of features (two well-chosen features beat the kitchen-sink model). A small gap doesn't mean the model is good: always compare against the baseline too.
-
-<a id="k-fold-cross-validation"></a>
-
-### k-fold cross-validation
+### Test statistic
 
 _Concept_
 
-Split the data into k **folds** (usually 5 or 10). Train on k − 1 folds and test on the remaining one; repeat so every fold is the test set once; then **average** the k scores. Example: fold MSEs 42.7, 45.1, 72.8, 38.2, 49.2 give a cross-validated MSE of 49.6. More robust than one split, and no data is "thrown away".
+The number a statistical test calculates from your data (such as the t-statistic) that's used to decide whether to reject the null. The larger it is in size, the further your data sits from what the null predicts.
 
-Fold 3 in that example (72.8) is much worse than the rest; if it had been your only test set, you'd have concluded the model was far worse than it is. Reporting **mean ± standard deviation** of the fold scores shows how much performance depends on which data the model sees. CV evaluates a **modelling approach**, not one fitted model: after choosing, fit the final model on all the data. 5 and 10 folds are popular because they balance the bias and variance of the estimate at reasonable cost.
+> **Watch out:** the p-value isn't the test statistic. The test statistic is the number the test calculates from the data (for the BIG Sodas t-test, t ≈ −20.6). The p-value is a probability worked out **from** that statistic. `stats.ttest_ind()` returns both.
 
-See also: [cross_val_score()](#cross-val-score), [Cross-validation (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#cross-validation)
+<a id="p-value"></a>
 
-<a id="fold"></a>
+### p-value
 
-### Fold
+_Concept, SciPy_
 
-_Concept_
+The probability of seeing results at least as extreme as yours **if the null hypothesis were true**. In plain English: how likely is it we'd see this just by chance? A small p-value means the data is unlikely under the null.
 
-One of the k equal-sized chunks of data in k-fold cross-validation. k is not a tuning parameter: choose it large enough that averaging is meaningful but small enough that each fold isn't tiny.
+> **Watch out:** A p-value is _not_ the probability that the null is true, and it says nothing about how big or important an effect is.
 
-<a id="kfold"></a>
+> **Watch out:** the precise definition is "the probability of results **at least as extreme** as the ones observed, if H₀ were true". It is **not** the probability that H₀ is true, nor the probability that your result happened by chance. A small p-value says the data would be surprising if there were no effect. It says nothing about how large or important the effect is (see [Effect size (Cohen's d)](#effect-size-cohen-s-d)).
 
-### KFold
+<a id="significance-level"></a>
 
-_scikit-learn_
-
-Generates the train/test indices for each fold. Use `shuffle=True` with a `random_state` unless the order matters. You can loop over `kf.split()` to see each fold's model.
-
-```python
-from sklearn.model_selection import KFold
-
-kf = KFold(n_splits=5, shuffle=True, random_state=1318)
-scores = []
-for train_index, test_index in kf.split(X, y):
-    lm = LinearRegression().fit(X.iloc[train_index], y.iloc[train_index])
-    scores.append(lm.score(X.iloc[test_index], y.iloc[test_index]))
-np.mean(scores)
-```
-
-See also: [StratifiedKFold](#stratifiedkfold)
-
-<a id="cross-val-score"></a>
-
-### cross_val_score()
-
-_scikit-learn_
-
-Runs the whole k-fold loop in one line and returns one score per fold. `cv` can be a number of folds or a `KFold` object; `scoring` chooses the metric (default: R² for regressors, accuracy for classifiers).
-
-```python
-from sklearn.model_selection import cross_val_score
-
-scores = cross_val_score(LinearRegression(), X, y, cv=kf)
-scores.mean()
-cross_val_score(knn, X_train_sc, y_train, cv=10).mean()
-```
-
-> **Watch out:** With a plain integer (`cv=5`), scikit-learn does **not** shuffle the rows for regression. If the data are in time order (bikeshare is), pass a shuffled `KFold`, or a `TimeSeriesSplit` if order genuinely matters.
-
-See also: [scoring parameter](#scoring-parameter)
-
-<a id="scoring-parameter"></a>
-
-### scoring parameter
-
-_scikit-learn_
-
-Tells `cross_val_score`, `GridSearchCV` and friends which metric to use, as a string: `"r2"`, `"neg_mean_squared_error"`, `"neg_root_mean_squared_error"`, `"accuracy"`, `"recall"`, `"f1"`, `"roc_auc"`, `"balanced_accuracy"`, and more.
-
-> **Watch out:** Error metrics are negated (`neg_…`) because scikit-learn always maximizes the score. Flip the sign back: `-cross_val_score(model, X, y, scoring="neg_mean_squared_error").mean()`.
-
-<a id="leave-one-out-cross-validation-loocv"></a>
-
-### Leave-one-out cross-validation (LOOCV)
+### Significance level (α)
 
 _Concept_
 
-The special case of k-fold where k = n: every observation is its own test set. Rarely used now because it means fitting n models.
-
-LOOCV uses almost all the data to train each model, but its estimate has high variance and it's very slow for large n.
-
-<a id="other-cross-validation-schemes"></a>
-
-### Other cross-validation schemes
-
-_scikit-learn_
-
-Variants for data where a plain random k-fold would mislead:
-
-- **StratifiedKFold:** keeps class proportions in every fold (classification; the default when you pass `cv=5` to a classifier).
-- **TimeSeriesSplit:** always trains on the past and tests on the future, for time-ordered data.
-- **GroupKFold:** keeps related rows (the same customer or patient) together, so the model can't "recognize" someone it trained on.
-
-```python
-from sklearn.model_selection import TimeSeriesSplit, GroupKFold
-
-cross_val_score(model, X, y, cv=TimeSeriesSplit(n_splits=5))
-cross_val_score(model, X, y, cv=GroupKFold(n_splits=5), groups=df["customer_id"])
-```
-
-See also: [StratifiedKFold](#stratifiedkfold), [Time series train/test split](#time-series-train-test-split)
-
-<a id="three-way-split-validation-set"></a>
-
-### Three-way split (validation set)
-
-_Concept_
-
-Hold out a final **test set** first, then use cross-validation (or a separate **validation set**) on the rest to tune and choose models. The test set is touched only once, at the very end, so its score is an unbiased estimate. This is what you are doing whenever you run `GridSearchCV` on `X_train` and score on `X_test`.
-
-<a id="cross-validation-pros-and-cons"></a>
-
-### Cross-validation pros and cons
-
-_Concept_
-
-**Pros:** a more stable estimate of performance on new data, because it averages over k different test sets rather than relying on one lucky or unlucky split (one awkward fold can't dominate); and every row is used for testing once and for training k − 1 times. **Cons:** you fit the model k times (negligible for linear regression, prohibitive for a neural net that trains for hours); the fold scores aren't independent (the training sets overlap heavily), so the exact uncertainty of the average is hard to know; and each model trains on only (k − 1)/k of the data, so the estimate is slightly pessimistic. Train-test split is still useful when CV is too slow, for a quick confusion matrix, or as a final check.
-
-See also: [Other cross-validation schemes](#other-cross-validation-schemes)
-
-<a id="data-leakage-in-model-evaluation"></a>
-
-### Data leakage (in model evaluation)
-
-_Concept_
-
-Information that won't be available at prediction time sneaks into training, making the model look better than it is. **Red flag: test performance that seems too good to be true usually is.** Causes:
-
-- **Future information** used to predict the past, including random splits of time series.
-- **Preprocessing leakage** (very common): fitting a scaler, imputer or encoder on the whole dataset before splitting. Always split first, then fit preprocessing on training data only (pipelines do this for you).
-- **Target leakage**: features that are consequences or parts of the answer.
-- **Duplicates**: the same or near-identical rows in both training and test sets.
-- **Process changes** that add new information to the training set; and very large datasets, where subtle leaks are harder to spot.
-
-Examples from the course: bikeshare `casual` + `registered` add up exactly to the target; College `accept` and `enroll` are consequences of applications (keeping them lifts test R² from 0.79 to about 0.92, and makes the model useless for predicting applications in advance); Iris3's `Id` column is sorted by species (a kNN on Id alone scores 100%); the possum `site` column perfectly identifies the target population. Others: a "treatment received" column when predicting disease, or a "collections agency contacted" flag when predicting loan default.
-
-See also: [Data leakage (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#data-leakage), [Pipeline + GridSearchCV](#pipeline-gridsearchcv)
-
-<a id="big-data-considerations"></a>
-
-### Big data considerations
-
-_Concept_
-
-More data is generally good, but large datasets bring their own problems: subtle data leakage is harder to catch, compute costs and time can grow exponentially, and models can overfit spurious correlations that exist in the training data but not the real world.
-
-With many rows and especially many columns, some features will correlate with the target **purely by chance** (Tyler Vigen's "Spurious Correlations" site has fun examples). More data reduces variance, but it doesn't fix bias and it doesn't fix leakage. (Computing costs typically grow in proportion to the data size or faster, depending on the algorithm.)
-
-See also: [Spurious correlation (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#spurious-correlation)
-
-<a id="refitting-for-production"></a>
-
-### Refitting for production
-
-_Concept_
-
-Train-test split and cross-validation are for **choosing** a model. Once you've chosen, the usual practice is to refit that model configuration on **all** the data you have before deploying it, so it learns from as much information as possible.
-
-The test or CV score you already have is your estimate of how the final model will perform. After deployment, **monitor** it: the world changes ("data drift") and models need retraining. Exceptions: some teams keep a final untouched test set for audits, and time series models are often refit on the most recent data.
-
-<a id="signal-and-noise"></a>
-
-### Signal and noise
-
-_Concept_
-
-You can think of ML as modeling the **signal** (the real relationship between X and y) and separating it from the **noise**. An overfit model has modeled the noise. It's always mathematically possible to fit training data perfectly; the art is fitting only the signal.
-
-The term comes from Nate Silver's _The Signal and the Noise_, whose chapter on earthquake prediction shows how fitting overly complex patterns to historical data produced confident but misleading forecasts.
-
-<a id="modeling-workflow-end-to-end"></a>
-
-### Modeling workflow (end to end)
-
-_Concept, scikit-learn_
-
-The repeatable sequence a data scientist follows: problem statement → gather data → clean → EDA → split (and cross-validate) → build and validate the model → interpret and communicate. It's a **loop, not a line**: what you find in EDA or evaluation often sends you back to cleaning or feature choices.
-
-The College applications walkthrough (predict applications from 777 US colleges' characteristics) strings everything together:
-
-- **Clean:** `phd` loads as text because 29 rows contain "?"; replace with NaN, convert to float, drop (748 rows).
-- **Engineer:** map `private` Yes/No to 1/0 (a two-level category needs only one column).
-- **Fix impossible values:** a PhD rate of 103% and a graduation rate of 118% are capped with `np.minimum(..., 100)`.
-- **Outliers:** dropping Rutgers (48,094 applications) is a **judgement call**: it's a real value, and the cost is that the model shouldn't be used for very large universities.
-- **Features:** drop the name, the target, and `accept` and `enroll` (leakage).
-- **Split, scale (fit on train only), fit, evaluate:** training R² ≈ 0.827, test R² ≈ 0.792, test RMSE ≈ 1,745 applications vs a baseline of ≈ 3,842.
-
-```python
-X = df.drop(columns=["university", "accept", "enroll", "apps"])
-y = df["apps"]
-X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
-ss = StandardScaler()
-X_train = ss.fit_transform(X_train)
-X_test = ss.transform(X_test)          # transform only: no peeking at test data
-lr = LinearRegression().fit(X_train, y_train)
-lr.score(X_train, y_train), lr.score(X_test, y_test)
-cross_val_score(LinearRegression(), X_train, y_train, cv=5).mean()   # ≈ 0.79
-```
-
-Then check LINE: the residuals are right-skewed with a fan shape, so try a log target and compare fairly (next entry).
-
-> **Watch out:** Scaling doesn't change a plain `LinearRegression`'s predictions or R² (it changes the coefficients' units, which helps comparison); it becomes essential for Ridge, Lasso and kNN. On pandas 1.x, `df.columns.str.replace('.', '_')` treats "." as a regex and replaces every character; add `regex=False`.
-
-See also: [StandardScaler (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#standardscaler-minmaxscaler-robustscaler)
-
-<a id="comparing-models-on-the-same-scale"></a>
-
-### Comparing models on the same scale
-
-_Concept, scikit-learn_
-
-Metrics computed on different target scales can't be compared. It's tempting to compare R² on log(applications) (test ≈ 0.77) with R² on raw applications (≈ 0.79), but they measure different things. Back-transform first and compare in the same units:
-
-```python
-preds_test = np.exp(lr_log.predict(X_test))         # undo the log
-actual_test = np.exp(y_test_log)
-np.sqrt(metrics.mean_squared_error(actual_test, preds_test))   # ≈ 2,746 (raw model ≈ 1,745)
-```
-
-On this split the log model is worse in raw terms, but the raw model predicts **negative** applications for 11 test colleges, which is impossible; the log model's predictions are always positive. Neither model is perfect, which is an honest and useful conclusion. For communicating, RMSE or MAE in real units is usually clearer than R².
-
----
-
-<a id="s16-k-nearest-neighbors"></a>
-
-## 16. k-Nearest Neighbors
-
-_The first classification model: label a new point by asking its closest neighbours. Covers distance, choosing k, why scaling is essential, and how to tell whether a classifier beats a do-nothing baseline. Examples use the iris data (`iris.csv`) and the cell phone churn data (`cell_phone_churn.csv`)._
-
-**In your capstone:** A quick, assumption-light baseline on small, scaled, numeric data. Tune k with cross-validation.
-
-<a id="classification"></a>
-
-### Classification
-
-_Concept_
-
-The branch of supervised learning that predicts a **categorical** response, often yes/no. "Given this person's demographics, will they vote for A or B?" "Given their financial status, will they default?" "Will it rain tomorrow?"
-
-Classification models usually output a **probability** for each class (e.g. 0.7 for candidate A), which is then turned into a label. Loan default prediction is one of the most common real-world examples; defaults are rare, so the classes are imbalanced and plain accuracy misleads.
-
-See also: [Regression vs classification tasks](#regression-vs-classification-tasks)
-
-<a id="binary-and-multiclass-classification"></a>
-
-### Binary and multiclass classification
-
-_Concept_
-
-**Binary** classification has two classes (0/1, yes/no, spam/not spam). **Multiclass** has three or more (iris species, handwritten digits 0–9). Some models handle multiclass natively (kNN, trees); logistic regression needs a little help.
-
-See also: [Multinomial logistic regression](#multinomial-logistic-regression), [One-vs-rest (OvR)](#one-vs-rest-ovr)
-
-<a id="k-nearest-neighbors-knn"></a>
-
-### k-nearest neighbors (kNN)
-
-_Concept_
-
-Classify a new point using its **k closest neighbours** in the training data: "birds of a feather flock together". The algorithm: compute the distance from the new point to every training point, rank them, take the k nearest, and predict the **majority class** (classification) or the **average** (regression). Like guessing your favourite music by asking your five closest friends.
-
-The analogy maps neatly: you = the new data point; friends = training points; "closest" = most similar on the features; five = k; majority vote = the prediction. "People like you also liked…" recommendations use the same nearest-neighbour idea.
-
-See also: [Lazy learner](#lazy-learner)
-
-See also: [KNeighborsClassifier](#kneighborsclassifier)
-
-<a id="lazy-learner"></a>
-
-### Lazy learner
-
-_Concept_
-
-A model that does no real work at training time. kNN's `.fit()` just stores the training data; all the computation happens at **prediction** time, when distances to every training point are calculated. That's why kNN trains instantly but predicts slowly on large datasets. (scikit-learn uses tree structures to speed up the search, but it still scales poorly.)
-
-<a id="non-parametric-model"></a>
-
-### Non-parametric model
-
-_Concept_
-
-A model that isn't summarized by a fixed equation with a fixed number of parameters; its complexity grows with the data. kNN is non-parametric: there are no coefficients, it just stores the training data. Decision trees are non-parametric too. Linear and logistic regression are **parametric**: after training you could throw the data away and keep only the betas.
-
-The trade-off: parametric models are fast and interpretable but badly biased if their assumed shape is wrong; non-parametric models are flexible but data-hungry and prone to overfitting.
-
-> **Watch out:** "Non-parametric makes no assumptions" is too strong. kNN still assumes that nearby points have similar labels and that distance is meaningful, which is exactly why scaling and feature choice matter so much.
-
-<a id="distance-metrics-euclidean-manhattan-minkowski"></a>
-
-### Distance metrics (Euclidean, Manhattan, Minkowski)
-
-_Concept_
-
-How "nearest" is measured. **Euclidean**: straight-line distance, √Σ(aᵢ − bᵢ)², the default. **Manhattan** ("taxi distance"): Σ|aᵢ − bᵢ|, moving only along grid lines. **Minkowski**: a general formula, (Σ|aᵢ − bᵢ|ᵖ)^(1/p), that is Manhattan when p = 1 and Euclidean when p = 2. In `KNeighborsClassifier`, choose with `p`.
-
-Worked example for points (1, 2) and (4, 6): Euclidean = √(3² + 4²) = **5**; Manhattan = 3 + 4 = **7**. `KNeighborsClassifier` defaults to `metric="minkowski", p=2` (Euclidean). Manhattan can work better with many features.
-
-> **Watch out:** In distance formulas the sum often runs to k or p, meaning the number of **features**, not the k in kNN.
-
-See also: [Euclidean distance](#euclidean-distance), [Cosine similarity](#cosine-similarity)
-
-<a id="choosing-k"></a>
-
-### Choosing k
-
-_Concept, scikit-learn_
-
-k is a **hyperparameter**: chosen by you, not learned from the data. **Small k** (k = 1): wiggly boundaries that chase outliers, so low bias and high variance; training accuracy at k = 1 is always 100%, because every training point is its own nearest neighbour. **Large k**: smooth boundaries that ignore local detail, so higher bias and lower variance; at k = n every prediction is just the majority class. Odd values avoid ties in binary problems, and √n is a common starting point, but always validate.
-
-Choose k by **cross-validation on the training data**, then check the test set once at the end:
-
-```python
-cv_scores = {}
-for k in range(3, 32, 2):
-    knn = KNeighborsClassifier(n_neighbors=k)
-    cv_scores[k] = cross_val_score(knn, X_train_sc, y_train, cv=5).mean()
-best_k = max(cv_scores, key=cv_scores.get)
-
-knn = KNeighborsClassifier(n_neighbors=best_k).fit(X_train_sc, y_train)
-knn.score(X_test_sc, y_test)          # the honest final check
-```
-
-> **Watch out:** It's tempting to pick k by **test** accuracy. That quietly tunes the model to the test set, so the test score stops being an honest estimate. Choose k by cross-validation; `GridSearchCV` automates it.
-
-See also: [Hyperparameter](#hyperparameter), [GridSearchCV](#gridsearchcv)
-
-<a id="decision-boundary"></a>
-
-### Decision boundary
-
-_Concept_
-
-The line or surface where a classifier switches from predicting one class to another. Plotting it shows how flexible a model is: kNN's boundaries are jagged at k = 1 and smooth at k = 50; logistic regression's is a straight line; an RBF-kernel SVM's can curve.
-
-As k increases, kNN's boundaries become **smoother and simpler**.
-
-<a id="voronoi-diagram"></a>
-
-### Voronoi diagram
-
-_Concept_
-
-A map that divides space into regions, each made up of all the points closest to one particular data point (or centroid). The decision regions of 1-nearest-neighbour and the clusters of k-means both form Voronoi cells.
-
-> **Watch out:** Only the **k = 1** kNN plot is a true Voronoi diagram; for larger k the decision regions aren't Voronoi cells.
-
-<a id="scaling-for-distance-based-models"></a>
-
-### Scaling for distance-based models
-
-_Concept, scikit-learn_
-
-kNN measures distance, so a feature measured in thousands (square footage) swamps one measured in units (bedrooms). Always standardize first, fitting the scaler on training data only. The same applies to k-means, SVMs, PCA and regularized models.
-
-```python
-sc = StandardScaler()
-X_train_sc = sc.fit_transform(X_train)
-X_test_sc = sc.transform(X_test)
-```
-
-Worked example: two houses that differ by 1 bedroom and 500 square feet are √(1² + 500²) ≈ 500 apart; the bedroom difference contributes almost nothing. After standardizing, a difference of 1 means "one standard deviation" for every feature. In the churn data, account length (~100) and day minutes (~180) would swamp customer-service calls (0–9). In Iris all four features are centimetres with similar ranges, so scaling makes no difference there. `MinMaxScaler` (rescale to 0–1) is also valid.
-
-See also: [Z-score standardization (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#z-score-standardization)
-
-<a id="kneighborsclassifier"></a>
-
-### KNeighborsClassifier
-
-_scikit-learn_
-
-scikit-learn's kNN classifier (`KNeighborsRegressor` for regression). Key hyperparameters: `n_neighbors` (k, default 5), `weights` (`"uniform"`: every neighbour votes equally; `"distance"`: closer neighbours count more), and `p` (1 = Manhattan, 2 = Euclidean).
-
-```python
-from sklearn.neighbors import KNeighborsClassifier
-
-knn = KNeighborsClassifier(n_neighbors=5)
-cross_val_score(knn, X_train_sc, y_train, cv=10).mean()
-knn.fit(X_train_sc, y_train)
-knn.score(X_test_sc, y_test)          # accuracy
-```
-
-> **Watch out:** Voting ties aren't broken at random: scikit-learn deterministically favours the class that sorts first (e.g. "dry" beats "rain"). Another reason to use an odd k for binary problems.
-
-<a id="knn-strengths-and-weaknesses"></a>
-
-### kNN strengths and weaknesses
-
-_Concept_
-
-**Strengths:** few assumptions (non-parametric); works for classification (vote) and regression (average); simple to explain. **Weaknesses:** slow and memory-hungry on large data, since every prediction compares against every training row; sensitive to noisy, imbalanced and irrelevant features (with imbalance, most points' neighbours are from the majority class); works poorly with many predictors, because in high dimensions all points end up roughly the same distance apart and "nearest" stops meaning much; and many dummy columns add dimensions (the churn data's 51 states would add 50 columns). Best with a small number of well-chosen, scaled predictors.
-
-Where nearest neighbours are used today: recommendation systems, **similarity search over embeddings** (finding similar products or documents in AI search and vector databases), anomaly detection, and filling in missing values (`KNNImputer`). Image and video tasks, which once used kNN widely, now use neural networks.
-
-See also: [Curse of dimensionality (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#curse-of-dimensionality)
-
-<a id="accuracy"></a>
-
-### Accuracy
-
-_Concept, scikit-learn_
-
-The proportion of predictions that are correct: (TP + TN) / total. It's what `.score()` returns for every classifier. Easy to explain, but **misleading when classes are imbalanced**: a 99%-accurate test for a rare disease might just be saying "no" to everyone.
-
-```python
-metrics.accuracy_score(y_test, y_pred)
-knn.score(X_test_sc, y_test)
-```
-
-Error rate = 1 − accuracy. Classic warning: if only 1% of people have a disease, a "test" that always says "healthy" is 99% accurate and catches nobody who's ill.
-
-See also: [Null accuracy](#null-accuracy), [Balanced accuracy](#balanced-accuracy)
-
-<a id="null-accuracy"></a>
-
-### Null accuracy
-
-_Concept, pandas_
-
-The accuracy you'd get by **always predicting the most frequent class** in the training set: the baseline for any classifier. If your model doesn't beat it, it hasn't learned anything useful.
-
-```python
-most_freq_class = y_train.value_counts().index[0]
-y_test.value_counts()[most_freq_class] / len(y_test)
-y_test.value_counts(normalize=True)          # quick version
-```
-
-The course's churn data show why this matters: 85.5% of customers don't churn, so "always predict no churn" scores **85.5%**, and the best kNN reaches only about 87–88%. Most of the model's "correct" answers are customers who were never going to churn. For Iris (three equal classes) the null accuracy is about 33%. Because `True` = 1, `1 - y_train.mean()` gives the null accuracy for a True/False churn target.
-
-<a id="dummyclassifier"></a>
-
-### DummyClassifier
-
-_scikit-learn_
-
-A ready-made baseline model. `strategy="most_frequent"` always predicts the majority class, so its score is the null accuracy. `DummyRegressor(strategy="mean")` does the same for regression.
-
-```python
-from sklearn.dummy import DummyClassifier
-
-dummy = DummyClassifier(strategy="most_frequent")
-dummy.fit(X_train, y_train)
-dummy.score(X_test, y_test)
-```
-
-<a id="categorical-features-in-knn"></a>
-
-### Categorical features in kNN
-
-_Concept_
-
-You can use dummy-coded categorical features in kNN, but each one adds a column, pushing up dimensionality and degrading performance; scaling 0/1 columns is also hard to justify. The notebook drops them for the churn model. Keep them only if they are critical to the problem.
-
-```python
-cat_cols = churn.select_dtypes("object").columns
-X = churn.drop(columns=cat_cols).drop(columns=["churn"])
-```
-
-> **Watch out:** Two hidden traps in the churn data. `area_code` (415/408/510) is a category stored as a number, so kNN treats it as a distance. And each `*_charge` column is a fixed rate times its `*_mins` column (correlation 0.99999998), so minutes effectively count twice in every distance. Yes/no columns like `intl_plan` could simply be mapped to 0/1 rather than dropped.
-
----
-
-<a id="s17-logistic-regression"></a>
-
-## 17. Logistic regression
-
-_Regression bent into a classifier: predicting the probability that y = 1 with an S-shaped curve, and reading its coefficients as changes in odds. Examples use graduate school admissions (`grad_admissions.csv`, admit predicted from GPA and GRE) and the possum data._
-
-**In your capstone:** The go-to interpretable classifier. Start here before trees or boosting, and explain effects as odds ratios.
-
-<a id="logistic-regression"></a>
-
-### Logistic regression
-
-_Concept, scikit-learn_
-
-A supervised, white-box **classification** model. It predicts the **probability** that an observation belongs to class 1, then assigns a class using a threshold (0.5 by default). It's linear regression passed through a link function so outputs stay between 0 and 1. Fast, interpretable and by far the most common classifier.
-
-```python
-from sklearn.linear_model import LogisticRegression
-
-X = admissions[["gpa"]]
-y = admissions["admit"]
-X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=50)
-logreg = LogisticRegression()
-logreg.fit(X_train, y_train)
-logreg.score(X_test, y_test)          # accuracy
-```
-
-It belongs to the family of **generalized linear models (GLMs)**: a linear equation connected to the outcome through a link function. **Why is it called regression** if it classifies? Because under the hood it's a regression on the log-odds (a straight line on that scale); the S-shape appears when you convert back to probability. Unlike OLS it has **no closed-form solution** (fitted by an iterative optimizer) and is evaluated with classification metrics, not R².
-
-On the admissions data: intercept ≈ −17.45, GPA coefficient ≈ 4.905, test accuracy 0.902 vs a baseline of 0.709. Adding GRE barely changes anything (0.904); GRE alone scores 0.709, the same as the baseline, because it predicts nobody gets in.
-
-> **Watch out:** `grad_admissions.csv` (4,000 rows, GPAs up to 5.0) looks synthetic or augmented, so don't present the results as real admissions findings.
-
-<a id="why-not-linear-regression-for-classification"></a>
-
-### Why not linear regression for classification?
-
-_Concept_
-
-A straight line predicts any value from −∞ to ∞, so for a 0/1 target it happily predicts −0.3 or 1.4, which aren't probabilities. It also treats the relationship as constant, when the probability really changes most in the middle, and the residuals can't be normal or equal-variance when the outcome is only 0 or 1. Logistic regression "bends" the line into an S-curve that stays between 0 and 1.
-
-See also: [Linear probability model](#linear-probability-model)
-
-<a id="linear-probability-model"></a>
-
-### Linear probability model
-
-_Concept_
-
-The name for fitting ordinary least squares to a 0/1 target. It's occasionally used in economics because its coefficients read directly as changes in probability, but it has the flaws above: predictions outside 0–1 and residuals that break the LINE assumptions. On the admissions data it predicts negative "probabilities" below a GPA of about 2.5.
-
-<a id="logistic-sigmoid-function"></a>
-
-### Logistic (sigmoid) function
-
-_Concept_
-
-The S-shaped curve that turns any number into a value between 0 and 1: p = e^z / (1 + e^z) = 1 / (1 + e^−z), where z = β₀ + β₁x₁ + … It's the inverse of the logit, and it converts log-odds back into probability.
-
-```python
-def sigmoid(z):
-    return 1 / (1 + np.exp(-z))
-```
-
-Key values: z = 0 gives p = 0.5; large positive z gives p close to 1; large negative z gives p close to 0. For the admissions model the 50% crossover is around a GPA of 3.56; the steep middle section is where GPA matters most.
-
-<a id="link-function-and-the-logit"></a>
-
-### Link function and the logit
-
-_Concept_
-
-A **link function** connects a linear equation to the kind of output you need. Logistic regression uses the **logit**: logit(p) = ln(p / (1 − p)) = β₀ + β₁x₁ + … + βₚxₚ. It maps a probability (0 to 1) to the whole number line (−∞ to ∞), which is exactly what a linear equation produces.
-
-Why the transform works: probabilities live between 0 and 1, odds between 0 and ∞, and log-odds between −∞ and ∞, which is exactly the range a straight line can produce.
-
-> **Watch out:** It's easy to carry "+ ε" over from linear regression, but logistic regression has **no additive error term**: the randomness comes from the yes/no outcome itself.
-
-<a id="odds"></a>
-
-### Odds
-
-_Concept_
-
-The probability that something happens divided by the probability it doesn't: **odds = p / (1 − p)**. Convert back with **p = odds / (1 + odds)**. Shortcut from counts: odds = successes ÷ failures. Odds of 1 = a 50/50 chance; above 1 = more likely than not; below 1 = less likely.
-
-| p   | odds | log-odds |
-| --- | ---- | -------- |
-| 0.2 | 0.25 | −1.39    |
-| 0.5 | 1    | 0        |
-| 0.8 | 4    | 1.39     |
-| 0.9 | 9    | 2.20     |
-
-The odds of rolling a 1 on a fair die are (1/6)/(5/6) = 1/5 = 0.2, written **1:5** ("one to five": one way to win, five to lose). For rare events odds and probability are close (0.2 vs 0.167); for common events they differ a lot.
-
-> **Watch out:** Don't mix up the two conventions. **5:1** is the bookmaker's **odds against** ("5 to 1 against"). In statistics and logistic regression, "odds" always means odds **in favour**, p / (1 − p).
-
-<a id="log-odds"></a>
-
-### Log-odds
-
-_Concept_
-
-The natural log of the odds, ln(p / (1 − p)), also called the **logit**. This is what logistic regression actually predicts as a linear function of the features. Log-odds of 0 means p = 0.5; positive means more likely than not. In scikit-learn, `model.decision_function(X)` returns the log-odds.
-
-> **Watch out:** The **odds** are the ratio p / (1 − p); the **log-odds** is its natural logarithm. The two are easy to blur.
-
-See also: [decision_function()](#decision-function)
-
-<a id="odds-ratio"></a>
-
-### Odds ratio
-
-_Concept_
-
-The odds in one group divided by the odds in another: "how many times higher are the odds in this group?" From the slides' purchase table: returning customers' odds of buying are 22/5 = 4.4, new customers' are 2/15 ≈ 0.133, so returning customers have **33 times** greater odds of purchasing. If you fitted a logistic regression with a single 0/1 "returning customer" feature, e^β would be this odds ratio.
-
-> **Watch out:** An odds ratio is not a probability ratio. Returning customers' purchase probability (22/27 ≈ 81%) is about **6.8 times** new customers' (2/17 ≈ 12%), not 33 times. Odds ratios exaggerate compared with probability ratios when events are common, so "33 times as likely" would be wrong.
-
-<a id="interpreting-logistic-regression-coefficients"></a>
-
-### Interpreting logistic regression coefficients
-
-_Concept, NumPy_
-
-A one-unit increase in xᵢ changes the **log-odds** of success by βᵢ, which is correct but hard to picture. Exponentiate to get an odds ratio: **a one-unit increase in xᵢ multiplies the odds of success by e^βᵢ**, holding all else constant. In the admissions model β ≈ 4.905 for GPA and e^4.905 ≈ 135: each extra GPA point multiplies the **odds** of admission by about 135. Half a point multiplies them by e^(4.905 × 0.5) ≈ 11.6.
-
-```python
-np.exp(logreg.coef_)
-pd.Series(logreg.coef_[0], index=X.columns)     # pair with feature names
-```
-
-In probability terms the change depends on where you start: about **6% at GPA 3.0, 43% at 3.5 and 90% at 4.0**. The odds multiplier is the same everywhere, which is why odds are used for interpretation.
-
-> **Watch out:** It's a common slip to say a GPA point makes admission "135 times more likely". That's a probability statement and it's wrong: exponentiated coefficients multiply the **odds**, not the probability. Also, scikit-learn's default L2 penalty slightly shrinks the coefficients, so they differ a little from statsmodels or textbook fits.
-
-<a id="from-coefficients-to-probability"></a>
-
-### From coefficients to probability
-
-_Concept, NumPy_
-
-Plug values into the equation to get log-odds, exponentiate to get odds, then convert to probability. It matches `.predict_proba()`.
-
-```python
-logodds = logreg.intercept_ + logreg.coef_[0] * 3.5     # GPA = 3.5
-odds = np.exp(logodds)
-prob = odds / (1 + odds)                                 # ≈ 0.43
-logreg.predict_proba([[3.5]])[:, 1]                       # same answer
-```
-
-<a id="predict-proba"></a>
-
-### .predict_proba()
-
-_scikit-learn_
-
-Returns the predicted **probability** of each class, one column per class in the order of `model.classes_`. Column 1 (`[:, 1]`) is P(y = 1). `.predict()` simply picks the class with the higher probability, i.e. uses a 0.5 threshold for binary problems.
-
-```python
-logreg.predict(X_test)[:10]                      # classes: 0 or 1
-np.round(logreg.predict_proba(X_test), 3)        # [[P(y=0), P(y=1)], ...]
-y_pred_prob = logreg.predict_proba(X_test)[:, 1]
-```
-
-The two columns sum to 1. The first admissions test row has probabilities ≈ [0.894, 0.106], so it's predicted 0.
-
-See also: [Classification threshold](#classification-threshold)
-
-<a id="decision-function"></a>
-
-### decision_function()
-
-_scikit-learn_
-
-Returns the model's raw score before it's turned into a probability. For logistic regression that's the **log-odds** (β₀ + β₁x₁ + …); applying the sigmoid to it gives `predict_proba(X)[:, 1]`. SVMs also have a `decision_function` (a signed distance from the boundary).
-
-```python
-z = logreg.decision_function(X_test)
-np.allclose(1 / (1 + np.exp(-z)), logreg.predict_proba(X_test)[:, 1])   # True
-```
-
-<a id="plotting-the-logistic-curve"></a>
-
-### Plotting the logistic curve
-
-_matplotlib_
-
-Sort the x-values, then plot predicted P(y = 1) to see the S-shape over the data.
-
-```python
-plt.scatter(X_test, y_test, s=10)
-xs = X_test.sort_values("gpa")
-plt.plot(xs, logreg.predict_proba(xs)[:, 1], color="red", lw=3)
-```
-
-<a id="logistic-regression-assumptions"></a>
-
-### Logistic regression assumptions
-
-_Concept_
-
-Fewer than OLS: **L**inearity between each feature and the **log-odds** (not the probability); **I**ndependence of observations; and no **M**ulticollinearity (for multiple logistic regression). There's no normality or equal-variance assumption, because there are no continuous residuals to check. Practical requirements: enough data, especially enough examples of the rarer class; no extreme outliers dominating; and no perfect separation.
-
-> **Watch out:** Don't carry all of LINEM over from linear regression: logistic regression assumes L, I and M only.
-
-See also: [Perfect separation](#perfect-separation)
-
-<a id="perfect-separation"></a>
-
-### Perfect separation
-
-_Concept_
-
-When a feature (or combination) splits the classes perfectly, the textbook logistic regression coefficients run off to infinity, because the model can always make its predictions more confident. scikit-learn's default regularization hides this, so you get a finite but meaningless coefficient and suspiciously perfect accuracy.
-
-The possum practice notebook is the course example: `site` perfectly identifies the target population (sites 1–2 are all Victoria), so including it gives 100% training accuracy. Drop `site` and training accuracy falls to 0.91, test to 0.77 (baseline ≈ 0.54), and the age coefficient **flips sign**, so interpreting age from the model that includes `site` isn't meaningful. Moral: **100% accuracy is suspicious**: look for leakage or separation.
-
-<a id="log-loss-binary-cross-entropy"></a>
-
-### Log loss (binary cross-entropy)
-
-_Concept_
-
-The loss function logistic regression minimizes (also called the **deviance**). It heavily penalizes confident wrong predictions. Unlike OLS there's no closed-form solution, so the β's are found by an iterative optimizer (the `solver`).
-
-```python
-metrics.log_loss(y_test, logreg.predict_proba(X_test))
-```
-
-See also: [Gradient descent](#gradient-descent), [solver and max_iter](#solver-and-max-iter)
-
-<a id="solver-and-max-iter"></a>
-
-### solver and max_iter
-
-_scikit-learn_
-
-`solver` picks the optimization algorithm that finds the coefficients (`"lbfgs"` is the default; `"liblinear"` supports L1 penalties on small data; `"newton-cg"`, `"saga"` are others). `max_iter` caps the number of iterations. If you see a **ConvergenceWarning**, scale your features, raise `max_iter`, or try another solver.
-
-```python
-LogisticRegression(max_iter=1_000)
-LogisticRegression(solver="newton-cg")      # used for the possum data
-```
-
-The possum notebook uses `solver="newton-cg"` because the default `lbfgs` gives a convergence warning on its unscaled features.
-
-<a id="regularization-is-on-by-default"></a>
-
-### Regularization is on by default
-
-_scikit-learn_
-
-scikit-learn's `LogisticRegression` applies an L2 penalty with strength `C=1.0` unless told otherwise, which shrinks coefficients and makes them harder to interpret. For a classical, unpenalized model, switch it off.
-
-```python
-LogisticRegression(penalty=None)     # scikit-learn 1.2–1.7
-LogisticRegression(C=np.inf)         # scikit-learn 1.8+ (penalty is deprecated)
-```
-
-> **Watch out:** This parameter has changed across versions, so check the documentation for the version you're running. scikit-learn 1.2 replaced the string `penalty='none'` with `penalty=None` (the string now raises an error), and 1.8 deprecates `penalty` itself: use `C=np.inf` for no penalty.
-
-With unscaled features (GRE runs 200–800, GPA 1–5) the default penalty affects coefficients unevenly, another reason to scale.
-
-See also: [C (inverse regularization strength)](#c-inverse-regularization-strength)
-
-<a id="multinomial-logistic-regression"></a>
-
-### Multinomial logistic regression
-
-_Concept, scikit-learn_
-
-Extends logistic regression to more than two classes by modelling all classes at once (the multinomial distribution instead of the Bernoulli). It's what `LogisticRegression` does automatically when y has 3+ classes with the default `lbfgs` solver, as in the iris example.
-
-```python
-iris_logreg = LogisticRegression().fit(X_train, y_train)   # y has 3 species
-iris_logreg.coef_.shape                                    # (3, 4): one row per class
-```
-
-Also called **softmax regression**: one set of coefficients per class, with scores turned into probabilities that sum to 1. It's a genuine extension of logistic regression, not a hack. On Iris it scores training accuracy 0.975 and test 1.0 against a baseline of 0.30.
-
-> **Watch out:** The `multi_class` parameter was deprecated in scikit-learn 1.5 and has since been removed; for one-vs-rest use `OneVsRestClassifier(LogisticRegression())`. Check the documentation for your version.
-
-<a id="one-vs-rest-ovr"></a>
-
-### One-vs-rest (OvR)
-
-_Concept, scikit-learn_
-
-The other multiclass "hack": for each class k, fit a binary model of "k vs everything else", then predict the class whose model gives the highest probability. Use `OneVsRestClassifier`.
-
-```python
-from sklearn.multiclass import OneVsRestClassifier
-ovr = OneVsRestClassifier(LogisticRegression()).fit(X_train, y_train)
-```
-
-<a id="logistic-regression-vs-decision-trees"></a>
-
-### Logistic regression vs decision trees
-
-_Concept_
-
-A classic interview question. **Interpretability:** both are white-box (coefficients vs a flowchart). **Overfitting:** trees overfit easily; logistic regression rarely does. **Assumptions:** trees have none about the data's distribution; logistic regression has some. **Target:** trees do regression and classification; logistic regression only classification.
-
----
-
-<a id="s18-classification-metrics"></a>
-
-## 18. Classification metrics
-
-_Accuracy isn't enough. The confusion matrix and the metrics built from it, how moving the probability threshold trades one kind of error for another, and the ROC curve and AUC. Examples use the breast cancer data (`load_breast_cancer`, malignant = 1) and the Whickham smoking data._
-
-**In your capstone:** Choose your headline metric from the cost of each kind of error, and agree it with stakeholders before you look at results.
-
-<a id="confusion-matrix"></a>
-
-### Confusion matrix
-
-_Concept, scikit-learn_
-
-A table of actual vs predicted classes, named because it shows where the model gets "confused". For a binary problem it has four cells: **TN** (actual 0, predicted 0), **FP** (actual 0, predicted 1), **FN** (actual 1, predicted 0), **TP** (actual 1, predicted 1). The diagonal holds the correct predictions. Every classification metric in this section is calculated from it.
-
-The deck's voter example: 100 people; positive = voted. TP 40, FP 20, FN 15, TN 25. In scikit-learn's layout that prints as `[[25, 20], [15, 40]]`.
-
-```python
-cm = metrics.confusion_matrix(y_test, y_pred)
-pd.DataFrame(cm,
-             columns=["pred benign", "pred malignant"],
-             index=["actual benign", "actual malignant"])
-tn, fp, fn, tp = cm.ravel()
-```
-
-> **Watch out:** Orientation varies. scikit-learn puts **actual in rows, predicted in columns**, negative class first: `[[TN, FP], [FN, TP]]`, so true positives are **bottom-right**. Textbooks and slides often use the opposite layout (predicted in rows, TP top-left), so always read the axis labels. `ConfusionMatrixDisplay` labels the axes, which avoids the confusion.
-
-<a id="confusionmatrixdisplay"></a>
-
-### ConfusionMatrixDisplay
-
-_scikit-learn, matplotlib_
-
-Plots a labelled, colour-coded confusion matrix directly from a fitted model.
-
-```python
-from sklearn.metrics import ConfusionMatrixDisplay
-
-ConfusionMatrixDisplay.from_estimator(knn, X_test_sc, y_test,
-                                      display_labels=["benign", "malignant"],
-                                      cmap="Blues")
-ConfusionMatrixDisplay.from_predictions(y_test, y_pred)   # if you only have predictions
-```
-
-<a id="true-false-positives-and-negatives"></a>
-
-### True/false positives and negatives
-
-_Concept_
-
-**Positive** means "predicted the class of interest" (malignant, spam, fraud), **true/false** means whether that prediction was right. A **false positive** (type I error) is a false alarm: a benign tumour flagged as malignant. A **false negative** (type II error) is a miss: a malignant tumour called benign. Which is worse depends on the problem, and that decides which metric to optimize.
-
-"Positive" doesn't mean "good"; it means "the class we're looking for". True/False says whether the prediction was right.
-
-See also: [Type I and Type II errors](#type-i-and-type-ii-errors)
+The cut-off you set _before_ the test for "low enough". Typically 0.05 (5%), which is a convention rather than a law. If p < α, reject the null; if p ≥ α, fail to reject it.
 
 <a id="type-i-and-type-ii-errors"></a>
 
@@ -2543,5606 +4635,4662 @@ See also: [Type I and Type II errors](#type-i-and-type-ii-errors)
 
 _Concept_
 
-The hypothesis-testing names for the two mistakes. A **Type I error** is a false positive (rejecting a true null hypothesis: a false alarm); a **Type II error** is a false negative (failing to reject a false null: a miss). Rejecting H₀ ("nothing is going on") is like a classifier predicting "positive".
+The two ways a hypothesis test can be wrong.
 
-The matching rates: **α** (the significance level, often 0.05) is the probability of a Type I error, analogous to the false positive rate; **β** is the probability of a Type II error, analogous to the false negative rate (1 − recall); and **power = 1 − β** is the chance of detecting a real effect, analogous to recall.
+|                       | H₀ actually true                                 | H₀ actually false                                 |
+| --------------------- | ------------------------------------------------ | ------------------------------------------------- |
+| **Reject H₀**         | **Type I error** (false positive), probability α | correct (power = 1 − β)                           |
+| **Fail to reject H₀** | correct                                          | **Type II error** (false negative), probability β |
 
-Which error is worse depends on the problem. Cancer screening: usually the false negative (a missed treatment), though false positives cause stress and invasive follow-ups, so screening uses a sensitive first test and a specific confirmatory one. Online ads: neither is very costly, so advertisers tolerate many false positives.
-
-> **Watch out:** This β has nothing to do with regression coefficients (β₀, β₁) or the F-beta score: three different uses of one Greek letter in the course.
-
-See also: [Null hypothesis (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#null-hypothesis-h)
-
-<a id="misclassification-rate"></a>
-
-### Misclassification rate
-
-_Concept_
-
-The share of predictions that are wrong: (FP + FN) / total = 1 − accuracy. When tuning k in kNN, "error" usually means 1 minus the accuracy.
-
-Voter example: accuracy = (40 + 25)/100 = 0.65, so the misclassification rate is 0.35. Predicting "vote" for everyone would score 55%, so the model beats the baseline by only 10 points.
-
-<a id="recall-sensitivity-true-positive-rate"></a>
-
-### Recall (sensitivity, true positive rate)
-
-_Concept, scikit-learn_
-
-Of all **actual** positives, how many did we catch? **TP / (TP + FN)**. Voter example: 40 / (40 + 15) ≈ 0.727. Optimize recall when missing a positive is costly (cancer screening, fraud). "Recall" is the ML / information-retrieval name; "sensitivity" is the medical name: a sensitive test rarely misses disease. Search-engine analogy: recall = how many of all the relevant pages were shown.
-
-```python
-metrics.recall_score(y_test, y_pred)
-```
-
-<a id="precision"></a>
-
-### Precision
-
-_Concept, scikit-learn_
-
-Of all **predicted** positives, how many were right? **TP / (TP + FP)**. Voter example: 40 / (40 + 20) ≈ 0.667: when the model says someone will vote, it's right about two-thirds of the time. Optimize precision when false alarms are costly (spam filters deleting real email, interviewing unsuitable candidates). Search-engine analogy: precision = how many of the results shown were relevant.
-
-```python
-metrics.precision_score(y_test, y_pred)
-```
-
-**The airport scanner check** (actual in rows): 3 TP, 0 FN, 200 FP, 47 TN. Sensitivity = 3/3 = **100%** (every threat caught); specificity = 47/247 ≈ **19%**; precision = 3/203 ≈ **1.5%** (when the alarm sounds, it's real less than 2% of the time); accuracy = 50/250 = 20%, far below the 98.8% from calling everyone safe, which would miss every threat. Whether that's acceptable is a business decision about the cost of queues versus missed threats.
-
-<a id="specificity-true-negative-rate"></a>
-
-### Specificity (true negative rate)
-
-_Concept_
-
-Of all **actual** negatives, how many did we correctly call negative? **TN / (TN + FP)**. Voter example: 25/45 ≈ 0.556. A specific test rarely raises false alarms. scikit-learn has no `specificity_score`, so compute it from the confusion matrix.
-
-```python
-tn, fp, fn, tp = metrics.confusion_matrix(y_test, y_pred).ravel()
-specificity = tn / (tn + fp)
-```
-
-> **Watch out:** The denominator is all **actual** negatives (TN + FP), not just the true negatives.
-
-<a id="false-positive-rate-fpr"></a>
-
-### False positive rate (FPR)
-
-_Concept_
-
-FP / (FP + TN): the proportion of actual negatives wrongly flagged. **FPR = 1 − specificity**. It's the x-axis of the ROC curve.
-
-> **Watch out:** FPR is not specificity: specificity is the true negative rate, and FPR is one minus it. A common exam and interview question.
-
-<a id="f1-score"></a>
-
-### F1 score
-
-_Concept, scikit-learn_
-
-The harmonic mean of precision and recall: **2 · (precision · recall) / (precision + recall)** = 2TP / (2TP + FP + FN). High only when both are high, so it's a good single number when you care about the positive class and classes are imbalanced.
-
-```python
-metrics.f1_score(y_test, y_pred)
-```
-
-Unlike a simple average, the harmonic mean is dragged down by whichever value is lower: precision 1.0 and recall 0.1 average 0.55 but give an F1 of only **0.18**. Voter example: F1 ≈ 0.696. F1 ignores true negatives, which is why it's popular when negatives are plentiful.
-
-<a id="f-beta-score"></a>
-
-### F-beta score
-
-_Concept, scikit-learn_
-
-A generalization of F1 that weights recall β times as much as precision. β = 2 favours recall; β = 0.5 favours precision.
-
-```python
-metrics.fbeta_score(y_test, y_pred, beta=2)
-```
-
-Voter example: F2 ≈ 0.714, higher than F1 because recall is the stronger of the two.
-
-<a id="classification-report"></a>
-
-### classification_report()
-
-_scikit-learn_
-
-Prints precision, recall, F1 and support (number of true cases) for every class, plus averages. Used in the boosting notebook.
-
-```python
-from sklearn.metrics import classification_report
-print(classification_report(y_test, y_pred))
-```
-
-For multiclass problems it also prints macro and weighted averages.
-
-See also: [Macro, weighted and micro averages](#macro-weighted-and-micro-averages)
-
-<a id="pos-label"></a>
-
-### pos_label
-
-_scikit-learn_
-
-When the classes are strings rather than 0/1, tell the metric which one counts as "positive". The imbalanced-data notebook uses the income labels.
-
-```python
-metrics.recall_score(y_test, preds, pos_label=">50K")
-```
-
-<a id="classification-threshold"></a>
-
-### Classification threshold
-
-_Concept, NumPy_
-
-The probability cut-off for predicting class 1 (0.5 by default, and `.predict()` always uses 0.5). The threshold is arbitrary: a patient with a 49% predicted chance of cancer would be sent home while a 51% patient is investigated, though their risks are nearly identical. **Lowering** it predicts more positives: recall goes up, precision and specificity go down. The cancer notebook drops it to 0.1 to catch more malignant cases.
-
-```python
-y_pred_prob = knn.predict_proba(X_test_sc)[:, 1]
-y_pred_class = np.where(y_pred_prob > 0.1, 1, 0)
-metrics.confusion_matrix(y_test, y_pred_class)
-```
-
-On the Whickham survival data (logistic regression, positive = died): threshold 0.3 gives recall 0.85 / precision 0.63; 0.5 gives 0.67 / 0.70; 0.7 gives 0.51 / 0.92. The threshold should reflect the **costs** of each type of error.
-
-See also: [Changing the threshold for imbalanced data](#changing-the-threshold-for-imbalanced-data)
-
-<a id="precision-recall-trade-off"></a>
-
-### Precision–recall trade-off
-
-_Concept_
-
-Because both depend on the threshold, you can almost always raise one by lowering the other. Decide which error is worse **before** you model ("framing the problem is a necessary first step"), then choose the metric and threshold to match.
-
-<a id="roc-curve"></a>
-
-### ROC curve
-
-_Concept, scikit-learn_
-
-The Receiver Operating Characteristic curve plots the **true positive rate** (y-axis) against the **false positive rate** (x-axis) at every possible threshold from 0 to 1. A perfect model hugs the top-left corner; a useless one follows the diagonal. One curve per model, and it doesn't change your model's actual predictions.
-
-```python
-metrics.RocCurveDisplay.from_estimator(lr, X_test, y_test)
-plt.plot([0, 1], [0, 1], linestyle="--")      # random-guess line
-```
-
-> **Watch out:** `metrics.plot_roc_curve()` from older tutorials was removed in scikit-learn 1.2; use `RocCurveDisplay.from_estimator()`. Check the documentation when older code fails.
-
-Each point on the curve is one threshold: threshold 1.0 predicts nothing positive (bottom-left, FPR 0 / TPR 0); threshold 0 predicts everything positive (top-right). The name comes from World War II radar engineering: judging how well radar receivers separated real aircraft from noise.
-
-<a id="auc-roc-auc"></a>
-
-### AUC (ROC AUC)
-
-_Concept, scikit-learn_
-
-The **area under the ROC curve**, a single number summarizing how well the model separates the classes across all thresholds. Its cleanest interpretation: **the probability that the model gives a randomly chosen positive a higher score than a randomly chosen negative**. **1.0**: perfect ranking. **0.5**: no better than chance. **Below 0.5**: worse than random; flipping the predictions gives 1 − AUC, so it usually signals a bug such as swapped labels. A rough guide: 0.7–0.8 acceptable, 0.8–0.9 good, above 0.9 excellent (field-dependent). Needs predicted **probabilities**, not classes, and it doesn't change when you move the threshold.
-
-```python
-y_pred_prob = lr.predict_proba(X_test)[:, 1]
-metrics.roc_auc_score(y_test, y_pred_prob)
-metrics.roc_auc_score(y, probs, multi_class="ovr")     # multiclass: one-vs-rest average
-```
-
-> **Watch out:** With heavy class imbalance, ROC AUC can look flattering; the precision–recall curve is often more informative.
-
-See also: [Precision–recall curve](#precision-recall-curve)
-
-<a id="precision-recall-curve"></a>
-
-### Precision–recall curve
-
-_Concept, scikit-learn_
-
-Plots precision against recall at every threshold. Unlike the ROC curve it ignores true negatives, so it shows clearly how a model handles a rare positive class, where a high ROC AUC can hide poor precision. Summarized by the **average precision** (area under the curve); a no-skill model sits at the positive-class rate.
-
-```python
-from sklearn.metrics import PrecisionRecallDisplay, average_precision_score
-
-PrecisionRecallDisplay.from_estimator(model, X_test, y_test)
-average_precision_score(y_test, model.predict_proba(X_test)[:, 1])
-```
-
-<a id="macro-weighted-and-micro-averages"></a>
-
-### Macro, weighted and micro averages
-
-_Concept, scikit-learn_
-
-How precision, recall and F1 are combined for **multiclass** problems, where there's no single positive class. Each class is treated in turn as "positive" vs the rest (one-vs-rest), then: **macro** = the simple average across classes (each class counts equally, so rare classes matter); **weighted** = weighted by class size; **micro** = pool every prediction first (for single-label problems this equals accuracy). Accuracy still works directly, and a multiclass confusion matrix is k × k with the confusions off the diagonal.
-
-```python
-metrics.f1_score(y_test, y_pred, average="macro")
-metrics.recall_score(y_test, y_pred, average="weighted")
-```
-
-<a id="simpson-s-paradox"></a>
-
-### Simpson's paradox
-
-_Concept_
-
-A trend that appears in pooled data reverses (or vanishes) once you account for another variable. In the Whickham data (1,314 women followed for 20 years), smokers **appear** more likely to survive (76% alive vs 69% of non-smokers), because the smokers were younger on average. Once age is in the logistic regression, smoking slightly **raises** the odds of death (odds ratio ≈ 1.04). Never interpret a single variable without asking what else differs between the groups.
-
-See also: [Confounding variable (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#confounding-variable)
-
-<a id="choosing-a-classification-metric"></a>
-
-### Choosing a classification metric
-
-_Concept_
-
-Start from the cost of each mistake. **Accuracy**: classes balanced and errors equally bad (e.g. digit recognition, where misreading a 4 as a 3 or a 9 is equally wrong). **Recall**: misses are expensive. **Precision**: false alarms are expensive. **F1**: imbalanced classes and you care about the positive class. **Balanced accuracy**: you care about all classes equally. **ROC AUC**: comparing models' ranking ability independent of threshold.
-
-Probability-based measures such as **log loss** and the **Brier score** score the predicted probabilities themselves rather than counting right and wrong answers. Remember the metric you optimize changes how you tune the model.
-
----
-
-<a id="s19-imbalanced-classes"></a>
-
-## 19. Imbalanced classes
-
-_When one class vastly outnumbers another, a model can look brilliant by ignoring the rare class. How to spot it, measure it properly, and fix it with resampling, synthetic data, class weights or a new threshold, using the `imbalanced-learn` library and the adult census income data._
-
-**In your capstone:** If your positive class is rare, judge models on recall, precision, F1 or balanced accuracy, and resample only inside a pipeline.
-
-<a id="imbalanced-classes"></a>
-
-### Imbalanced classes
-
-_Concept, pandas_
-
-When the classes in the target aren't equally represented (also called **unbalanced classes** or **imbalanced data**). In the West Nile Virus example, 99.9% of observations are "no WNV", so predicting "no WNV" every time scores **0.999 accuracy** while being useless. Very common in practice: fraud, disease, churn, equipment failure, defaults.
-
-```python
-claims["class"].value_counts(normalize=True)
-```
-
-Strictly, almost every real dataset is somewhat imbalanced. It becomes a problem when the minority class is rare (a rough guide is under 10–20%) **and** it's the class you care about; a 40/60 split usually needs no special treatment. The course's census data: 98.8% earn ≤ $50K and 1.2% earn > $50K, and a plain logistic regression scores 98.9% accuracy while catching only 5 of 75 high earners (recall 0.07).
-
-> **Watch out:** The West Nile Virus 99.9% / 0.1% split is illustrative, not real data.
-
-See also: [Class imbalance (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#class-imbalance)
-
-<a id="majority-and-minority-class"></a>
-
-### Majority and minority class
-
-_Concept_
-
-The **majority class** is the common one; the **minority class** is the rare one, and usually the one you care about. Models learn what they see most, so they struggle to predict the minority class.
-
-Why: most models minimize overall error, and when 99% of examples are one class, predicting it almost always keeps error low. The few minority examples barely move the fit, and with only 300 of them the model has little evidence about what distinguishes them.
-
-<a id="when-imbalance-matters"></a>
-
-### When imbalance matters
-
-_Concept_
-
-Not every imbalance needs fixing. It matters when the minority class is important and the model is under-predicting it. Diagnose with the confusion matrix and minority-class recall rather than accuracy, and always compare with a null model.
-
-<a id="balanced-accuracy"></a>
-
-### Balanced accuracy
-
-_Concept, scikit-learn_
-
-The average of the recall for each class: (1/N) Σ TPᵢ / (TPᵢ + FNᵢ). A null model that always predicts the majority class scores 0.5 for a binary problem, however imbalanced the data. Use it when you care about all classes equally, and as the `scoring` for grid searches on imbalanced data.
-
-```python
-from sklearn.metrics import balanced_accuracy_score
-balanced_accuracy_score(y_test, preds)
-null_preds = ["<=50K"] * len(y_test)
-balanced_accuracy_score(y_test, null_preds)     # 0.5
-```
-
-In the imbalanced-data notebook the plain logistic regression scores accuracy 0.988 but balanced accuracy only **0.533** (recall 0.067). The rebalanced models reach 0.72–0.75: random oversampling 0.722, class weights 0.741, SMOTE 0.743, ADASYN 0.749.
-
-<a id="undersampling"></a>
-
-### Undersampling
-
-_Concept, imbalanced-learn_
-
-Throwing away majority-class rows until the classes are balanced. The usual advice is not to undersample the majority class: you lose information, and on the census data it would shrink the training set from about 18,500 rows to about 450. That's a sensible default rather than a rule: with **large** datasets undersampling is fast and often works about as well. On the course data, random undersampling scored recall 0.69 vs 0.72 for oversampling, with similar precision and AUC.
-
-```python
-from imblearn.under_sampling import RandomUnderSampler
-make_pipeline(StandardScaler(), RandomUnderSampler(random_state=42), LogisticRegression())
-```
-
-<a id="oversampling"></a>
-
-### Oversampling
-
-_Concept_
-
-Increasing the number of minority-class rows by sampling them **with replacement**, so the model sees more of them during training. Risk: the duplicated rows can lead to overfitting the minority examples.
-
-**Golden rule for every resampling method: resample only the training data.** The test set must keep its real-world imbalance, or your evaluation is meaningless.
-
-<a id="randomoversampler"></a>
-
-### RandomOverSampler
-
-_imbalanced-learn_
-
-Randomly duplicates minority-class rows. `sampling_strategy` sets the target ratio of minority to majority after resampling (1.0 = equal).
-
-```python
-from imblearn.over_sampling import RandomOverSampler
-from imblearn.pipeline import make_pipeline
-
-pipe = make_pipeline(RandomOverSampler(random_state=34),
-                     LogisticRegression(max_iter=1_000))
-gs = GridSearchCV(pipe,
-                  {"randomoversampler__sampling_strategy": [.25, .5, .75, 1]},
-                  scoring="balanced_accuracy", n_jobs=-1)
-gs.fit(X_train_ss, y_train)
-```
-
-> **Watch out:** Run this grid with the default scoring (accuracy) and it prefers the **least** oversampling (CV accuracy 0.96 at 0.25, falling to 0.80 at 1.0), because accuracy rewards ignoring the minority class. Re-scored on `balanced_accuracy` it picks 0.75 (balanced accuracy 0.722, recall 0.587, precision 0.047). The metric you tune on decides the "best" model.
-
-<a id="fit-resample"></a>
-
-### fit_resample()
-
-_imbalanced-learn_
-
-How samplers are used directly: they return a resampled copy of the data. Apply it to **training data only**. Inside an `imblearn` pipeline this happens automatically during `fit`, and never during `predict` or `score`.
-
-```python
-from imblearn.over_sampling import SMOTE
-X_res, y_res = SMOTE(random_state=42).fit_resample(X_train, y_train)
-y_res.value_counts()                    # now balanced
-```
-
-<a id="synthetic-data-generation"></a>
-
-### Synthetic data generation
-
-_Concept_
-
-Instead of copying minority rows, create new, plausible ("fake") minority observations by interpolating between existing ones. The main methods are SMOTE and ADASYN.
-
-<a id="smote"></a>
-
-### SMOTE
-
-_imbalanced-learn_
-
-**S**ynthetic **M**inority **O**ver-sampling **TE**chnique. For each minority point, pick one of its nearest minority neighbours and create a new point somewhere on the line between them.
-
-```python
-from imblearn.over_sampling import SMOTE
-
-pipe3 = make_pipeline(SMOTE(random_state=34), LogisticRegression(max_iter=1_000))
-gs3 = GridSearchCV(pipe3, {"logisticregression__C": [.1, 1, 10]},
-                   scoring="balanced_accuracy")
-gs3.fit(X_train_ss, y_train)
-```
-
-SMOTE uses nearest-neighbour distances (kNN again), so **scale inside the pipeline before SMOTE**. It adds more variety than duplicates, but can create unrealistic points, especially near the other class.
-
-<a id="adasyn"></a>
-
-### ADASYN
-
-_imbalanced-learn_
-
-**Ada**ptive **Syn**thetic sampling: like SMOTE, but generates more synthetic points next to the minority observations that a kNN classifier gets **wrong**, i.e. it focuses on the hard cases.
-
-```python
-from imblearn.over_sampling import ADASYN
-pipe4 = make_pipeline(ADASYN(random_state=34), LogisticRegression(max_iter=1000))
-```
-
-On the census data, ADASYN gives the highest recall of the notebook's methods (0.747, precision 0.035, balanced accuracy 0.749).
-
-> **Watch out:** If the model was trained on scaled data, every evaluation call needs the **scaled** test data (`X_test_ss`), including `ConfusionMatrixDisplay.from_estimator`. Passing the unscaled `X_test` is an easy slip that silently gives wrong results; a pipeline avoids it.
-
-<a id="smotenc-and-smoten"></a>
-
-### SMOTENC and SMOTEN
-
-_imbalanced-learn_
-
-SMOTE interpolates numbers, which makes no sense for categories. Use **SMOTENC** when features are a mix of categorical and continuous (tell it which columns are categorical) and **SMOTEN** when all features are categorical.
-
-```python
-from imblearn.over_sampling import SMOTENC
-SMOTENC(categorical_features=[0, 3], random_state=34)
-```
-
-<a id="imbalanced-learn-pipeline"></a>
-
-### imbalanced-learn pipeline
-
-_imbalanced-learn_
-
-`imblearn.pipeline.make_pipeline` (or `Pipeline`) works like scikit-learn's but supports samplers. Crucially, resampling happens **only when fitting**, i.e. on the training folds, so the test set and validation folds keep their real class balance and your scores aren't inflated. "Use `make_pipeline` to keep your test set safe."
-
-> **Watch out:** scikit-learn's own `Pipeline` won't accept a sampler, and resampling before splitting leaks duplicated or synthetic rows into the test data.
-
-Install with `pip install imbalanced-learn`; import as `imblearn`.
-
-See also: [make_pipeline()](#make-pipeline), [Data leakage (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#data-leakage)
-
-<a id="class-weights"></a>
-
-### Class weights
-
-_scikit-learn_
-
-Option 3: make errors on the minority class count for more in the model's loss function instead of changing the data. `class_weight="balanced"` sets weights inversely proportional to class frequencies. Available on logistic regression, SVMs, trees and random forests. On the course's census data it gave **identical** results to random oversampling, with no extra rows and no extra library.
-
-```python
-logr5 = LogisticRegression(max_iter=1000, class_weight="balanced")
-logr5.fit(X_train_ss, y_train)
-```
-
-<a id="resampling-is-a-trade-off"></a>
-
-### Resampling is a trade-off
-
-_Concept_
-
-Rebalancing doesn't make a model better at telling the classes apart; it **moves the effective decision threshold**. Results on the census test set (75 high earners among 6,255 people):
-
-| Method                               | Recall | Precision | AUC  |
-| ------------------------------------ | ------ | --------- | ---- |
-| Plain logistic regression            | 0.07   | 1.00      | 0.84 |
-| Class weights / oversampling / SMOTE | 0.72   | 0.039     | 0.84 |
-| Random undersampling                 | 0.69   | 0.041     | 0.84 |
-
-Every method catches far more high earners (54 instead of 5) but flags about 1,300 people who aren't, and accuracy drops from 0.989 to about 0.79. AUC hardly moves. Which result is "better" depends on the cost of a miss versus a false alarm, so always report both sides. Better features (here, education and occupation) usually help more than any resampling trick.
-
-<a id="changing-the-threshold-for-imbalanced-data"></a>
-
-### Changing the threshold for imbalanced data
-
-_Concept, NumPy_
-
-Option 4: lower the probability cut-off for the minority class to get more minority predictions. Only sensible if the model is reasonably **calibrated**.
-
-```python
-prob = logr5.predict_proba(X_test_ss)[:, 1]
-(prob >= .5).sum(), (prob >= .4).sum()   # more positives at the lower threshold
-```
-
-With the class-weighted census model, lowering the cut-off from 0.5 to 0.4 raises the number of predicted high earners from 1,278 to 1,932.
-
-See also: [Classification threshold](#classification-threshold)
-
-<a id="calibration"></a>
-
-### Calibration
-
-_Concept_
-
-A classifier is **well calibrated** if its probabilities mean what they say: of all the cases it gives a 40% probability, about 40% are actually positive. Threshold-moving relies on calibration.
-
-<a id="stratified-split-for-imbalanced-data"></a>
-
-### Stratified split for imbalanced data
-
-_scikit-learn_
-
-With a rare class, a random split might put almost none of it in the test set. `stratify=y` keeps the same class proportions in train and test.
-
-```python
-X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, random_state=6)
-```
-
-<a id="make-imbalance"></a>
-
-### make_imbalance()
-
-_imbalanced-learn_
-
-A convenience function that makes a dataset more imbalanced on purpose, for practising these techniques.
-
-```python
-from imblearn.datasets import make_imbalance
-X, y = make_imbalance(X, y, sampling_strategy={">50K": 300}, random_state=1)
-```
-
-<a id="imbalanced-data-checklist"></a>
-
-### Imbalanced data checklist
-
-_Concept_
-
-From the notebook summary: think carefully about your metrics; change the grid search `scoring` (e.g. to `balanced_accuracy`); always build a null model; look at the confusion matrix; then try oversampling, SMOTE/ADASYN, class weights or a lower threshold, using the `imblearn` pipeline so the test set stays untouched. Getting more data is often the best fix of all. For image models with neural nets, having enough minority samples (or data augmentation) matters more than the ratio.
-
-Other options: collect more minority data, or **reframe** the problem as anomaly detection when positives are extremely rare.
-
-> **Watch out (course data):** `imbl_data.csv` has trailing colons in its column names (`fnlwgt:`, `hours-per-week:`); fix with `df.columns = df.columns.str.rstrip(":")`. Drop `fnlwgt`: it's a census **sampling weight** (how many similar people the row represents), not a characteristic of the person.
-
----
-
-<a id="s20-regularization"></a>
-
-## 20. Regularization
-
-_Adding a penalty to a model's loss function so it can't make its coefficients too large, trading a little bias for a big drop in variance. Ridge, Lasso and ElasticNet, how to tune them, and the regularization that has been quietly switched on in logistic regression all along. Examples use the wine quality data (`winequality_merged.csv`) blown up with polynomial features to force overfitting._
-
-**In your capstone:** Use when a linear model overfits (many or correlated features). Standardize first and choose alpha or C by cross-validation.
-
-<a id="regularization"></a>
-
-### Regularization
-
-_Concept_
-
-A method for constraining ("regularizing") the size of a model's coefficients by adding a **penalty term** to the loss function. It shrinks coefficients toward zero, reduces variance and overfitting, and tends to reduce variance more than it increases bias. Use it when evidence suggests high variance: training scores much better than test scores.
-
-It can only help a model that is **overfitting**: regularizing an underfit model makes it worse. On the wine data, OLS scores training R² 0.407 vs test 0.220 (overfit); a cross-validated ridge scores training 0.348 (slightly lower) but test **0.295** (higher): exactly the intended trade.
-
-<a id="why-linear-models-overfit"></a>
-
-### Why linear models overfit
-
-_Concept_
-
-Linear models are low-complexity and high-bias, so they don't tend to overfit, but they can if you allow them high variance. Three causes from the slides: **irrelevant features** (the model learns a coefficient for every feature, signal or noise, especially when p is close to n); **correlated features** (the design matrix becomes nearly singular, so estimates swing wildly with small changes in the data); and **large coefficients** after standardization (a big coefficient has more power to move predictions).
-
-With p ≥ n there's no unique OLS solution at all. Correlated features let many combinations fit almost equally well (+100 on one and −98 on the other), so tiny changes in the data swing the coefficients wildly; large, opposite-signed coefficients are a classic overfitting signature. Wine evidence: the largest standardized OLS coefficient on the 90 polynomial features is about **137** (for a 3–9 quality score); after ridge it's about **0.23**.
-
-<a id="penalty-term"></a>
-
-### Penalty term
-
-_Concept_
-
-The extra piece added to the loss function. OLS minimizes MSE; ridge minimizes **MSE + α Σβⱼ²**; lasso minimizes **MSE + α Σ|βⱼ|**. The model now has to balance fitting the data against keeping coefficients small. The intercept is not penalized.
-
-Shrinkage in one line of algebra: minimizing (y − b)² gives b = y, but minimizing (y − b)² + αb² gives **b = y / (1 + α)**, which shrinks towards 0 as α grows. "argmin" in the formulas means "the values that make this as small as possible".
-
-<a id="ridge-regression-l2"></a>
-
-### Ridge regression (L2)
-
-_scikit-learn, Concept_
-
-Penalizes the **sum of squared coefficients** (the L2 norm). It shrinks all coefficients toward zero but never exactly to zero. Preferred when you have many relevant features that are correlated with each other. Sometimes called **weight decay** in neural networks.
-
-```python
-from sklearn.linear_model import Ridge
-
-ridge = Ridge(alpha=10)
-ridge.fit(Z_train, y_train)
-ridge.score(Z_train, y_train), ridge.score(Z_test, y_test)
-```
-
-Ridge handles correlated features well: its penalty prefers **sharing** credit between them rather than giving huge opposite-signed coefficients. As α → ∞ every slope goes to 0 and the prediction becomes the mean. The intercept is never penalized.
-
-<a id="lasso-regression-l1"></a>
-
-### Lasso regression (L1)
-
-_scikit-learn, Concept_
-
-Penalizes the **sum of absolute coefficients** (the L1 norm, i.e. Manhattan distance). It shrinks coefficients and can push unimportant ones **exactly to zero**, so it also does feature selection. Preferred when you suspect many features are irrelevant or want a sparse model. "More brutal" than ridge. LASSO = **L**east **A**bsolute **S**hrinkage and **S**election **O**perator.
-
-```python
-from sklearn.linear_model import Lasso
-lasso = Lasso(alpha=0.01, max_iter=50_000).fit(Z_train, y_train)
-(lasso.coef_ == 0).sum()        # how many features were dropped
-```
-
-Wine evidence: LassoCV keeps **17 of 90** features (73 coefficients exactly zero) with test R² ≈ 0.286, close to ridge's 0.295 while using a fraction of the features. With a group of correlated features, lasso tends to keep one arbitrarily and drop the rest.
-
-See also: [Why lasso gives exact zeros](#why-lasso-gives-exact-zeros)
-
-<a id="why-lasso-gives-exact-zeros"></a>
-
-### Why lasso gives exact zeros
-
-_Concept_
-
-The geometry, for two coefficients β₁ and β₂. Regularization restricts the coefficients to a region whose size is set by α: a **diamond** for lasso (|β₁| + |β₂| ≤ budget) and a **circle** for ridge (β₁² + β₂² ≤ budget). The error contours expand outward from the unregularized solution until they touch the region. The diamond has sharp **corners on the axes**, and contours usually touch it at a corner, where one coefficient is exactly zero. The circle has no corners, so ridge's solution usually keeps both coefficients non-zero.
-
-<a id="shrinkage-and-selection"></a>
-
-### Shrinkage and selection
-
-_Concept_
-
-The two things Lasso's name promises. **Shrinkage:** a higher α pulls β's toward zero. **Selection:** a higher α zeros out small β's entirely. Ridge only shrinks.
-
-<a id="elasticnet"></a>
-
-### ElasticNet
-
-_scikit-learn, Concept_
-
-Combines both penalties: SSE + α[ρ Σ|βⱼ| + (1 − ρ) Σβⱼ²]. It can do feature selection like Lasso while handling correlated features like Ridge. In scikit-learn, `alpha` is the overall strength and `l1_ratio` (ρ) the mix: 0 is pure Ridge, 1 is pure Lasso.
-
-```python
-from sklearn.linear_model import ElasticNetCV
-
-enet = ElasticNetCV(alphas=np.linspace(0.5, 1.0, 100), l1_ratio=0.5, cv=5)
-enet.fit(Z_train, y_train)
-enet.alpha_
-```
-
-> **Watch out:** The notebook notes that an `l1_ratio` below about 0.05 can cause numerical problems in scikit-learn.
-
-Wine data: ElasticNetCV with `l1_ratio=0.5` picks α ≈ 0.013, test R² ≈ 0.286, keeping 22 of 90 features. scikit-learn advises using `Ridge` directly rather than `l1_ratio=0`.
-
-> **Watch out:** Reusing names like `X_train` for a second dataset in the same notebook makes it easy to fit a model to the wrong data (here, unscaled data with a 0/1 target). Give each dataset its own variable names, and fit ElasticNet on the scaled wine `Z_train`.
-
-<a id="alpha-regularization-strength"></a>
-
-### alpha (regularization strength)
-
-_Concept, scikit-learn_
-
-The tuning parameter that sets how strong the penalty is. **α = 0**: plain OLS. **α → ∞**: every coefficient is forced to 0. **Raising α**: more bias, less variance. **Lowering α**: less bias, more variance. Many textbooks (including ISLR) call it **λ**.
-
-> **Watch out:** This α has nothing to do with the significance level α from hypothesis testing, or the learning rate α in gradient descent.
-
-> **Watch out:** Ridge and lasso alphas aren't on the same scale in scikit-learn. Ridge uses the plain sum of squared errors plus α‖β‖²; lasso uses (1/2n) × the sum plus α‖β‖₁. That's why sensible search ranges differ: on the wine data, ridge alphas of 1–100,000 but lasso alphas of 0.001–1.
-
-<a id="ridge-and-lasso-trace-plot"></a>
-
-### Ridge and Lasso trace plot
-
-_Concept_
-
-A plot of each coefficient's value against α. Ridge coefficients glide smoothly toward zero; Lasso coefficients hit zero one by one as α grows.
-
-```python
-alphas = np.logspace(-3, 2, 50)
-coefs = [Lasso(alpha=a, max_iter=50_000).fit(Z_train, y_train).coef_ for a in alphas]
-plt.plot(alphas, coefs)
-plt.xscale("log")
-```
-
-<a id="standardize-before-regularizing"></a>
-
-### Standardize before regularizing
-
-_Concept, scikit-learn_
-
-Penalties are based on coefficient size, and coefficient size depends on a feature's units. Without scaling, features are penalized for their scale rather than their importance. Always standardize first (fit on training data). Scaled data is often named `Z`.
-
-```python
-sc = StandardScaler()
-Z_train = sc.fit_transform(X_train)
-Z_test = sc.transform(X_test)
-```
-
-> **Watch out:** Standardizing and regularizing are different things; you need both. Standardizing isn't about the intercept (scikit-learn's ridge and lasso **never** penalize it); you standardize so every coefficient is penalized fairly, regardless of its feature's units.
-
-<a id="ridgecv-and-lassocv"></a>
-
-### RidgeCV and LassoCV
-
-_scikit-learn_
-
-Versions of Ridge and Lasso that try a list of alphas with built-in cross-validation and keep the best one (`.alpha_`). Give them a log-spaced grid.
-
-```python
-from sklearn.linear_model import RidgeCV, LassoCV
-
-ridge_cv = RidgeCV(alphas=np.logspace(0, 5, 100), scoring="r2", cv=5)
-ridge_cv.fit(Z_train, y_train)            # fit the CV object itself
-ridge_cv.alpha_
-
-lasso_cv = LassoCV(alphas=np.logspace(-3, 0, 100), cv=5, max_iter=50_000)
-lasso_cv.fit(Z_train, y_train)
-lasso_cv.alpha_
-```
-
-> **Watch out:** An easy slip is `ridge_cv = ridge_model.fit(Z_train, y_train)`: that refits an earlier `Ridge(alpha=10)` and throws the cross-validation away. Call `.fit()` on the `RidgeCV` object itself, then check `ridge_cv.alpha_`.
-
-On the wine data, RidgeCV picks α ≈ **104.8** (test R² 0.295, against 0.244 for an untuned α = 10). LassoCV picks α ≈ 0.0076. Compare `ridge_cv.coef_` (all small, none zero) with `lasso_cv.coef_` (mostly exact zeros): that's the key visual moment.
-
-<a id="np-logspace"></a>
-
-### np.logspace()
-
-_NumPy_
-
-Creates numbers evenly spaced on a **log** scale: `np.logspace(0, 5, 100)` gives 100 values from 10⁰ = 1 to 10⁵ = 100,000. Ideal for regularization grids, where trying 0.001, 0.01, 0.1, 1, 10 matters more than 1, 2, 3.
-
-```python
-np.logspace(-2, 0, 5)     # [0.01, 0.0316, 0.1, 0.316, 1.0]
-```
-
-See also: [np.arange() and np.linspace() (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#np-arange-and-np-linspace)
-
-<a id="c-inverse-regularization-strength"></a>
-
-### C (inverse regularization strength)
-
-_scikit-learn_
-
-Logistic regression and SVMs specify regularization with **C = 1/α**, so the direction is reversed: **small C = strong regularization** (more bias), **large C = weak regularization** (more variance). `C=1e9` effectively turns regularization off.
-
-```python
-LogisticRegression(C=1e9)          # practically unregularized: overfits 200 features
-LogisticRegression(C=0.1)          # strong penalty
-```
-
-On the synthetic 200-feature data, a nearly unregularized logistic regression (`C=1e9`) scores training 0.931 but test 0.636: clear overfitting that a cross-validated C fixes.
-
-See also: [Regularization is on by default](#regularization-is-on-by-default), [C (SVM)](#c-svm)
-
-<a id="penalty-and-l1-ratio-in-logisticregression"></a>
-
-### penalty and l1_ratio in LogisticRegression
-
-_scikit-learn_
-
-Which kind of penalty logistic regression uses. The course writes `penalty="l1"` or `"l2"` (L1 needs `solver="liblinear"` or `"saga"`). From scikit-learn 1.8, `penalty` is deprecated in favour of `l1_ratio`: 0 = L2, 1 = L1, values between = ElasticNet.
-
-```python
-LogisticRegression(penalty="l1", solver="liblinear")   # course syntax
-LogisticRegression(l1_ratio=1, solver="liblinear")     # scikit-learn 1.8+
-```
-
-<a id="logisticregressioncv"></a>
-
-### LogisticRegressionCV
-
-_scikit-learn_
-
-Logistic regression with built-in cross-validation over a list (or number) of C values. The chosen value is in `.C_`.
-
-```python
-from sklearn.linear_model import LogisticRegressionCV
-
-logreg_cv = LogisticRegressionCV(Cs=10, cv=5, penalty="l1", solver="liblinear")
-logreg_cv.fit(X_train_sc, y_train)
-logreg_cv.C_
-```
-
-<a id="regularizing-categorical-variables"></a>
-
-### Regularizing categorical variables
-
-_Concept_
-
-Scaling a 0/1 dummy and then shrinking its coefficient is hard to interpret, and it's a problem for every algorithm that needs scaling. Options (none perfect): separate penalties per variable or grouped Lasso (not in scikit-learn), choosing a scale by hand, dropping the variables, or "just do it anyway ¯\\_(ツ)_/¯", which is usually fine in practice.
-
-<a id="fit-regularized-in-statsmodels"></a>
-
-### fit_regularized() in statsmodels
-
-_statsmodels_
-
-statsmodels' way to regularize an OLS model. `L1_wt=0` gives ridge, `L1_wt=1` gives lasso. As alpha increases the SSE rises and the coefficients move toward 0, as in the review lab.
-
-```python
-model = sm.OLS(y, X)
-for a in [0, .001, .01, .25, .5, 1, 10]:
-    res = model.fit_regularized(alpha=a, L1_wt=0)
-    print(a, np.mean(abs(res.params)))
-```
-
-Review lab results: α = 0 → SSE 0.276; α = 0.25 → 0.460; α = 1 → 0.642; α = 10 → 0.963, with the mean |coefficient| falling from 0.099 to 0.010. Higher training error isn't automatically worse: regularization's benefit shows up on **new** data, which the lab doesn't test.
-
-> **Watch out:** Unlike scikit-learn, statsmodels' `fit_regularized` also penalizes the constant, and unscaled polynomial features (X⁵ reaches 3.2 million in the review lab) are penalized very unevenly, so scale first.
-
-<a id="make-classification"></a>
-
-### make_classification()
-
-_scikit-learn_
-
-Generates a synthetic classification dataset with a chosen number of informative and noise features. The regularization notebook uses 200 features, only 15 informative, to show an unregularized logistic regression overfitting.
-
-```python
-from sklearn.datasets import make_classification
-X, y = make_classification(n_samples=1000, n_features=200,
-                           n_informative=15, random_state=123)
-```
-
-> **Watch out:** `test_size=0.7` trains on only 30% of the data (1,949 rows for 90 features), which makes overfitting more likely. That's useful for demonstrating regularization, but in your own work hold out a smaller share.
-
----
-
-<a id="s21-hyperparameter-tuning-grid-search-and-pipelines"></a>
-
-## 21. Hyperparameter tuning: grid search and pipelines
-
-_Automating the search for the best model settings, and wrapping preprocessing and modeling into one object so tuning and evaluation are leak-free. Examples use the abalone data (rings predicted with kNN), South African heart disease data, and NBA game data._
-
-**In your capstone:** Wrap every preprocessing step and model in a pipeline and tune it with GridSearchCV on the training data: the backbone of a leak-free capstone.
-
-<a id="hyperparameter"></a>
-
-### Hyperparameter
-
-_Concept_
-
-A model configuration setting **chosen before training** rather than learned from the data: k in kNN, α in Ridge, C in logistic regression and SVMs, `max_depth` in trees. Also called a **tuning parameter**. Choosing them is "challenging and time-consuming", which is why scikit-learn has tools for it.
-
-<a id="hyperparameter-vs-parameter"></a>
-
-### Hyperparameter vs parameter
-
-_Concept_
-
-A classic interview question. **Statistical parameters** are quantities the model learns from data, such as β₀ and β₁ in linear regression (scikit-learn's `coef_`, `intercept_`). **Hyperparameters** can't be learned by the model but affect its fit, such as k or α, so you set them and compare.
-
-Rule of thumb: if it goes in the **brackets** when you create the model (`Ridge(alpha=10)`), it's a hyperparameter; if it appears with a **trailing underscore** after fitting (`coef_`), it's a learned parameter. `test_size` is neither: it's an evaluation choice.
-
-<a id="hyperparameter-tuning"></a>
-
-### Hyperparameter tuning
-
-_Concept_
-
-Trying different hyperparameter values and keeping the ones with the best **cross-validated** score. The course started with "sloppy loops" over k or max_depth; grid search automates it.
-
-<a id="grid-search"></a>
-
-### Grid search
-
-_Concept_
-
-A systematic approach to tuning that **exhaustively** evaluates every combination of the parameter values you list in a grid, scoring each with cross-validation, to find the optimal set.
-
-<a id="gridsearchcv"></a>
-
-### GridSearchCV
-
-_scikit-learn_
-
-scikit-learn's grid search. Pass an estimator (model or pipeline) and a `param_grid` dictionary; `.fit()` cross-validates every combination and then **refits the best one on all the training data** (`refit=True` by default), so the fitted object can predict and score directly. A grid of 4 values of k × 2 weightings with 5-fold CV fits 40 models, plus 1 refit.
-
-```python
-from sklearn.model_selection import GridSearchCV
-
-knn = KNeighborsRegressor()
-pgrid = {"n_neighbors": np.arange(1, 202, 5)}
-gs = GridSearchCV(estimator=knn, param_grid=pgrid, cv=5)
-gs.fit(X_train_sc, y_train)          # training data only: it does its own CV
-gs.best_params_
-gs.score(X_test_sc, y_test)          # check the test set once, at the end
-```
-
-> **Watch out:** Never tune on the test set. The workflow from now on: split → build pipeline → `GridSearchCV` on training data → inspect `cv_results_` and `best_params_` → evaluate `best_estimator_` on the test data once.
-
-See also: [Reading grid search results](#reading-grid-search-results)
-
-<a id="param-grid"></a>
-
-### param_grid
-
-_scikit-learn, Python_
-
-A dictionary mapping hyperparameter names to lists of values to try. The number of models fitted is the product of the list lengths, times the number of folds.
-
-```python
-pgrid = {
-    "lr__penalty": ["l1", "l2"],
-    "lr__C": np.logspace(-2, 0, 100),
-}                                  # 2 × 100 = 200 combinations × 5 folds = 1,000 fits
-```
-
-Choose ranges sensibly: log-spaced values for strengths (`np.logspace(-3, 3, 7)` gives 0.001 … 1,000), start coarse, then refine around the best value.
-
-<a id="best-params-best-score-and-best-estimator"></a>
-
-### best*params*, best*score* and best*estimator*
-
-_scikit-learn_
-
-Attributes of a fitted grid search. `best_params_`: the winning combination. `best_score_`: its mean cross-validated score (on the training data). `best_estimator_`: the winning model, already refitted on all of the training data.
-
-```python
-gs.best_params_          # {'n_neighbors': 26}
-gs.best_score_           # mean CV score of that setting
-gs.best_estimator_       # KNeighborsRegressor(n_neighbors=26)
-```
-
-<a id="cv-results"></a>
-
-### cv*results*
-
-_scikit-learn, pandas_
-
-A dictionary with the full results of every combination: parameter values (`param_...`), `mean_test_score`, `std_test_score`, `rank_test_score`, fit times. Turn it into a DataFrame to plot how the score changes with a hyperparameter.
-
-```python
-df_gs = pd.DataFrame(gs.cv_results_)
-plt.plot(df_gs.param_n_neighbors, df_gs.mean_test_score)
-```
-
-<a id="reading-grid-search-results"></a>
-
-### Reading grid search results
-
-_Concept_
-
-Three habits from the course demonstrations:
-
-- **Check the edges.** If the winner sits at the boundary of your grid (the best k was 35, the largest value tried), the true best may lie beyond it: extend the grid (45, 55, …) and search again.
-- **Treat small differences as noise.** On the heart-disease data every C from 1 to 100 tied on CV accuracy (0.752); when scores tie, prefer the simplest, most regularized option.
-- **Compare with the baseline.** The tuned kNN scored 0.672 on test against a null accuracy of 0.655, barely better; the tuned logistic regression scored 0.741.
-
-Searching a huge grid can also find settings that are lucky on the CV folds (overfitting the CV score), which is why the final test-set check matters.
-
-<a id="n-jobs-and-verbose"></a>
-
-### n_jobs and verbose
-
-_scikit-learn_
-
-`n_jobs` sets how many CPU cores to use in parallel (`-1` = all of them), which speeds up big searches. `verbose=1` prints progress, e.g. "Fitting 5 folds for each of 48 candidates, totalling 240 fits".
-
-<a id="the-cost-of-grid-searching"></a>
-
-### The cost of grid searching
-
-_Concept_
-
-Grid search fits **every** combination. The notebook's cautionary grid of 150 × 3 × 4 × 151 × 2 × 2 = 1,087,200 combinations with 5-fold CV means 5,436,000 model fits. The search space grows exponentially with each added parameter, so understand what each hyperparameter does, choose sensible ranges, and start small. "Friends don't let friends use Grid Search" (without thinking).
-
-Quick arithmetic: 4 hyperparameters with 10 values each is 10,000 combinations; with 5-fold CV that's 50,000 fits.
-
-<a id="randomizedsearchcv"></a>
-
-### RandomizedSearchCV
-
-_scikit-learn_
-
-Tries a fixed number (`n_iter`) of **randomly chosen** combinations instead of all of them, so it covers large or high-dimensional parameter spaces far more cheaply. Also called random or stochastic search. Can sample from distributions as well as lists.
-
-```python
-from sklearn.model_selection import RandomizedSearchCV
-from scipy.stats import randint
-
-rs = RandomizedSearchCV(KNeighborsRegressor(),
-                        {"n_neighbors": randint(1, 200), "p": [1, 2]},
-                        n_iter=25, cv=5, random_state=42)
-rs.fit(X_train_sc, y_train)
-```
-
-<a id="stratifiedkfold"></a>
-
-### StratifiedKFold
-
-_scikit-learn_
-
-Like `KFold`, but each fold keeps the same class proportions as the whole dataset. scikit-learn uses it automatically when you pass `cv=5` to a classifier; create it yourself to add shuffling.
-
-```python
-from sklearn.model_selection import StratifiedKFold
-cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-GridSearchCV(svc, pgrid, cv=cv)
-```
-
-<a id="pipelines-in-tuning"></a>
-
-### Pipelines (in tuning)
-
-_scikit-learn_
-
-A pipeline chains transformers and a final model into one estimator, giving reproducible workflows, consistent preprocessing every time new data arrives, faster tuning and protection from data leakage. The same steps are applied to training folds, validation folds and test data automatically.
-
-```python
-from sklearn.pipeline import Pipeline
-
-pipe = Pipeline([
-    ("sc", StandardScaler()),
-    ("knn", KNeighborsRegressor(n_neighbors=27)),
-])
-pipe.fit(X_train, y_train)          # unscaled data in: the pipeline scales it
-pipe.score(X_test, y_test)
-```
-
-Rules: every step **except the last** must be a transformer (it has `fit`/`transform`, like `StandardScaler`); the last is usually a model. `pipe.fit(X_train, y_train)` fits each step in turn; `pipe.predict(X_test)` applies the already-fitted transforms, so you can't accidentally refit the scaler on test data. With a pipeline, grid search can tune preprocessing too, e.g. `"poly__degree": [1, 2, 3]` alongside `"ridge__alpha"`.
-
-See also: [Pipeline with ColumnTransformer](#pipeline-with-columntransformer)
-
-See also: [Pipeline (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#pipeline), [ColumnTransformer (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#columntransformer)
-
-<a id="pipeline-with-columntransformer"></a>
-
-### Pipeline with ColumnTransformer
-
-_scikit-learn_
-
-Different preprocessing for different columns inside one leak-free object. The course demonstration on the South African heart disease data (462 men; target `chd`, 34.6% positive; one text column, `famhist`) scales the numeric columns, one-hot encodes the text column, and tunes kNN:
-
-```python
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import OneHotEncoder
-
-heart = pd.read_csv("../data/SAheart.data", index_col="row.names")
-X, y = heart.drop(columns="chd"), heart["chd"]
-X_tr, X_te, y_tr, y_te = train_test_split(X, y, stratify=y, random_state=42)
-
-prep = ColumnTransformer([
-    ("num", StandardScaler(), X.columns.drop("famhist")),
-    ("cat", OneHotEncoder(drop="first"), ["famhist"]),
-])
-pipe = Pipeline([("prep", prep), ("knn", KNeighborsClassifier())])
-params = {"knn__n_neighbors": [3, 5, 9, 15, 25, 35],
-          "knn__weights": ["uniform", "distance"]}     # 12 combos x 5 folds = 60 fits
-gs = GridSearchCV(pipe, params, cv=5).fit(X_tr, y_tr)
-gs.best_params_, gs.best_score_, gs.score(X_te, y_te)
-```
-
-During cross-validation the `ColumnTransformer` is refitted on each training fold; `gs.best_estimator_.named_steps["prep"]` is the version fitted on the full training set.
-
-See also: [ColumnTransformer (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#columntransformer)
-
-<a id="make-pipeline"></a>
-
-### make_pipeline()
-
-_scikit-learn_
-
-A shortcut that builds a pipeline without naming the steps; names are the lowercased class names (`standardscaler`, `logisticregression`). The `imblearn` version is the same but also accepts samplers.
-
-```python
-from sklearn.pipeline import make_pipeline
-pipe = make_pipeline(StandardScaler(), LogisticRegression())
-pipe.named_steps        # {'standardscaler': ..., 'logisticregression': ...}
-```
-
-<a id="step-parameter-naming"></a>
-
-### step\_\_parameter naming
-
-_scikit-learn_
-
-To tune a hyperparameter inside a pipeline, prefix it with the **step name and two underscores**. The same works for models nested inside models, such as the base tree of a bagging classifier.
-
-```python
-{"knn__n_neighbors": [3, 5, 10], "ss__with_mean": [True, False]}
-{"randomoversampler__sampling_strategy": [.25, .5, 1]}     # make_pipeline names
-{"estimator__max_depth": [1, 2, 3, None]}                  # BaggingClassifier's tree
-```
-
-> **Watch out:** One underscore (`knn_n_neighbors`) raises an "Invalid parameter" error. List valid names with `pipe.get_params().keys()`.
-
-<a id="pipeline-gridsearchcv"></a>
-
-### Pipeline + GridSearchCV
-
-_scikit-learn_
-
-Put the pipeline inside the grid search. Each fold then fits the scaler on that fold's training part only, so scaling never sees validation data, and you can tune preprocessing and model hyperparameters together.
-
-```python
-pipe = Pipeline([("sc", StandardScaler()),
-                 ("lr", LogisticRegression(solver="liblinear"))])
-pgrid = {"lr__penalty": ["l1", "l2"], "lr__C": np.logspace(-2, 0, 100)}
-gs = GridSearchCV(pipe, param_grid=pgrid, n_jobs=8)
-gs.fit(X_train, y_train)
-gs.best_params_
-```
-
-<a id="pipeline-memory-and-debugging"></a>
-
-### Pipeline memory and debugging
-
-_scikit-learn_
-
-Practical tips. **Memory:** `Pipeline(steps, memory="cache_dir")` caches **fitted transformers** on disk, so grid search doesn't refit an expensive step (a slow feature extractor) for every combination; it saves time rather than avoiding data copies. **Errors:** a failure in an early step breaks every later step. **Debugging:** build and test each step alone first, then inspect intermediate output.
-
-```python
-Pipeline(steps, memory="cache_dir")
-pipe[:-1].transform(X_train)          # everything except the model
-pipe.named_steps["sc"]                 # access one step
-pipe.get_params().keys()               # valid step__parameter names
-```
-
-Common errors: a typo in a `step__param` name ("Invalid parameter…"), a `ColumnTransformer` column list that doesn't match the data, and text columns reaching a scaler.
-
-<a id="choosing-a-scoring-metric-for-tuning"></a>
-
-### Choosing a scoring metric for tuning
-
-_Concept_
-
-`GridSearchCV` picks whatever scores best on its `scoring` metric (default `.score()`: R² or accuracy). Always set a metric aligned with your problem, e.g. `scoring="balanced_accuracy"` for imbalanced classes or `"recall"` when misses are costly.
-
-For imbalanced data, `scoring="f1"`, `"recall"`, `"roc_auc"` or `"balanced_accuracy"` match the classification metrics lessons.
-
-<a id="season-based-train-test-split"></a>
-
-### Season-based train/test split
-
-_pandas_
-
-Not every split should be random. In the basketball practice notebook, the test set is the most recent season and the training set is everything before it, mimicking how the model would be used.
-
-```python
-train = bball[bball["Season"] != 2016]
-test = bball[bball["Season"] == 2016]
-```
-
-> **Watch out:** The basketball data has a **leakage trap**: `total_score`, `winner` and `loser` are game outcomes, so drop them from X. A sensible target is "host team won" (59.4%: home advantage).
-
----
-
-<a id="s22-model-explainability"></a>
-
-## 22. Model explainability
-
-_Understanding how a model makes its decisions, why that matters (trust, fairness, regulation), which models are white or black boxes, and four tools for explaining them: tree diagrams, feature importance, partial dependence plots and SHAP. Examples use the iris data._
-
-**In your capstone:** Stakeholders will ask why. Plan global and local explanations (permutation importance, partial dependence, SHAP) as part of your results.
-
-<a id="model-explainability"></a>
-
-### Model explainability
-
-_Concept_
-
-The ability to understand **how a model makes its decisions**: why it made this prediction, which factors mattered most, whether you can trust the output, and what would happen if the inputs changed slightly. If an AI model gave you a surprisingly low credit score, these are the questions you'd ask.
-
-The questions people ask when a model decides about them: what data was used, was it accurate, which factors hurt my score, what could I change, was I treated fairly, can I appeal?
-
-See also: [Global vs local explanations](#global-vs-local-explanations), [Model-specific vs model-agnostic methods](#model-specific-vs-model-agnostic-methods)
-
-<a id="transparency"></a>
-
-### Transparency
-
-_Concept_
-
-One of three components of explainability: how easy it is to understand the model's decision-making process and the relationships between inputs and outputs.
-
-Transparency is about the model's **mechanism** (can you see inside?); interpretability is about **communicating** it to a person; feature importance **quantifies** each input's influence. A linear regression scores well on all three; a deep neural network poorly on the first two, though importance can be estimated afterwards.
-
-<a id="interpretability"></a>
-
-### Interpretability
-
-_Concept_
-
-Whether the model's decision can be explained in human-friendly terms, e.g. "the customer was denied a loan because their income was below the threshold".
-
-<a id="why-explainability-matters"></a>
-
-### Why explainability matters
-
-_Concept_
-
-Five reasons from the slides: **trust** (people use models they understand); **fairness** (explainable models are easier to audit for bias, e.g. a postcode feature acting as a proxy for ethnicity or income); **regulation** (healthcare and finance decisions must often be explainable, and financial regulators in many countries require reasons for credit decisions); **model improvement** (explanations often reveal leakage: if an ID or date column dominates the importance, something's wrong); and **ethical risk reduction** (spotting unsafe, biased or unexpected behaviour before it affects people).
-
-How much explanation you need depends on the stakes, not the technique. A medical scan or a loan decision: high stakes, regulated, explainability essential (a common compromise in medical imaging is a model that highlights the regions it relied on, with a human deciding). Product recommendations: low stakes per decision, so performance usually matters more. Image recognition is low-stakes for tagging holiday photos but not for facial recognition in policing.
-
-> **Watch out:** GDPR is often described as giving a "right to an explanation", but that's legally debated. GDPR gives people rights around solely automated decisions with significant effects (Article 22) and to "meaningful information about the logic involved" (Articles 13–15). Safer wording: **GDPR requires transparency about automated decisions.**
-
-See also: [Proxy variable](#proxy-variable)
-
-<a id="proxy-variable"></a>
-
-### Proxy variable
-
-_Concept_
-
-A feature that stands in for something else, often something you shouldn't or can't use directly. Postcode can proxy for ethnicity or income; the credit start-up that scored applicants on **handwriting** ("we don't know why, it just is") may have been picking up age, disability, education or first language. Proxies can make a model discriminatory without any protected attribute in the data, can't be justified to the person affected, and may not hold in future data. Correlation alone isn't a justification for high-stakes decisions.
-
-<a id="white-box-model"></a>
-
-### White-box model
-
-_Concept_
-
-A model whose decision process is easy to see: **linear regression** (a simple equation), **logistic regression** (a weighted sum giving log-odds), **decision trees** (an intuitive flowchart). The King's College COVID symptom model is a simple, explainable but still powerful example.
-
-The King's College COVID symptom model (Menni et al., _Nature Medicine_, 2020) is a **logistic regression**: one equation combining a handful of symptoms (loss of smell and taste was the strongest) with age and sex. The lesson: simple, interpretable models can be good enough, and their transparency is a huge advantage in high-stakes settings, so always try a simple model first.
-
-> **Watch out:** "White box" depends on use, not just model type: a linear model with 90 polynomial features, or a very deep tree, is hard to explain. And logistic regression outputs the **log-odds** of the outcome; its exponentiated coefficients are odds ratios.
-
-<a id="black-box-model"></a>
-
-### Black-box model
-
-_Concept_
-
-A model whose decisions are hard to explain: **deep neural networks** (including most AI models and LLMs), **random forests** (hundreds of trees), **SVMs** in high dimensions, boosted ensembles. The credit-scoring start-up that used handwriting ("we don't know why, it just is") is the cautionary example.
-
-Nuances: random forests still provide `feature_importances_`; what you lose is a single readable decision path. An SVM with a linear kernel has interpretable coefficients; non-linear kernels (RBF) don't. Post-hoc methods (PDPs, SHAP, permutation importance) exist precisely to explain black boxes after training.
-
-<a id="global-vs-local-explanations"></a>
-
-### Global vs local explanations
-
-_Concept_
-
-A **global** explanation describes the model as a whole: "which factors matter most overall?" A **local** explanation describes one prediction: "why was **my** loan refused?" Tree plots, feature importance and partial dependence plots are global; SHAP gives local explanations and, averaged across many rows, a global ranking too.
-
-<a id="counterfactual-explanation"></a>
-
-### Counterfactual explanation
-
-_Concept_
-
-An explanation of the form "if your input had been different in this way, the decision would have changed": "if your income were $5,000 higher, you'd have been approved." It answers the "what if the inputs changed slightly?" question people naturally ask, and is often the most useful explanation to give the person affected.
-
-<a id="model-specific-vs-model-agnostic-methods"></a>
-
-### Model-specific vs model-agnostic methods
-
-_Concept_
-
-**Model-specific** methods only work for one kind of model: tree diagrams and Gini feature importance (trees), coefficients (linear models). **Model-agnostic** methods treat the model as a black box and work with almost anything: partial dependence plots, permutation importance and SHAP.
-
-| Method                  | Works with | Scope            | Answers                              |
-| ----------------------- | ---------- | ---------------- | ------------------------------------ |
-| Tree plot               | Trees      | Global           | What are the rules?                  |
-| Gini importance         | Trees      | Global           | How much does each feature matter?   |
-| Permutation importance  | Any model  | Global           | How much does score drop without it? |
-| Partial dependence plot | Any model  | Global           | In which direction, with what shape? |
-| SHAP                    | Any model  | Local and global | Why this prediction?                 |
-
-<a id="visualizing-a-decision-tree-plot-tree"></a>
-
-### Visualizing a decision tree (plot_tree)
-
-_scikit-learn, matplotlib_
-
-Draws a fitted tree. Each node shows its split rule, Gini impurity, number of samples and class counts; leaves show the prediction. The most important features sit near the top, and the thresholds tell you the cut-off values.
-
-```python
-from sklearn.tree import DecisionTreeClassifier, plot_tree
-
-clf = DecisionTreeClassifier(random_state=42).fit(X_train, y_train)
-plt.figure(figsize=(12, 8))
-plot_tree(clf, feature_names=feature_names, class_names=class_names,
-          filled=True, rounded=True)
-```
-
-The iris tree (`max_depth=3`) reads as plain rules: petal_length ≤ 2.45 → setosa; otherwise petal_length ≤ 4.85 → versicolor; otherwise petal_width ≤ 1.70 → versicolor, else virginica. "Closer to the top = more important" is a good rule of thumb but not a law: a feature used many times lower down can matter more overall.
-
-See also: [export_text()](#export-text)
-
-<a id="feature-importance"></a>
-
-### Feature importance
-
-_Concept, scikit-learn_
-
-A quantitative score for how much each feature contributed to a model. For trees, it's the total amount a feature **reduces Gini impurity** (or MSE for regression) across all its splits, weighted by the number of samples reaching them and normalized to sum to 1: the **mean decrease in impurity (MDI)**. Ensembles average it over their trees. On the iris tree: petal_length 0.95, petal_width 0.05, sepals 0.
-
-```python
-importances = clf.feature_importances_
-order = np.argsort(importances)[::-1]
-plt.barh(np.array(feature_names)[order], importances[order])
-plt.gca().invert_yaxis()
-```
-
-> **Watch out:** Importances show how much a feature was **used**, not the direction of its effect. They're computed on training data (so they can reward features that helped the tree overfit), they favour features with many possible split points, and correlated features can split credit arbitrarily. An importance of 0 for the sepal measurements doesn't mean sepals are useless, only that this tree didn't need them once petal length had done the job.
-
-See also: [Gini impurity](#gini-impurity), [Permutation importance](#permutation-importance)
-
-<a id="permutation-importance"></a>
-
-### Permutation importance
-
-_scikit-learn_
-
-A model-agnostic alternative to Gini importance: shuffle one feature at a time on **test** data and measure how much the score drops. A big drop means the model relies on that feature. Often more reliable than impurity-based importance, because it's measured on unseen data and doesn't favour high-cardinality features.
-
-```python
-from sklearn.inspection import permutation_importance
-
-result = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
-pd.Series(result.importances_mean, index=X_test.columns).sort_values(ascending=False)
-```
-
-<a id="partial-dependence-plot-pdp"></a>
-
-### Partial dependence plot (PDP)
-
-_Concept, scikit-learn_
-
-Shows **how changing one feature affects the model's predictions on average**. To build one: fix the feature at a value for every training row, predict, average, and repeat across the feature's range. **Linear** PDP: proportional effect. **Curved**: diminishing or accelerating effect; a plateau means the feature stops mattering past a point. **Step-like**: the model uses thresholds.
-
-```python
-from sklearn.inspection import PartialDependenceDisplay
-
-PartialDependenceDisplay.from_estimator(clf, X_train, features=[0, 1, 2, 3],
-                                        feature_names=feature_names,
-                                        target=clf.classes_[0])
-```
-
-Intuition: "if everyone in the dataset had a temperature of 25 °C, what would the model predict on average?" Repeat for 10, 15, 20 °C… and join the dots. For classifiers the y-axis is usually the average predicted probability of a chosen class (`target=`, needed for multiclass). The PDP's shape partly reflects the model type: **trees always give step-shaped PDPs** (predictions only change at split thresholds) and linear models always give straight lines.
-
-> **Watch out:** PDPs average over everything else, so they can hide interactions and create unrealistic feature combinations when features are correlated. They describe what the **model** learned, not causes: a "road accidents" effect on house prices may really be about busy city-centre roads.
-
-<a id="individual-conditional-expectation-ice"></a>
-
-### Individual conditional expectation (ICE)
-
-_scikit-learn_
-
-The per-row version of a PDP: one line per observation instead of the average, which reveals when the effect differs between observations. Request it with `kind="individual"` (or `"both"` for ICE lines plus the PDP average), as the notebook does.
-
-If the ICE lines fan out or cross, the feature's effect depends on other features (an interaction the PDP's average hides).
-
-<a id="shap-shapley-additive-explanations"></a>
-
-### SHAP (SHapley Additive exPlanations)
-
-_Concept, shap_
-
-Explains individual predictions by showing how much **each feature pushed this prediction up or down** from the average prediction. **Additive** means: prediction = base value (the average prediction) + the sum of every feature's SHAP value. Averaging absolute SHAP values over many rows gives a global importance ranking. Based on Shapley values from game theory and named after Lloyd Shapley (spelled Shapley, not "Shapely"). Works with any model, with fast exact versions for trees.
-
-```python
-import shap   # pip install shap
-
-explainer = shap.TreeExplainer(tree)       # fast, exact for tree models
-sv = explainer(X_te)                       # shape: (rows, features, classes)
-shap.plots.bar(sv[:, :, 2])                # average impact, class index 2 (virginica)
-shap.plots.waterfall(sv[0, :, 2])          # explanation for one flower
-```
-
-Choose the class by its **position** in `tree.classes_`; indexing by class name doesn't work in current SHAP versions. On iris (virginica), the base value is about 0.33 and mean |SHAP| is about 0.33 for petal_length and 0.12 for petal_width.
-
-> **Watch out:** Gini importance and SHAP can disagree (petal_width 0.05 of the Gini importance but about a quarter of the SHAP importance). Both are "right": Gini counts impurity reduction during training; SHAP measures each feature's effect on predictions. Neither is "the" importance.
-
-See also: [KernelExplainer and force plot](#kernelexplainer-and-force-plot)
-
-<a id="shapley-value"></a>
-
-### Shapley value
-
-_Concept_
-
-From cooperative game theory: a player's fair share of the total payout, computed by averaging how much they add across every possible order of joining the team. SHAP treats each feature as a player and the prediction as the payout.
-
-Analogy: a team wins a prize; how do you share it fairly when players help more in some combinations than others? Average each player's extra contribution over every possible order in which they could join. Lloyd Shapley shared the 2012 Nobel Memorial Prize in Economic Sciences.
-
-<a id="kernelexplainer-and-force-plot"></a>
-
-### KernelExplainer and force plot
-
-_shap_
-
-`shap.KernelExplainer` works with any model's prediction function (slow but general; `TreeExplainer` is much faster for tree models). A **force plot** shows features pushing the prediction above (red) or below (blue) the base value, the model's average output.
-
-`KernelExplainer` is model-agnostic but slow (it approximates Shapley values by sampling); for tree models prefer `TreeExplainer`.
-
----
-
-<a id="s23-framing-a-data-science-problem-and-roi"></a>
-
-## 23. Framing a data science problem and ROI
-
-_Before building a model, make sure it's the right model for the right problem, and that it's worth building. The five key considerations for framing a project (business problem, stakeholders, success metrics and hypotheses, feasibility and ROI, and ethical, legal and strategic implications), applied to the course's running case study: predictive maintenance for a wind farm. "Framing decides whether the model matters; modelling decides whether it works."_
-
-**In your capstone:** Start your capstone here: a specific, measurable problem statement, agreed success metrics, a baseline and the expected value of the work.
-
-<a id="problem-framing"></a>
-
-### Problem framing
-
-_Concept_
-
-Turning a vague business wish ("use AI to fix our turbines") into a **specific, measurable, feasible** data science question with agreed success criteria. It's the first stage of the data science lifecycle and widely considered the most important and most neglected: a brilliant model that answers the wrong question is worthless. Framing is best done as early as possible, because changing direction is cheap at the start and expensive after months of modelling.
-
-> "The formulation of a problem is often more essential than its solution, which may be merely a matter of mathematical or experimental skill." Albert Einstein and Leopold Infeld, _The Evolution of Physics_ (1938).
-
-See also: [Five key considerations for framing](#five-key-considerations-for-framing)
-
-<a id="data-science-lifecycle"></a>
-
-### Data science lifecycle
-
-_Concept_
-
-Five stages: **framing the problem** (understand the business need, define success metrics); **preparing and exploring data**; **modelling** (select, train, evaluate with appropriate metrics); **communicating** (insights, deploying the model); and **deploying, monitoring and maintaining**. It's a loop, not a line: monitoring often reveals new problems, which sends you back to framing. A similar published framework is **CRISP-DM** (Cross-Industry Standard Process for Data Mining), whose first stage is "Business Understanding".
-
-See also: [Modeling workflow (end to end)](#modeling-workflow-end-to-end)
-
-<a id="why-data-science-projects-fail"></a>
-
-### Why data science projects fail
-
-_Concept_
-
-A commonly cited industry estimate is that around **85%** of data science projects fail. Treat the number with caution: it traces to a 2017 Gartner analyst comment about big data projects and a 2019 VentureBeat article ("87% never make it into production"), not rigorous research. "Fail" can mean never deployed, deployed but unused, or used but delivering no measurable value. The usual causes are about framing, not modelling: no clear objectives or success metrics, misalignment with business goals, rushing into analysis, no specific problem to solve, and no understanding of the potential ROI.
-
-<a id="five-key-considerations-for-framing"></a>
-
-### Five key considerations for framing
-
-_Concept_
-
-The lesson's map, each with its own entry below:
-
-1. **Define the business problem**: specific, measurable outcomes, not vague goals.
-2. **Understand the stakeholders**: who uses the insights and how they benefit.
-3. **Clarify success metrics and modelling hypotheses**: how success is measured, and clear, testable hypotheses.
-4. **Assess feasibility**: solvable within data, time and resource constraints, and worth the cost (ROI).
-5. **Consider ethical, legal and strategic implications**: biases, unintended consequences, compliance.
-
-They aren't strict steps in order: talking to stakeholders often changes the problem statement.
-
-<a id="predictive-maintenance"></a>
-
-### Predictive maintenance
-
-_Concept_
-
-Using data (sensor readings, maintenance records) to predict when equipment will fail, so maintenance happens just before failure. It contrasts with **reactive** maintenance (fix it when it breaks: costly downtime) and **preventive/scheduled** maintenance (service on a fixed timetable, sometimes replacing parts that were fine). Wind turbines are a classic case: expensive, remote, hard to reach and full of sensors (vibration, temperature, oil, power output). The course's running case study starts with the COO asking "can your team predict turbine failures before they happen?", a question still too vague to model: which failures, how far ahead, how accurate?
-
-<a id="problem-statement"></a>
-
-### Problem statement
-
-_Concept_
-
-A specific, measurable description of the business problem and the goal. Do: identify the core challenge, make it measurable, align it with broader business objectives, consult stakeholders and experts, and consider the impact on cost, efficiency and operations. Don't: frame it too broadly, assume without data, or set objectives disconnected from company goals. The wind farm template:
-
-> "Wind turbines are experiencing unplanned breakdowns due to equipment failure, leading to **X** hours of downtime per year and **Y** in repair costs. We aim to reduce turbine downtime by **Z%** by leveraging predictive maintenance to anticipate mechanical failures before they occur."
-
-X, Y and Z are filled in with real figures from operations and finance records (in the ROI notebook: $182,000 a year lost to unplanned downtime and a 20% target reduction). A good question has a clear target, a number, a timeframe and a link to data: "What data indicators best predict turbine failures, to cut unplanned repair costs by 15% within a year?"
-
-See also: [SMART goals](#smart-goals)
-
-<a id="smart-goals"></a>
-
-### SMART goals
-
-_Concept_
-
-A checklist for objectives: **S**pecific, **M**easurable, **A**chievable, **R**elevant, **T**ime-bound. "Reduce downtime" fails it; "reduce unplanned turbine downtime by 20% within 12 months" passes. "Improve customer satisfaction" fails; "increase satisfaction scores on a 5-point scale by 10% next quarter compared with this quarter" passes.
-
-<a id="stakeholder"></a>
-
-### Stakeholder
-
-_Concept_
-
-Anyone with an interest in, or affected by, a project's outcomes: the people who **use** the insights, those who **make decisions** or implement changes, and those **affected** by the decisions, including people who never see the model (job applicants screened by an algorithm, customers refused a loan). Stakeholders differ in information needs, technical understanding, decision-making authority and concerns (field engineers may worry a model will judge their performance or replace their expertise).
-
-Do: identify all stakeholders (internal and external), understand their needs, communicate clearly, and **engage early and often**. Don't: assume their needs, talk only to technical teams, or wait until the project is finished to involve them. Many technically excellent projects fail simply because nobody uses them.
-
-In the wind farm case, each conversation produced a concrete requirement: the COO (budget, timeline, KPIs), the field engineers (failure history, a tablet-friendly tool, their current accuracy as a baseline), operations (**at least 72 hours' warning**, which defines the prediction target), IT (integration and computing) and fellow analysts (data sources, including a colleague's bespoke weather dataset).
-
-See also: [Influence/interest grid](#influence-interest-grid)
-
-<a id="influence-interest-grid"></a>
-
-### Influence/interest grid
-
-_Concept_
-
-A stakeholder map (also called a power/interest grid) that sorts people by influence and interest. **High influence, high interest: engage closely** (the COO, operations, field engineers). **High influence, low interest: keep satisfied.** **Low influence, high interest: keep informed** (IT, other analysts). **Low on both: monitor** (other departments). Positions are judgement calls and change over time (IT's influence rises sharply at deployment), and stakeholders in the top-right quadrant, especially the sponsor, can help you manage the difficult ones.
-
-<a id="project-sponsor-and-kpi"></a>
-
-### Project sponsor and KPI
-
-_Concept_
-
-The **project sponsor** is the senior person who asks for and pays for the project (the COO, Chief Operating Officer, in the case study); a supportive sponsor can unblock resources, resolve conflicts and persuade sceptical teams. A **KPI** (key performance indicator) is a metric the business already tracks, such as downtime hours or maintenance cost; tying model targets to KPIs makes success visible to decision-makers.
-
-<a id="technical-debt"></a>
-
-### Technical debt
-
-_Concept_
-
-Future work created by shortcuts taken now: undocumented code only one person understands, hard-coded settings, quick fixes that never get cleaned up. It's a feasibility risk (what happens if the one expert leaves?) and a reason to share knowledge across the team.
-
-<a id="success-metrics-and-hypotheses"></a>
-
-### Success metrics and hypotheses
-
-_Concept_
-
-Define, before modelling, how success will be measured: **technical metrics** (model performance), **business metrics** (the impact the business cares about) and any **constraints** from stakeholders, all agreed by the people involved. A **hypothesis** is a specific, testable claim that could turn out to be false. The wind farm framing:
-
-- **Technical:** true positive rate > 80%, false positive rate < 5%, at least 72 hours' warning.
-- **Business:** 20% less unplanned downtime, 15% lower maintenance costs.
-- **Primary hypothesis:** sensor patterns (vibration, temperature, pressure) plus maintenance records can predict failures 72+ hours ahead within those error rates. **Supporting hypotheses** (testable in EDA): vibration anomalies precede mechanical failures; temperature spikes correlate with electrical failures.
-
-> **Watch out:** Don't set success as "70% accuracy" for a rare event. Failures are rare, so a model that never predicts one would score well over 90% accuracy and be useless; use recall and precision. And make targets unambiguous: "25% better than the engineers' current assessments" could mean they now catch 64% (relative) or 55% (absolute points).
-
-See also: [Base rate and false alarms](#base-rate-and-false-alarms), [Imbalanced classes](#imbalanced-classes)
-
-<a id="base-rate-and-false-alarms"></a>
-
-### Base rate and false alarms
-
-_Concept_
-
-Targets that sound strict can still bury people in false alarms when the event is rare. Suppose 1% of turbine-days end in failure. Per 1,000 turbine-days: 10 failures, and an 80% TPR catches **8**; 990 non-failures, and a 5% FPR flags about **50**. Only about 8 of every 58 alarms are real: **precision ≈ 0.14**. That's why the wind farm framing should also set a precision target, and why the base rate of the positive class matters as much as the error rates.
-
-```python
-base_rate, tpr, fpr, n = 0.01, 0.80, 0.05, 1_000
-tp = tpr * base_rate * n                     # 8 true alarms
-fp = fpr * (1 - base_rate) * n               # 49.5 false alarms
-tp / (tp + fp)                               # precision ≈ 0.14
-```
-
-See also: [Precision](#precision), [False positive rate (FPR)](#false-positive-rate-fpr), [Base rate fallacy](#base-rate-fallacy)
-
-<a id="framing-the-problem-type-early"></a>
-
-### Framing the problem type early
-
-_Concept_
-
-Deciding early whether the task is **classification** (categories), **regression** (continuous values) or **clustering** (grouping without labels) clarifies the goal, decides which algorithms are possible, shapes data preparation (imbalanced classes for classification; outliers and linearity for regression; scaling for clustering), and sets stakeholder expectations. "We'll flag turbines likely to fail in the next 72 hours" is a very different promise from "we'll tell you how many days each turbine has left", and neither tells engineers **what** is wrong unless that's agreed up front.
-
-The wind farm could be framed as **classification** (failure within 72 hours: yes/no), usually the simpler, more actionable start, or as predicting **time to next failure**. The latter is often described as time-series forecasting; more precisely it's a regression (or survival-analysis) problem known as **remaining useful life (RUL)** prediction, with time-series methods often used to build its features.
-
-See also: [Regression vs classification tasks](#regression-vs-classification-tasks)
-
-<a id="feasibility-assessment"></a>
-
-### Feasibility assessment
-
-_Concept_
-
-Checking that data science can deliver a viable solution within the data, time, budget and people available. Do: check the availability, quality and relevance of data; assess technical and human resources against the expected ROI; consider time and budget; identify risks and mitigations. Don't: proceed without verifying the data exists, over-promise, ignore bottlenecks (privacy rules, technical debt), or pursue unscalable solutions.
-
-The most common feasibility failure is the **label**: for the wind farm, every past turbine-day needs a "failed within 72 hours" label, which depends on accurate, timestamped maintenance records. The COO's condition (promising signs within 2–3 months) suggests delivering a simple working baseline quickly, such as logistic regression on a few key sensors, rather than a perfect model late.
-
-Typical risks and mitigations: poor sensor data (validation, cleaning, calibration); inaccurate predictions (rigorous testing on a hold-out set, which for time-ordered data should be the most recent period); integration problems (involve IT early); and lack of adoption (involve users in design and show clear benefits). Two of those four risks are about people, not technology.
-
-<a id="return-on-investment-roi"></a>
-
-### Return on investment (ROI)
-
-_Concept, Python_
-
-How much a project returns relative to what it costs: **ROI (%) = (benefits − total investment) / total investment × 100**. A positive ROI means the project pays for itself. In the wind farm example, first-year investment is $76,000 and benefits are $99,175, giving an ROI of about 30.5%.
-
-```python
-total_investment = 21_000 + 45_000 + 10_000          # IT + development + maintenance
-total_benefits = 418_500 * 0.15 + 182_000 * 0.20      # maintenance + downtime savings
-roi = (total_benefits - total_investment) / total_investment * 100
-print(f"The ROI for the first year is {roi:.1f}%")
-```
-
-ROI is the language of business stakeholders: it aligns the project with business goals, justifies its money and people, defines what success looks like, and lets decision-makers compare it with other options. Simple check: spend $100k, gain $130k in benefits, and ROI = (130 − 100)/100 × 100 = 30%. **ROI of 0%** means you just got your money back; negative means a loss.
-
-**Benefits** include revenue uplift (personalized marketing), cost savings (automation) and risk reduction (fraud detection). **Costs** include development (data acquisition, model building), deployment and infrastructure (cloud, APIs), and maintenance and monitoring.
-
-> **Watch out:** Keep cost labels unambiguous. Here "maintenance costs" ($10,000) means maintaining the **model**, while "current operations" ($418,500) is **turbine** maintenance, and the $45,000 development cost is one-time, not per year.
-
-See also: [Risk-adjusted ROI](#risk-adjusted-roi)
-
-<a id="one-time-vs-recurring-costs"></a>
-
-### One-time vs recurring costs
-
-_Concept_
-
-**One-time costs** are paid once (initial development labour). **Recurring costs** are paid every year (cloud infrastructure, APIs, maintenance). Separating them matters because a project that loses money in year 1 can be very profitable by year 3.
-
-<a id="multi-year-roi"></a>
-
-### Multi-year ROI
-
-_Concept, Python_
-
-Over n years: ROI = (Σ annual benefits − (one-time costs + Σ yearly costs)) / (one-time costs + Σ yearly costs) × 100.
-
-```python
-years = 3
-one_time = 45_000
-recurring = 21_000 + 10_000
-investment = one_time + recurring * years
-roi_3yr = (total_benefits * years - investment) / investment * 100
-```
-
-Here the 3-year ROI is **115.6%** ($297,525 of benefits against $138,000 of investment). ROI rises with more years because the one-time development cost is spread over more of them.
-
-> **Watch out:** This adds dollars from different years without discounting, so it slightly overstates the value; see time value of money below.
-
-<a id="risk-adjusted-roi"></a>
-
-### Risk-adjusted ROI
-
-_Concept, Python_
-
-Not assuming every projected benefit will happen: multiply benefits by a realisation share, a probability, or test pessimistic scenarios. It's sobering on the wind farm numbers: a healthy-looking 30.5% first-year ROI becomes a **loss** if only three-quarters of the savings arrive.
-
-```python
-for share in [1.0, 0.75, 0.5]:
-    roi_adj = (total_benefits * share - total_investment) / total_investment * 100
-    print(f"{share:.0%} of benefits realised -> ROI {roi_adj:.1f}%")
-# 100% -> 30.5%   75% -> -2.1%   50% -> -34.8%
-
-print(f"Break-even needs {total_investment / total_benefits:.1%} of projected benefits")   # 76.6%
-```
-
-The useful discussion question: how confident are we in the 20% and 15% savings estimates?
-
-<a id="payback-period-and-npv"></a>
-
-### Payback period and NPV
-
-_Concept, Python_
-
-Two other common ways to judge an investment. The **payback period** is how long it takes for net savings to cover the up-front cost. **Time value of money:** a dollar in year 3 is worth less than a dollar today, so finance teams discount future cash flows to a **net present value (NPV)**; a positive NPV means the project adds value after accounting for timing.
-
-```python
-one_time, recurring, benefits = 45_000, 31_000, 99_175
-net_yearly = benefits - recurring                         # 68,175 per year
-payback_months = one_time / (net_yearly / 12)             # ≈ 7.9 months
-
-rate = 0.08
-npv = -one_time + sum(net_yearly / (1 + rate) ** t for t in range(1, 4))   # ≈ $130,700
-```
-
-<a id="baseline-costs-and-projected-savings"></a>
-
-### Baseline costs and projected savings
-
-_Concept_
-
-To estimate benefits, start from what the business spends now (the **baseline**: $418,500 maintenance and $182,000 downtime losses a year) and apply the improvement the model is expected to deliver (15% and 20%). The quality of an ROI estimate depends on how credible those percentages are, so they're worth agreeing with stakeholders.
-
-<a id="ethical-legal-and-strategic-implications"></a>
-
-### Ethical, legal and strategic implications
-
-_Concept_
-
-The fifth consideration. **Legal:** data protection laws (GDPR in the EU/UK, CCPA in California), intellectual property, industry regulations. **Ethical:** bias and fairness, transparency and explainability, privacy and confidentiality, informed consent, accountability. **Strategic:** organizational change, investment in technology and skills, and whether to **build, buy or partner**.
-
-The group exercise scenarios show the range: screening job applicants (bias against gender or race, justifying rejections, anti-discrimination law; a hiring model trained on biased history may favour men); predicting disease (the costs of false positives vs false negatives, health-data privacy, consent, clinician oversight); sharing customer data with a third party (consent, GDPR, anonymization, the partner's security, customer trust); and AI chatbots (telling customers they're talking to AI, escalation to humans, liability for wrong answers, job impacts).
-
-Not every consideration applies to every project. For the wind farm: protect novel methods (IP), follow energy-sector rules, make the model explainable to engineers (feature importance shows which sensors drive predictions), and decline the maintenance team's offer of its whole database, staff salaries included.
-
-See also: [Why explainability matters](#why-explainability-matters), [Data minimization and anonymization](#data-minimization-and-anonymization)
-
-<a id="data-minimization-and-anonymization"></a>
-
-### Data minimization and anonymization
-
-_Concept_
-
-**Data minimization** (a GDPR principle) means collecting and using only the data you need for the purpose: request the turbine maintenance history, not the staff records that come with it. **Anonymization** removes or masks identities (names, IDs) so individuals can't be identified; you seldom need real identities to build a model. Do: comply with privacy law, anonymize where possible, write guidelines against misuse, and take legal advice. Don't: use sensitive data without anonymization, hoard data, or ignore intellectual property rights.
-
-<a id="build-buy-or-partner"></a>
-
-### Build, buy or partner
-
-_Concept_
-
-The strategic choice for any data science capability: **build** it in-house (control and IP, but needs skills and time), **buy** an existing product (fast, but less tailored), or **partner** with a specialist provider. For predictive maintenance, a third-party provider may already do this well, so "should we build this at all?" is a fair framing question.
-
-<a id="framing-checklist"></a>
-
-### Framing checklist
-
-_Concept_
-
-A reusable template for any project or capstone. If you can answer all five, the project is well framed:
-
-1. **Business problem:** what is it, and why does it matter?
-2. **Stakeholders:** who are they, and what do they need and expect?
-3. **Success metrics and hypotheses:** what are the metrics, the input and target variables, and the expected ROI?
-4. **Feasibility:** can data science provide a viable solution? Is it technically and financially feasible, with the data and tools available?
-5. **Ethical, legal and strategic:** any risks, and is it aligned with strategy?
-
-A good practice exercise: rewrite "use AI to reduce customer complaints" as a specific, measurable problem statement.
-
----
-
-<a id="s24-leveraging-genai-as-a-data-scientist"></a>
-
-## 24. Leveraging GenAI as a data scientist
-
-_Using generative AI tools well, not building them: how large language models work at a high level, which data science tasks suit them, coding and data parsing with chat tools and APIs, and above all how to check their output. Specific facts in this area (model names, sizes, context lengths, which tool is "best") date within months; the principles (be specific, never trust unchecked output, protect sensitive data) don't._
-
-**In your capstone:** Use GenAI to speed up code and text processing, but test everything it produces, never paste confidential data, and state how you used it.
-
-<a id="generative-ai-genai"></a>
-
-### Generative AI (GenAI)
-
-_Concept_
-
-AI systems that **generate new content** (text, code, images, audio) rather than only classifying or predicting a number. **Large language models (LLMs)** are the text-generating kind, such as GPT, Gemini and Claude. For a data scientist, GenAI is a productivity tool whose output you verify, not a replacement for understanding: "great as a helper, but not as a substitute".
-
-See also: [Large language model (LLM)](#large-language-model-llm)
-
-<a id="large-language-model-llm"></a>
-
-### Large language model (LLM)
-
-_Concept_
-
-A neural network trained on huge amounts of text to predict the **next token**. It links to models you already know: like a classifier choosing the most likely class, an LLM predicts a probability for every possible next token. The deck's five steps: (1) **input**, the prompt; (2) **tokenization**, breaking it into tokens; (3) **encoding**, turning each token into numbers (an embedding); (4) **processing**, analysing relationships between tokens; (5) **output**, generating new text one token at a time, each new token fed back in as input for the next.
-
-**Parameters** are the weights a network learns, like regression coefficients but billions of them. GPT-3 has 175 billion and was trained on about 570 GB of filtered text (selected from roughly 45 TB of raw text, about 300 billion tokens).
-
-> **Watch out:** Size figures for the newest models are usually unofficial. OpenAI hasn't disclosed GPT-4's size, data or compute ("~1.76 trillion parameters" is an unconfirmed outside estimate), and Google hasn't disclosed Gemini's sizes. Treat model-size claims with caution and check the source.
-
-See also: [Token](#token), [Transformer and attention](#transformer-and-attention)
-
-<a id="token"></a>
-
-### Token
-
-_Concept_
-
-The unit an LLM reads and writes. Tokens are often **pieces of words** ("unbelievable" → "un", "believ", "able"), not always whole words; in English one token is roughly **three-quarters of a word** on average. Context windows, prices and rate limits are all measured in tokens.
-
-<a id="embedding"></a>
-
-### Embedding
-
-_Concept_
-
-The "encoding" step: each token becomes a vector of numbers that captures its meaning, learned from how it's used. Words used in similar contexts end up with similar vectors. This is the **distributional hypothesis**: "You shall know a word by the company it keeps" (linguist J. R. Firth, 1957). Embeddings also power similarity search: finding the nearest vectors is the nearest-neighbour idea from kNN.
-
-See also: [kNN strengths and weaknesses](#knn-strengths-and-weaknesses)
-
-<a id="transformer-and-attention"></a>
-
-### Transformer and attention
-
-_Concept_
-
-The architecture introduced in Google's 2017 paper "Attention Is All You Need", which set the stage for generative AI. **Attention** lets the model weigh how relevant every other word is when interpreting each word, for example working out what "it" refers to in "the cake was in the oven; it was delicious". Transformers process whole sequences in **parallel** (unlike earlier recurrent networks), which made training on huge datasets practical. GPT = **G**enerative **P**re-trained **T**ransformer.
-
-<a id="temperature-and-sampling"></a>
-
-### Temperature and sampling
-
-_Concept_
-
-Always picking the single most likely next token tends to produce repetitive, dull text, so models **sample** from the probabilities instead; lower-probability choices sometimes give a better output. **Temperature** controls how adventurous the sampling is: low = predictable and consistent, high = creative but more error-prone. **Beam search**, an alternative, keeps several candidate sequences ("beams") and picks the best overall; it's common in translation, while chatbots more often sample.
-
-For data work, use a **low temperature** when you want consistent, repeatable answers (classifying text, extracting fields). Because of sampling, the same input can get different answers on different runs, so check consistency.
-
-<a id="how-llms-are-trained"></a>
-
-### How LLMs are trained
-
-_Concept_
-
-Three stages. **Pre-training**: exposure to vast amounts of text, learning to predict the next word; usually called **self-supervised**, because the "labels" are just the next words. **Fine-tuning** (instruction tuning): a smaller, task-specific dataset of example prompts and good responses, teaching the model to follow instructions and hold conversations. **RLHF** (reinforcement learning from human feedback): human raters compare pairs of responses, a **reward model** learns their preferences, and the LLM is then trained to produce responses the reward model scores highly. Newer approaches (e.g. DPO, AI-feedback methods) are also used. Without tuning, a pre-trained model just continues text; fine-tuning makes it conversational; human feedback aligns its responses with broad human values.
-
-> **Watch out:** In RLHF, feedback comes mainly from trained raters and a learned reward model, not from live conversations with users.
-
-See also: [Reinforcement learning](#reinforcement-learning)
-
-<a id="context-window"></a>
-
-### Context window
-
-_Concept_
-
-Everything the model can "see" at once, measured in tokens: your prompt, any pasted documents or data, and the conversation so far. When a conversation exceeds it, the earliest content drops out, and models may use information in the middle of a long document less reliably. For large datasets, send the data in **batches through code** rather than pasting everything into one chat.
-
-> **Watch out:** Context lengths change quickly: GPT-4 launched in ChatGPT with 8,192 tokens in March 2023, and many current models handle hundreds of thousands of tokens, some over a million. Check the documentation for the model you're using.
-
-<a id="multimodal-llm"></a>
-
-### Multimodal LLM
-
-_Concept_
-
-A model that processes two or more modalities (text, images, audio, video) and the relationships between them, for example interpreting an X-ray together with the doctor's notes. Most major assistants are now multimodal: they can read charts, screenshots and PDFs. For data scientists that means asking about a chart image or turning a photographed table into data, always checking the result.
-
-<a id="hallucination"></a>
-
-### Hallucination
-
-_Concept_
-
-Fluent, confident, **invented** content. The classic case: ChatGPT claimed a law professor was at the centre of a harassment scandal, citing a newspaper article that didn't exist. Never trust citations, numbers or facts from an LLM without checking them against a real source.
-
-<a id="ethical-concerns-with-genai"></a>
-
-### Ethical concerns with GenAI
-
-_Concept_
-
-Four from the deck: **bias and fairness** (models reflect biases in their training data); **transparency and accountability** (it's often unclear what a model was trained on, why it gave an answer, and who's responsible for errors; undisclosed training data also raises copyright questions); **data privacy and security** (data sent to an AI service may be stored or used depending on its terms; one 2023 analysis found about 11% of what employees pasted into ChatGPT was confidential); and **social and environmental impact** (jobs and skills, and the large energy and water use of training and running models).
-
-See also: [Ethical, legal and strategic implications](#ethical-legal-and-strategic-implications), [Data privacy with GenAI tools](#data-privacy-with-genai-tools)
-
-<a id="data-privacy-with-genai-tools"></a>
-
-### Data privacy with GenAI tools
-
-_Concept, Python_
-
-Never paste confidential, personal or client data into tools your organization hasn't approved; check your AI policy. And never put **API keys** directly in notebook code you might share: read them from an environment variable or a secrets store.
-
-```python
-import os
-api_key = os.environ["GEMINI_API_KEY"]            # set outside the notebook
-
-from google.colab import userdata                 # in Google Colab: the Secrets panel
-api_key = userdata.get("GEMINI_API_KEY")
-```
-
-See also: [Data minimization and anonymization](#data-minimization-and-anonymization)
-
-<a id="where-genai-helps-in-the-data-science-lifecycle"></a>
-
-### Where GenAI helps in the data science lifecycle
-
-_Concept_
-
-Good candidates are tasks that can be distilled into a precise prompt, need less expert judgement, and give **checkable** results: boilerplate and repetitive code, documentation, regular expressions, explaining errors or unfamiliar APIs, first-draft visualizations, and parsing messy text (free text, addresses, scraped data). Poor candidates: framing the problem, choosing metrics or features, judging whether results make business sense, ethical decisions, and anything needing confidential data in an unapproved tool.
-
-The course's judgement calls: choosing a model's independent variables, **not suitable** (needs domain expertise; risk of features that correlate but fail a sense check); documenting a function, **good** (easy to check in code review); understanding an unfamiliar API, **good** (quick to test); standardizing messy addresses, **good with checking** (watch for invented details); sentiment analysis of reviews, **reasonable**, if validated against a hand-labelled sample.
-
-**Rule of thumb: use GenAI where you can verify the answer more easily than you could produce it yourself.**
-
-<a id="generation-mode-vs-analysis-mode"></a>
-
-### Generation mode vs analysis mode
-
-_Concept_
-
-Two ways a data scientist uses GenAI. In **generation mode** the model produces content, typically code, from a prompt; you check it by running and testing it. In **analysis mode** you give the model content (text data) to clean, classify, extract from or summarize; you check it by spot-checking against the source and measuring accuracy on a labelled sample.
-
-See also: [Testing AI-generated code](#testing-ai-generated-code), [Validating GenAI classifications](#validating-genai-classifications)
-
-<a id="chat-interface-vs-api"></a>
-
-### Chat interface vs API
-
-_Concept_
-
-Chat interfaces are fine for quick, one-off tasks. For anything large-scale or repeatable, call the model through its **API** (application programming interface) from your own Python code: you can process thousands of rows in a loop, control settings such as temperature, ask for structured output and log the results. It usually needs an API key and may cost money per token.
-
-See also: [Calling an LLM from Python](#calling-an-llm-from-python)
-
-<a id="calling-an-llm-from-python"></a>
-
-### Calling an LLM from Python
-
-_Python_
-
-The typical pattern: install the provider's SDK, read the API key securely, create a client, then loop over rows of data, sending each in a prompt with fixed instructions, a low temperature and a constrained output format, and collect the responses. With Google's current Gemini SDK (`pip install google-genai`):
-
-```python
-from google import genai
-from google.genai import types
-
-client = genai.Client(api_key=api_key)
-config = types.GenerateContentConfig(temperature=0, system_instruction=(
-    "Classify the news article into exactly one of: politics, business, sport, health, other. "
-    "Reply with the label only."))
-
-labels = []
-for text in df["article"].head(20):                 # start small, then scale up
-    response = client.models.generate_content(model="gemini-2.5-flash", contents=text, config=config)
-    labels.append(response.text.strip().lower())
-df.loc[df.index[:20], "ai_label"] = labels
-```
-
-> **Watch out:** SDKs and model names change often: the older `google-generativeai` package has been replaced by `google-genai`, and model names are retired regularly. Check the provider's current documentation, and test the install cell before class.
-
-<a id="prompting-for-code"></a>
-
-### Prompting for code
-
-_Concept_
-
-Say what the code should do, the inputs and outputs, the libraries to use and any constraints; paste the **full** error message when debugging; ask the model to explain its code; and iterate rather than expecting perfection first time. Useful coding tasks: write code from scratch, write documentation, explain undocumented code, explain technical documentation, review code and suggest improvements, and debug. A good reliability test is a web scraper (e.g. "print Wikipedia's featured-article box"): generated code often guesses HTML element IDs and breaks when the page layout has changed.
-
-<a id="genai-tools-for-data-scientists"></a>
-
-### GenAI tools for data scientists
-
-_Concept_
-
-As of August 2025: **GPT** (OpenAI; chat and API); **Gemini** (Google; integrates with Google Colab); **Claude** (Anthropic; chat and API); **Cursor** (an AI-first code editor built on VS Code, whose inline edit can see your project files); **GitHub Copilot** (coding assistant inside VS Code, JetBrains and other editors); **Perplexity** (AI search); and **NotebookLM** (turns uploaded documents into summaries and podcast-style audio overviews). The "best" tool changes every few months, so choose based on your organization's approved tools, data-privacy terms, cost, and how well it does on **your** tasks: run the same prompt in several and compare whether the code runs, does what was asked, is concise, and handles errors.
-
-<a id="parsing-unstructured-data-with-genai"></a>
-
-### Parsing unstructured data with GenAI
-
-_Concept_
-
-Analysis-mode tasks: standardizing formats, extracting entities (names, places, dates), classifying text into fixed categories, and summarizing. Ask for **structured** output (a fixed set of labels, or JSON) so results can be loaded into pandas and checked. Messy numeric data needs special care, because AI tools and AI-written code often get some cases **silently** wrong: currency symbols and codes, thousands separators vs decimal commas ("4,50" in European formats), units ("per lb" vs "per kg"), abbreviations ("2.5k") and missing values.
-
-> **Watch out:** Learn EDA without AI first; AI can then speed you up, but it isn't a replacement for learning the basics.
-
-<a id="modelling-with-genai-what-to-check"></a>
-
-### Modelling with GenAI: what to check
-
-_Concept_
-
-AI-generated modelling code often skips a step. Check for: a train-test split **before** any fitting; scaling and other preprocessing fitted on training data only (ideally in a pipeline); no leakage (the target, or features derived from it); sensible handling of categorical and missing values; and metrics computed on the test set and compared with a baseline.
-
-See also: [Data leakage (in model evaluation)](#data-leakage-in-model-evaluation), [Pipeline + GridSearchCV](#pipeline-gridsearchcv)
-
-<a id="how-genai-output-goes-wrong"></a>
-
-### How GenAI output goes wrong
-
-_Concept_
-
-When writing code, GenAI can produce code that (1) doesn't run; (2) **runs and looks correct but does a different task**; or (3) works but is longer and more verbose than necessary. Number 2 is the most dangerous: no error message, just wrong results. When analysing data, it can draw the wrong conclusions, misclassify records, clean data inconsistently, and give different answers for the same row on different runs.
-
-<a id="testing-ai-generated-code"></a>
-
-### Testing AI-generated code
-
-_Python_
-
-Check generated code against inputs where **you** know the right answer, including awkward edge cases. A typical first attempt at "convert price strings to numbers":
-
-```python
-def clean_price(text):                       # what a GenAI tool might write
-    return float(text.replace("$", "").replace(",", "").strip())
-
-tests = {"$1,234.50": 1234.5, "  99 ": 99.0, "USD 3.20": 3.2, "2.5k": 2500.0, "€4,50": 4.5}
-for raw, expected in tests.items():
-    try:
-        result = clean_price(raw)
-        status = "OK" if abs(result - expected) < 1e-9 else f"WRONG (got {result})"
-    except ValueError:
-        status = "ERROR"
-    print(f"{raw!r:13} -> {status}")
-# '$1,234.50' OK | '  99 ' OK | 'USD 3.20' ERROR | '2.5k' ERROR | '€4,50' ERROR
-```
-
-Two inputs work and three fail. The worst case is silent: if the function also stripped the € sign, "€4,50" would become 450, wrong by a factor of 100 with no error. Tests with known answers catch this; eyeballing a few rows might not. Other checks: a line-by-line code review, reading the documentation it wrote against what the code actually does, and **rubber duck debugging** (explaining the code out loud, line by line, until gaps in understanding become obvious).
-
-<a id="validating-genai-classifications"></a>
-
-### Validating GenAI classifications
-
-_scikit-learn_
-
-When GenAI labels data, treat it like any classifier: hand-label a random sample (say 50–100 rows), compare with the AI's labels, and build a confusion matrix. Report precision and recall per class, not just accuracy, exactly as in the classification metrics section.
-
-```python
-from sklearn.metrics import confusion_matrix, classification_report
-
-sample = df.sample(100, random_state=42)          # hand-label these in a "human_label" column
-print(confusion_matrix(sample["human_label"], sample["ai_label"]))
-print(classification_report(sample["human_label"], sample["ai_label"]))
-```
-
-See also: [Confusion matrix](#confusion-matrix), [Macro, weighted and micro averages](#macro-weighted-and-micro-averages)
-
----
-
-<a id="s25-time-series-data-handling-and-stationarity"></a>
-
-## 25. Time series: data handling and stationarity
-
-_Data where order matters. Working with dates in pandas (indexing, resampling, rolling windows, lags and differences), stationarity, and reading autocorrelation plots. Examples use Apple stock prices (`AAPL.csv`), Australian population, New Haven temperatures and UK lung disease deaths._
-
-**In your capstone:** If your data has a time order, plot it, check stationarity and split chronologically before anything else.
-
-<a id="time-series"></a>
-
-### Time series
-
-_Concept_
-
-A series of observations taken at **equally spaced intervals** (days, months, quarters, years). The data are **dependent**: each row is related to the rows before it, so we care about row-to-row relationships. That breaks the independence assumption behind OLS and ordinary train-test splitting. Forecasting works best when the past genuinely predicts the future: weather, sales and deaths, yes; the stock market, no.
-
-Most classical methods assume **equally spaced** observations; irregular data (transactions at random times) is usually resampled onto a regular grid first. A league table at one moment is **cross-sectional** data; a team's points recorded every week would be a time series. Because the order carries information, you can't shuffle the rows, and there's no random train-test split.
-
-Notation: capital Xₜ is the random process; lower-case xₜ the values actually observed; xₜ₋ₕ is the value h periods ago, where **h is the lag**.
-
-See also: [Johnson & Johnson earnings (running example)](#johnson-and-johnson-earnings-running-example)
-
-See also: [Statistical independence](#statistical-independence)
-
-<a id="johnson-and-johnson-earnings-running-example"></a>
-
-### Johnson & Johnson earnings (running example)
-
-_statsmodels, pandas_
-
-The quarterly earnings per share of Johnson & Johnson, 1960–1980, is the running example in the Time Series I and II notes. It's non-stationary in three ways at once: an upward **trend**, quarterly **seasonality**, and swings that **grow over time** (increasing variance). It's available through statsmodels (an internet connection is needed to download it).
-
-```python
-import statsmodels.api as sm
-
-jj = sm.datasets.get_rdataset("JohnsonJohnson").data
-jj.index = pd.period_range("1960Q1", periods=len(jj), freq="Q").to_timestamp()
-x = jj["value"]                                    # quarterly earnings per share
-x.groupby(x.index.year).mean().head(3)             # yearly averages: 0.6575, 0.6925, 0.7525
-```
-
-**Offline alternative:** the course `data/` folder has the same series as `jj-sales.csv`, alongside `lung-deaths.csv` (monthly UK lung-disease deaths, 1974–1979) and `bj-sales.csv` (the Box–Jenkins sales series). These are the files `graph-gen-solution.ipynb` uses to draw the slide figures.
-
-```python
-jj = pd.read_csv("../data/jj-sales.csv")
-jj["date"] = pd.to_datetime(jj["date"])
-jj = jj.set_index("date")
-```
-
-<a id="datetime-index"></a>
-
-### Datetime index
-
-_pandas_
-
-Most time series tools expect the dates to be the DataFrame's index. Convert the column to datetime, set it as the index and sort.
-
-```python
-aapl = pd.read_csv("data/AAPL.csv")
-aapl["Date"] = pd.to_datetime(aapl["Date"])
-aapl.set_index("Date", inplace=True)
-aapl.sort_index(inplace=True)
-```
-
-See also: [pd.to_datetime() (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#pd-to-datetime), [.set_index() (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#set-index-and-reset-index)
-
-<a id="date-based-slicing"></a>
-
-### Date-based slicing
-
-_pandas_
-
-With a datetime index, `.loc` accepts partial date strings: a year, a year-month, or a range. Index attributes such as `.month` filter across years.
-
-```python
-aapl.loc["2018"]                          # all of 2018
-aapl.loc["2019-01"]                       # January 2019
-aapl.loc["2018-06":"2018-09"]             # a range
-aapl.loc[aapl.index.month == 1]           # every January
-```
-
-<a id="resample-for-time-series"></a>
-
-### .resample() for time series
-
-_pandas_
-
-Like `groupby`, but by time period: change the frequency of the data and aggregate. Common codes: `"D"` day, `"W"` week, `"ME"` month end, `"MS"` month start, `"QE"` quarter end, `"QS"` quarter start, `"YE"` year end.
-
-```python
-aapl.resample("ME").mean()      # monthly averages
-aapl.resample("QS").sum()       # quarterly totals, labelled by quarter start
-```
-
-> **Watch out:** Frequency codes changed recently, so check the pandas documentation for your version: pandas 2.2 deprecated `"M"`, `"Q"` and `"Y"` and pandas 3 rejects them; use `"ME"`, `"QE"` and `"YE"`. Many tutorials still use the old codes. Resampling to `"D"` also creates rows for weekends, filled with 0 when you `.sum()`.
-
-`groupby(x.index.year)` is a version-proof alternative for yearly summaries.
-
-See also: [.resample() (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#resample)
-
-<a id="rolling-statistics"></a>
-
-### Rolling statistics
-
-_pandas_
-
-A statistic over a **moving window** of the last h periods. The 3-day rolling mean is Mₜ = (Xₜ + Xₜ₋₁ + Xₜ₋₂)/3. The first h − 1 values are NaN because the window isn't full yet. A rolling mean is a simple **smoother** and even a simple forecast.
-
-```python
-aapl["Adj Close"].rolling(3).mean()
-aapl["Adj Close"].rolling(12).std()
-```
-
-> **Watch out:** A rolling forecast uses "delayed" information, and choosing the wrong window makes it either too jumpy or too slow to react.
-
-To use a rolling mean as a **forecast**, shift it so each prediction only uses past values: `y.rolling(h).mean().shift(1)`. The window size is a bias–variance trade-off: a small window reacts quickly but is noisy; a large window is smooth but lags behind. A 4-quarter window also averages out yearly seasonality in quarterly data.
-
-<a id="macd-chart"></a>
-
-### MACD chart
-
-_matplotlib, pandas_
-
-The "fun fact" in the notebook: plot a fast (12-day) and slow (26-day) moving average of a price. A simple trading rule buys or sells when the lines cross.
-
-```python
-adj = aapl["Adj Close"]
-plt.plot(adj, color="whitesmoke")
-plt.plot(adj.rolling(12).mean(), label="Fast Line")
-plt.plot(adj.rolling(26).mean(), label="Slow Line")
-plt.legend()
-```
-
-<a id="lag-backshift-and-shift"></a>
-
-### Lag (backshift) and .shift()
-
-_pandas_
-
-**Backshifting** slides every value down one period: BXₜ = Xₜ₋₁. The new column is called the **first lag**. Lag features let a regular model use yesterday's value to predict today's.
-
-```python
-aapl["open_lag1"] = aapl["Open"].shift()       # yesterday's open
-aapl["Open"].shift(7)                          # one week ago
-```
-
-The first row of a shift (or diff) is always NaN: you lose one row per lag, so decide whether to drop it.
-
-```python
-pd.DataFrame({"x": x, "shift_1": x.shift(1), "diff_1": x.diff()}).head(3)
-# x = 0.71, 0.63, 0.85; shift_1 = NaN, 0.71, 0.63; diff_1 = NaN, -0.08, 0.22
-```
-
-<a id="differencing-and-diff"></a>
-
-### Differencing and .diff()
-
-_pandas_
-
-Today's value minus yesterday's: ∇Xₜ = Xₜ − Xₜ₋₁ = (1 − B)Xₜ (∇ is "nabla", B the backshift). Differencing removes a steady trend: if sales rise by about 10 a month, the differences hover around 10 with no trend. It's the main way to make a series stationary.
-
-```python
-aapl["open_diff"] = aapl["Open"].diff()        # same as Open - Open.shift()
-air.diff().diff()                              # second difference: the change in the change
-x.diff(12)                                     # seasonal difference: this month minus 12 months ago
-```
-
-> **Watch out:** Differencing twice, `x.diff().diff()` = Xₜ − 2Xₜ₋₁ + Xₜ₋₂ (like acceleration vs speed), is **not** the same as `x.diff(2)` = Xₜ − Xₜ₋₂, a lag-2 difference.
-
-See also: [Seasonal differencing](#seasonal-differencing)
-
-<a id="seasonal-differencing"></a>
-
-### Seasonal differencing
-
-_pandas_
-
-Subtracting the value from the same point in the previous cycle: `x.diff(12)` for monthly data, `x.diff(4)` for quarterly. It removes a repeating seasonal pattern the way ordinary differencing removes a trend, and the two are often combined (`x.diff().diff(4)`). Seasonal ARIMA models (SARIMA) build it in.
-
-<a id="stationarity"></a>
-
-### Stationarity
-
-_Concept_
-
-A series is **(weakly) stationary** if three things don't change over time: (1) its **mean** (no trend); (2) its **variance** (no growing or shrinking swings); and (3) its **autocorrelation**, which depends only on how far apart two values are, not on when you look. Most classical forecasting models (AR, MA, ARMA) assume it, because they learn patterns from the past and need those patterns to persist.
-
-Australia's population is clearly not stationary (strong upward trend) but its first difference roughly is; New Haven's annual temperature is "trendless enough" already. Johnson & Johnson earnings need a **log transform first**: differencing alone leaves it non-stationary (ADF p-value 0.909), while log-then-difference makes it stationary (p ≈ 0.000). Logs turn swings that grow with the level into constant-sized ones, and differences of logs are approximately percentage changes.
-
-> **Watch out:** It's easy to treat a trendless seasonal series as stationary. Strictly, seasonality breaks stationarity: with a regular seasonal pattern (like the UK lung-disease deaths) the expected value in January differs from July, so the mean depends on time. Such a series has no long-term **trend** but still needs seasonal differencing or a SARIMA model.
-
-See also: [Augmented Dickey–Fuller (ADF) test](#augmented-dickey-fuller-adf-test), [Differencing and .diff()](#differencing-and-diff)
-
-<a id="autocorrelation"></a>
-
-### Autocorrelation
-
-_Concept, pandas_
-
-The correlation (−1 to 1) of a series with **a copy of itself shifted back h periods** ("auto" = self). Autocorrelation at lag 1 compares each value with the previous one; at lag 12 (monthly data), with the same month last year. Strong autocorrelation is why time series data aren't independent, and high autocorrelation at lag h means the value h periods ago helps predict today: the basis of autoregressive models. Look for the lag that matches the cycle: 7 for weekly patterns in daily data, 12 for yearly patterns in monthly data, 4 for quarterly.
-
-```python
-x.autocorr(lag=4)                                   # simplest
-h = 4; np.corrcoef(x[h:], x.shift(h)[h:])[0, 1]      # same thing by hand
-```
-
-> **Watch out:** A common hand-written version, `np.corrcoef(x[1:], x.shift(h)[1:])`, only works for h = 1; for larger lags it returns NaN, because shifting by h creates h missing values but `[1:]` drops only one. statsmodels' `acf()` uses a slightly different formula (the overall mean and variance), so its values can differ, especially on trending data (raw J&J at lag 4: 0.995 vs 0.824). On non-stationary data autocorrelations are dominated by the trend, so make the series stationary first.
-
-<a id="acf-plot"></a>
-
-### ACF plot
-
-_statsmodels_
-
-The **autocorrelation function** plot shows the autocorrelation at every lag, with a shaded band of values not significantly different from zero. A slow steady decline signals a trend (non-stationary); spikes at 12, 24, 36 in monthly data signal seasonality, as in the lung deaths data (more deaths in colder months).
-
-```python
-from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
-plot_acf(lung)
-```
-
-Lag 0 is always 1 (a series correlates perfectly with itself). A **wave** in the ACF reflects a cycle: values correlate with the same month in other years (lags 12, 24) and anti-correlate six months apart. A **slow, steady decline** is the signature of non-stationarity. After log-differencing the J&J series, the seasonal structure appears as spikes at lags 4, 8 and 12 (lag-4 autocorrelation 0.85).
-
-```python
-stationary = np.log(x).diff().dropna()
-plot_acf(stationary, lags=16); plot_pacf(stationary, lags=16)
-```
-
-<a id="pacf-plot"></a>
-
-### PACF plot
-
-_statsmodels_
-
-The **partial autocorrelation function** shows the correlation with each lag **after removing** the effect of the shorter lags in between. Helps choose the number of AR terms p. Values can also be computed with `acf()` and `pacf()` from `statsmodels.tsa.stattools`.
-
-```python
-plot_pacf(lung)
-from statsmodels.tsa.stattools import acf, pacf
-acf(lung.deaths, nlags=24)
-```
-
-It shows the **direct** link between xₜ and xₜ₋ₕ rather than links passed along through intermediate days. With a pure 7-day pattern, the ACF shows echoes at every multiple of 7, while the PACF shows only the original lag-7 link. A slowly decaying ACF plus a PACF with one big spike at lag 1 is the classic picture of a trending, random-walk-like series: difference first.
-
-See also: [Reading ACF and PACF to choose p and q](#reading-acf-and-pacf-to-choose-p-and-q)
-
-<a id="seasonality"></a>
-
-### Seasonality
-
-_Concept_
-
-A pattern that repeats with a fixed, known **period** d: d = 12 for monthly data, d = 4 for quarterly, d = 7 for daily data with a weekly cycle. Mathematically sₜ = sₜ₊d: the December 2010 effect equals the December 2011 effect.
-
-Common periods: 7 (daily data, weekly cycle), 12 (monthly, yearly), 4 (quarterly, yearly), 24 (hourly, daily). A series can have several cycles at once, which makes it harder to model. ("Paid every two weeks" is fortnightly or biweekly.)
-
-<a id="trend"></a>
-
-### Trend
-
-_Concept_
-
-The long-run upward or downward movement of a series (mₜ). It can be estimated with OLS on time, a rolling mean, or removed by differencing.
-
-<a id="white-noise"></a>
-
-### White noise
-
-_Concept_
-
-A series of independent random values with mean zero and constant variance: no pattern left to model. The goal of time series modeling, as with OLS residuals, is to reduce what's left over to white noise.
-
-Checking residuals for white noise is the time series version of the LINE checks: plot them, look at their ACF (no significant bars = random), or run a Ljung–Box test.
-
-See also: [Ljung–Box test](#ljung-box-test)
-
----
-
-<a id="s26-time-series-forecasting-models"></a>
-
-## 26. Time series: forecasting models
-
-_From simple decomposition to ARIMA, then three extensions from Time Series III: GLS (adding x-variables), GARCH (modeling changing volatility) and VAR (forecasting several series together). Examples use Nottingham temperatures, airline passengers, Disney stock and U.S. macroeconomic data (`sm.datasets.macrodata`)._
-
-**In your capstone:** Compare every forecast with naive and seasonal-naive baselines, choose orders by AIC, check the residuals, then refit on all the data.
-
-<a id="classical-decomposition"></a>
-
-### Classical decomposition
-
-_Concept_
-
-Splitting a series into three parts. The **additive** model is **Yₜ = mₜ + sₜ + εₜ**: a **trend**, a **seasonal** component with a fixed period, and random **noise**. If what's left after removing trend and seasonality is pure noise, you have a sensible forecasting model: project the trend and repeat the seasonal pattern. In an additive model the seasonal values average to zero over a cycle; they push the series above or below the trend.
-
-When seasonal swings **grow with the level** (as in J&J), use the **multiplicative** model **Yₜ = mₜ × sₜ × εₜ**, which is equivalent to an additive model on log(Yₜ). Classical decomposition also assumes the seasonal pattern is identical in every cycle, a simplification.
-
-> **Watch out:** The letter d is overloaded in time series: it can mean the deseasonalized series dₜ, the number of differences in ARIMA(p, d, q), or the seasonal period. Check which one a formula means.
-
-See also: [seasonal_decompose()](#seasonal-decompose)
-
-<a id="seasonal-decompose"></a>
-
-### seasonal_decompose()
-
-_statsmodels_
-
-Decomposes a series and plots the observed data, trend, seasonal and residual components. Choose `model="additive"` or `"multiplicative"` and set the `period`.
-
-```python
-from statsmodels.tsa.seasonal import seasonal_decompose
-
-add = seasonal_decompose(y, model="additive", period=4)
-mult = seasonal_decompose(y, model="multiplicative", period=4)
-add.plot(); mult.plot()                     # compare the residual panels
-add.seasonal[:4].round(3).tolist()          # J&J: [0.222, 0.244, 0.309, -0.774]  amounts added
-mult.seasonal[:4].round(3).tolist()         # J&J: [0.993, 1.033, 1.114, 0.86]   factors multiplied
-```
-
-On J&J the additive residuals fan out over time (wrong model for growing swings), while the multiplicative residuals are much more even: Q4 sits about 14% below trend. That motivates taking logs before ARIMA.
-
-> **Watch out:** `seasonal_decompose` is itself a classical centred-moving-average method, much like decomposing by hand; for a more robust modern decomposition use `statsmodels.tsa.seasonal.STL`.
-
-<a id="naive-and-seasonal-naive-forecasts"></a>
-
-### Naive and seasonal naive forecasts
-
-_Concept, NumPy_
-
-The baselines every forecast must beat. The **naive** forecast says the next value equals the latest observed value (that's exactly ARIMA(0, 1, 0), a random walk). The **seasonal naive** forecast repeats the value from the same point in the previous cycle (same quarter last year). On J&J's last two years, MAE is 4.88 for naive, 2.54 for seasonal naive, and 0.67 for a seasonal ARIMA: baselines show how much the model really adds.
-
-```python
-naive = np.repeat(train.iloc[-1], len(test))                      # repeat the last value
-seasonal_naive = np.tile(train.iloc[-4:].values, len(test) // 4)   # repeat the last year
-np.mean(np.abs(test.values - seasonal_naive))                     # MAE
-```
-
-See also: [Null model (baseline) for regression](#null-model-baseline-for-regression)
-
-<a id="seasonal-mean-forecast"></a>
-
-### Seasonal-mean forecast
-
-_pandas_
-
-A "simple" model from the notebook that's surprisingly good for Nottingham temperatures: assume no trend (mₜ = mean), estimate sₜ as each month's mean minus the overall mean, and predict trend + seasonal effect.
-
-```python
-mt = y_train.temp.mean()
-st = y_train.groupby("month", as_index=False).temp.mean()
-st["seasonal"] = st.temp - mt
-pred = y_test.merge(st[["month", "seasonal"]], how="left")
-pred["y_pred"] = mt + pred["seasonal"]
-```
-
-<a id="time-series-train-test-split"></a>
-
-### Time series train/test split
-
-_scikit-learn, pandas_
-
-Never shuffle a time series: the test set must come **after** the training set, or you'd be training on the future. Either pass `shuffle=False` or slice off the last h rows.
-
-```python
-y_train, y_test = train_test_split(nottem, test_size=0.1, shuffle=False)
-y_train, y_test = air.iloc[:-24], air.iloc[-24:]       # hold out the last two years
-```
-
-The full forecasting workflow from the course: parse dates and set a DatetimeIndex → plot → check stationarity (look, then ADF) → transform and difference → read the ACF/PACF → split chronologically → build naive baselines → fit candidate models and compare AIC → check residuals → forecast the test period and compare MAE with the baselines → **refit on all the data** before forecasting the real future.
-
-<a id="autoregression-ar"></a>
-
-### Autoregression (AR)
-
-_Concept_
-
-A model that regresses a series on **its own past values**: AR(p) uses the last p values, Yₜ = φ₀ + φ₁Yₜ₋₁ + … + φₚYₜ₋ₚ + εₜ. For certain φ values it's the same as a rolling mean.
-
-φ (phi) is the weight on a past value: if φ₁ = 0.8, today is 80% an echo of yesterday plus a fresh shock. Autocorrelation **measures** the relationship with the past; autoregression **uses** it to predict. In practice a constant is usually included. For a pure AR(p), the **PACF cuts off after lag p**. One-line memory aid: AR = tomorrow looks a bit like today.
-
-<a id="moving-average-model-ma"></a>
-
-### Moving average model (MA)
-
-_Concept_
-
-A model that predicts the current value from **past error terms**: MA(q) uses the last q errors. It captures autocorrelation structure, especially seasonality at a given lag.
-
-> **Watch out:** This is **not** the rolling mean, which is also commonly called a "moving average".
-
-It's an average of past **errors** (shocks), not of the data: θ (theta) is the weight on a past shock, εₜ₋₁ is how far off you were yesterday, and MA(1) carries a fraction θ₁ of it into today. Examples: a promotion that boosts sales this week and a bit next week; a viral post that lifts traffic for a few days. For a pure MA(q), the **ACF cuts off after lag q**. Memory aid: MA = yesterday's surprise echoes into today.
-
-<a id="arma-p-q"></a>
-
-### ARMA(p, q)
-
-_Concept_
-
-AR(p) and MA(q) combined: Yₜ = intercept + AR terms + MA terms + error. Requires a stationary series.
-
-ARMA captures both "momentum" (AR) and "shock carry-over" (MA) with few parameters.
-
-<a id="arima-p-d-q"></a>
-
-### ARIMA(p, d, q)
-
-_Concept, statsmodels_
-
-An ARMA model fitted to a series that has been **differenced d times** to make it stationary; the I stands for **Integrated**. p = number of AR terms, d = number of differences, q = number of MA terms. The base model for time series forecasting, with many variants.
-
-```python
-from statsmodels.tsa.arima.model import ARIMA
-
-model = ARIMA(y_train, order=(1, 2, 1)).fit()
-model.summary()
-y_test_pred = model.predict(start=y_test.index[0], end=y_test.index[-1])
-```
-
-"Integrated" because the original series is recovered by summing (integrating) the differences. Memory aid: I = remove the trend first. Useful special cases: ARIMA(1, 0, 0) = AR(1); **ARIMA(0, 1, 0) = a random walk** (forecast = last value, the naive forecast); ARIMA(0, 1, 1) is similar to simple exponential smoothing. `model.forecast(steps)` forecasts beyond the end of the training data.
-
-If you modelled log(y), convert forecasts back with `np.exp()` before computing MAE, so errors are in the original units.
-
-See also: [SARIMA](#sarima), [Naive and seasonal naive forecasts](#naive-and-seasonal-naive-forecasts)
-
-<a id="sarima"></a>
-
-### SARIMA
-
-_statsmodels_
-
-Seasonal ARIMA adds seasonal terms (seasonal AR, differencing and MA at the seasonal lag) through `seasonal_order=(P, D, Q, s)`. The course demonstration fits J&J's log earnings with a first difference plus a seasonal difference, choosing p and q by AIC:
-
-```python
-import itertools
-from statsmodels.tsa.arima.model import ARIMA
-
-y = np.log(jj["value"])
-train, test = y[:-8], y[-8:]                                  # last 2 years held out
-results = []
-for p, q in itertools.product(range(3), range(3)):
-    fit = ARIMA(train, order=(p, 1, q), seasonal_order=(0, 1, 0, 4)).fit()
-    results.append(((p, 1, q), round(float(fit.aic), 1)))
-best = min(results, key=lambda r: r[1])                       # ((1, 1, 1), -125.4)
-fit = ARIMA(train, order=best[0], seasonal_order=(0, 1, 0, 4)).fit()
-forecast = np.exp(fit.forecast(8))                            # back to earnings per share
-np.mean(np.abs(np.exp(test) - forecast))                      # MAE ≈ 0.67 (seasonal naive ≈ 2.54)
-```
-
-**SARIMAX** adds external predictors (the X), like ARIMA's `exog`. statsmodels may print convergence warnings for some grid combinations; that's common.
-
-See also: [Other forecasting models](#other-forecasting-models)
-
-<a id="other-forecasting-models"></a>
-
-### Other forecasting models
-
-_Concept_
-
-Beyond ARIMA, from the deck's "what else?" slide: **ETS / Holt–Winters** exponential smoothing models level, trend and seasonality with exponentially weighted averages; **Prophet** combines trend, seasonality, holidays and events and is designed for accessible business forecasting; and **tree-based models** (e.g. XGBoost) forecast using lag features, rolling statistics, calendar features and external predictors.
-
-<a id="choosing-p-d-and-q"></a>
-
-### Choosing p, d and q
-
-_Concept_
-
-**d** is the smallest number of differences that makes the series stationary, judged by eye or with the ADF test. **p** and **q** are shortlisted from the ACF/PACF of the **stationary** series, then decided by searching over values and keeping the model with the lowest AIC (and residuals that look like white noise).
-
-```python
-from itertools import product
-
-results = []
-for p, q in product(range(13), range(13)):
-    m = ARIMA(y_train, order=(p, 2, q)).fit()
-    results.append((p, q, m.aic))
-pd.DataFrame(results, columns=["p", "q", "aic"]).sort_values("aic").head()
-```
-
-> **Watch out:** Don't use `GridSearchCV` here: its random folds would train on the future and test on the past. Time series need a chronological hold-out or `TimeSeriesSplit`.
-
-See also: [Reading ACF and PACF to choose p and q](#reading-acf-and-pacf-to-choose-p-and-q)
-
-<a id="reading-acf-and-pacf-to-choose-p-and-q"></a>
-
-### Reading ACF and PACF to choose p and q
-
-_Concept_
-
-Rules of thumb for a **stationary** series: for a pure **AR(p)**, the PACF cuts off after lag p (and the ACF decays gradually); for a pure **MA(q)**, the ACF cuts off after lag q (and the PACF decays). Mixed ARMA processes show gradual decay in both. Real data is messier than the textbook pictures: on differenced J&J, both plots spike at lag 1 (about −0.38) and at the seasonal lag 4, suggesting several candidates; the AIC search then picks ARIMA(1, 1, 1). Use the plots to shortlist, and let AIC and residual checks decide.
-
-> **Watch out:** Read the plots of the **stationary** (differenced) series. If the ACF decays slowly, the series isn't stationary yet: difference again before choosing p and q.
-
-<a id="itertools-product"></a>
-
-### itertools.product()
-
-_Python_
-
-Generates every combination of items from several lists: the Cartesian product, a home-made grid. `product([0, 1], [0, 1])` gives (0,0), (0,1), (1,0), (1,1).
-
-<a id="augmented-dickey-fuller-adf-test"></a>
-
-### Augmented Dickey–Fuller (ADF) test
-
-_statsmodels_
-
-A hypothesis test for stationarity. **H₀: the series is non-stationary (has a unit root); H₁: it is stationary.** A small p-value (below 0.05) means you can treat the series as stationary. Students often get this backwards.
-
-```python
-from statsmodels.tsa.stattools import adfuller
-
-for name, series in [("raw", x), ("diff", x.diff()), ("log diff", np.log(x).diff())]:
-    print(name, round(adfuller(series.dropna())[1], 3))
-# J&J: raw 1.0, diff 0.909 (still non-stationary), log diff 0.0 (stationary)
-```
-
-> **Watch out:** Drop the NaNs that differencing creates, or `adfuller` will fail. Recent statsmodels releases also warn that `adfuller`'s return format is changing; the p-value is the second value returned.
-
-See also: [p-value (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#p-value)
-
-<a id="ljung-box-test"></a>
-
-### Ljung–Box test
-
-_statsmodels_
-
-Tests whether a model's residuals still contain autocorrelation. **H₀: no autocorrelation up to the chosen lag** (the residuals look like white noise). Here a **large** p-value is what you want: nothing left to model. On the J&J seasonal ARIMA, p = 0.22 at lag 8.
-
-```python
-from statsmodels.stats.diagnostic import acorr_ljungbox
-acorr_ljungbox(fit.resid[5:], lags=[8])["lb_pvalue"]    # skip the first residuals lost to differencing
-```
-
-<a id="aic-akaike-information-criterion"></a>
-
-### AIC (Akaike Information Criterion)
-
-_Concept, statsmodels_
-
-The preferred evaluation metric for ARIMA models in place of R². It balances fit against the number of parameters, penalizing complexity. **Lower is better.** Only compare AICs of models fitted to the same data.
-
-```python
-model.aic
-```
-
-George Box and Gwilym Jenkins' 1970 textbook popularized the ARIMA workflow (identify, estimate, check), often called the **Box–Jenkins method**; AIC-based selection is its modern form.
-
-<a id="generalized-least-squares-gls"></a>
-
-### Generalized least squares (GLS)
-
-_Concept, statsmodels_
-
-OLS assumes errors are iid: independent (the "~" in εₜ ~ N(0, σ²)) and identically distributed with one constant variance (no subscript on σ²). In matrix terms, the errors' covariance matrix is σ²I, diagonal with no correlation. **GLS allows a general covariance matrix Σ**, so errors close in time can be correlated. In practice Σ is given a simple structure such as ARMA errors: yₜ = xₜᵀβ + Wₜ, where Wₜ is an ARMA(p, q) process. That's **regression with ARMA errors**: the regression explains y using x, and the ARMA part soaks up the leftover time-correlation.
-
-The course demonstration on US macro data: does disposable-income growth predict consumption growth?
-
-```python
-macro = sm.datasets.macrodata.load_pandas().data
-macro.index = pd.period_range("1959Q1", periods=len(macro), freq="Q").to_timestamp()
-growth = np.log(macro[["realcons", "realdpi"]]).diff().dropna() * 100      # % growth
-ols = sm.OLS(growth["realcons"], sm.add_constant(growth["realdpi"])).fit()
-gls = ARIMA(growth["realcons"], exog=growth["realdpi"], order=(1, 0, 0)).fit()   # AR(1) errors
-ols.params["realdpi"], gls.params["realdpi"]                                # 0.341 vs 0.297
-```
-
-statsmodels also offers `GLSAR` for regression with autoregressive errors.
-
-> **Watch out:** OLS isn't forbidden for time series: its coefficients can still be reasonable, but their standard errors and p-values are wrong (usually too optimistic), and the information in the error correlation is wasted.
-
-<a id="exogenous-and-endogenous-variables"></a>
-
-### Exogenous and endogenous variables
-
-_Concept_
-
-Time series vocabulary for x and y. **Exogenous** (the x-variables, from outside the system; note the **x** in e**x**ogenous) and **endogenous** (the y-variable being forecast). statsmodels arguments are named `exog` and `endog`.
-
-Exogenous = determined **outside** the model (an input); endogenous = determined **inside** it (the target).
-
-<a id="arima-with-exog-gls-in-python"></a>
-
-### ARIMA with exog (GLS in Python)
-
-_statsmodels_
-
-Pass x-variables as `exog` to fit a GLS-style model, and supply the future x-values when predicting.
-
-```python
-y = df["realgdp"]
-X = df[["realcons", "realinv", "realgovt", "cpi", "m1"]]
-X_train, X_test, y_train, y_test = train_test_split(X, y, shuffle=False, test_size=20)
-gls = ARIMA(y_train, exog=X_train, order=(2, 1, 2), freq="QE-DEC").fit()
-preds = gls.predict(start=X_test.index[0], end=X_test.index[-1], exog=X_test)
-```
-
-> **Watch out:** Frequency strings changed in pandas 2.2: use `freq="QE-DEC"` (older code writes `"Q-DEC"`, which pandas 3 rejects).
-
-<a id="statsmodels-macrodata"></a>
-
-### statsmodels macrodata
-
-_statsmodels, pandas_
-
-A built-in quarterly U.S. economic dataset (real GDP, consumption, investment, unemployment, population, CPI…) used in Time Series III. Build a datetime index from the year and quarter columns.
-
-```python
-import statsmodels.api as sm
-from statsmodels.tsa.base.datetools import dates_from_str
-
-df = sm.datasets.macrodata.load_pandas().data
-qtr = df["year"].astype(int).astype(str) + "Q" + df["quarter"].astype(int).astype(str)
-df.index = pd.to_datetime(dates_from_str(qtr))
-df = df.drop(columns=["year", "quarter"])
-```
-
-<a id="log-returns"></a>
-
-### Log returns
-
-_Concept, NumPy_
-
-For a price Pₜ: Pₜ itself is non-stationary; Xₜ = log Pₜ behaves roughly like a **random walk** (also non-stationary); and the difference Zₜ = Xₜ − Xₜ₋₁, the log return (≈ the daily percentage change), is approximately **stationary** and looks like white noise. But it is **not independent** white noise: big moves cluster together. Returns themselves are nearly uncorrelated (you can't predict tomorrow's direction), but their **size** is predictable.
-
-```python
-z = 100 * np.log(prices["Adj Close"]).diff().dropna()    # scaled log returns
-z.autocorr(1), (z ** 2).autocorr(1)                      # returns ≈ 0; squared returns clearly > 0
-```
-
-> **Watch out:** A random walk is **not** stationary, so log prices aren't either; it's the log **returns** that are approximately stationary. And the dependence in returns is invisible in their ACF but clearly visible in the ACF of the **squared** returns.
-
-See also: [Volatility clustering](#volatility-clustering)
-
-<a id="volatility-clustering"></a>
-
-### Volatility clustering
-
-_Concept_
-
-Calm periods are followed by calm periods and turbulent periods by turbulent ones: the size of today's move predicts the size (not the direction) of tomorrow's. GARCH models exist to capture this.
-
-On simulated GARCH data with 2,000 observations, the lag-1 autocorrelation is 0.017 for returns but 0.077 for squared returns (significant at that sample size).
-
-<a id="conditional-heteroscedasticity"></a>
-
-### Conditional heteroscedasticity
-
-_Concept_
-
-Variance that changes over time and depends on recent history. "Heteroscedastic" = unequal variance; "conditional" = conditional on the past. Series like this "jump around too much" for ARIMA.
-
-It relaxes the **E** (equal variance) assumption, just as GLS relaxes the **I** (independence) assumption.
-
-<a id="arch-p"></a>
-
-### ARCH(p)
-
-_Concept_
-
-**A**uto**R**egressive **C**onditional **H**eteroscedasticity. Models the series as Zₜ ~ N(0, hₜ) where the variance hₜ = α₀ + Σαᵢ Z²ₜ₋ᵢ depends on the last p squared values. It looks like an AR(p) process, but on the conditional **variance** of Zₜ rather than its value.
-
-An equivalent form: Zₜ = √hₜ · εₜ with εₜ ~ N(0, 1). A big move yesterday, up **or** down, raises today's variance. ARCH was introduced by Robert Engle (1982), who shared the 2003 Nobel Memorial Prize in Economics partly for it.
-
-<a id="garch-p-q"></a>
-
-### GARCH(p, q)
-
-_Concept, arch_
-
-**G**eneralized ARCH (Tim Bollerslev, 1986): adds past variances so volatility decays gradually instead of depending only on the last few returns: hₜ = α₀ + Σαᵢ Z²ₜ₋ᵢ + Σβⱼ hₜ₋ⱼ. Intuition: today's volatility = baseline + reaction to recent shocks (α) + persistence of recent volatility (β). The α sum is "AR-like" and the β sum "MA-like", though the analogy is loose. Used heavily in finance to forecast **volatility** (risk, option pricing). Its mean forecast is usually flat near zero; the useful output is the forecast **variance**.
-
-**GARCH(1, 1)** is the workhorse; α + β close to 1 means volatility shocks are persistent (typical values: α ≈ 0.05–0.1, β ≈ 0.85–0.95). In the `arch` package, `p` counts the squared-return (α) terms and `q` the variance (β) terms.
-
-```python
-from arch import arch_model   # pip install arch
-
-z_train, z_test = train_test_split(z, shuffle=False, test_size=0.05)
-garch = arch_model(z_train, vol="Garch", p=1, q=1).fit(disp="off")
-garch.params                        # omega, alpha[1], beta[1]
-preds = garch.forecast(horizon=len(z_test), reindex=False)
-preds.variance                      # forecast volatility along the horizon
-```
-
-Fitting simulated data with known parameters (ω 0.1, α 0.1, β 0.85) recovers them well (0.108, 0.083, 0.866).
-
-> **Watch out:** GARCH isn't in statsmodels; it needs the `arch` package. `arch` asks you to rescale small numbers (like daily returns) for numerical stability, which is why returns are multiplied by 100. The letter h means the conditional variance here, but the lag in Time Series I and hot-coffee sales in the VAR example.
-
-<a id="univariate-vs-multivariate-time-series"></a>
-
-### Univariate vs multivariate time series
-
-_Concept_
-
-**Univariate**: forecasting one response variable. **Multivariate**: forecasting several at once in a single model, like simultaneous regression, because the series influence each other (hot and iced coffee sales).
-
-Examples: GDP and unemployment; sales of related products; temperatures in neighbouring cities. In the coffee case the relationship works through a shared driver (the weather) and substitution (a customer buys one or the other).
-
-<a id="vector-autoregression-var"></a>
-
-### Vector autoregression (VAR)
-
-_Concept, statsmodels_
-
-A multivariate AR model in which each series is predicted from the past values of **every** series. Two series with one lag: hₜ = β₁₁hₜ₋₁ + β₁₂iₜ₋₁ + ε₁ₜ and iₜ = β₂₁hₜ₋₁ + β₂₂iₜ₋₁ + ε₂ₜ, written compactly as **yₜ = Byₜ₋₁ + εₜ** with a coefficient matrix B. Each series must be made stationary first.
-
-```python
-from statsmodels.tsa.api import VAR
-
-df_var_diff = pd.DataFrame({
-    "pop_d2": df["pop"].diff().diff(),
-    "unemp_d1": df["unemp"].diff(),
-    "realgdp_d1": df["realgdp"].diff(),
-}).dropna()
-model = VAR(df_var_diff, freq="QE-DEC").fit(maxlags=15, ic="aic")
-model.k_ar               # number of lags chosen (9 in the notebook)
-model.plot_forecast(10)
-```
-
-The **cross terms** (β₁₂: yesterday's iced sales → today's hot sales; β₂₁ the reverse) are what VAR adds over separate AR models; if they matter, one series helps forecast the other (tested formally with **Granger causality**). The number of parameters grows quickly, k² per lag for k series, so VARs usually use few series and lags. A second course demonstration models GDP growth and consumption growth together:
-
-```python
-data = growth[["realgdp", "realcons"]]
-var = VAR(data).fit(maxlags=8, ic="aic")
-var.k_ar                                                  # 3 lags chosen by AIC
-var.forecast(data.values[-var.k_ar:], steps=2)            # next 2 quarters, both series
-```
-
----
-
-<a id="s27-simulation"></a>
-
-## 27. Simulation
-
-_Building a computer model of a system and running it to see what happens under different assumptions, without touching the real system. The components and pillars of a simulation, the four common approaches (discrete event, agent-based, Monte Carlo and system dynamics), building simulations in Python with NumPy, and checking that they can be trusted. Examples use a coffee shop queue, a flood-risk estimate and a town's population._
-
-**In your capstone:** Use simulation for "what if" questions and to put uncertainty ranges (percentiles) around projections such as ROI.
-
-<a id="simulation"></a>
-
-### Simulation
-
-_Concept_
-
-A model of a real-world system or process that you can run to experiment safely and cheaply: test scenarios, make predictions and understand behaviour without real-world risks or costs. Flight simulators, weather forecasts and video games are all simulations. Businesses use them to forecast demand and test pricing, hospitals to predict patient flow, engineers to model traffic.
-
-**Simulation vs machine learning:** ML learns patterns from historical data; a simulation **encodes how we believe a system works** (rules plus randomness) and explores the consequences, including scenarios that have never happened.
-
-See also: [Simulation (Monte Carlo)](#simulation-monte-carlo)
-
-<a id="analytical-model-vs-simulation"></a>
-
-### Analytical model vs simulation
-
-_Concept_
-
-An **analytical model** is a formula you can solve exactly: the flood example's 20% × 10% = 2% is one. Simulations earn their keep when systems are too complex for neat formulas: queues, interactions between many individuals, feedback loops, continuously varying inputs. Simple cases with known answers are still useful for **checking** that a simulation works.
-
-<a id="benefits-of-simulation"></a>
-
-### Benefits of simulation
-
-_Concept_
-
-From the slides: **safe** (test "what-ifs" such as staffing changes without risking production); **cost-effective** (test a marketing campaign without alerting competitors); **experiment** (a hospital trials staff schedules for peak hours); **understand dynamics** (watch behaviour unfold over time, such as traffic-light timing); and **forecast accuracy**.
-
-> **Watch out:** More detail doesn't automatically mean more accuracy. A detailed simulation built on wrong assumptions is precisely wrong (see the Simplification pillar and the limitations of simulation).
-
-<a id="key-components-of-a-simulation"></a>
-
-### Key components of a simulation
-
-_Concept_
-
-Five components describe any simulation, shown here for a coffee shop:
-
-- **System and entities:** the scenario and its objects (the shop; customers, baristas, machines).
-- **State and events:** the current condition (queue length, barista busy) and what changes it (an arrival, an order, a drink served).
-- **Processes and rules:** behaviour logic, sometimes random (arrive → order → wait → receive → leave; a drink takes 2–5 minutes).
-- **Time and execution:** how the clock advances.
-- **Inputs and outputs:** parameters (arrival rate, preparation times) and results (average wait, customers served per hour, **utilization**).
-
-See also: [Time handling in simulations](#time-handling-in-simulations), [Utilization](#utilization)
-
-<a id="time-handling-in-simulations"></a>
-
-### Time handling in simulations
-
-_Concept_
-
-Three ways the clock can move. **Next-event:** jump straight from one event to the next, because nothing changes in between (discrete event simulation). **Fixed time step:** update everything every tick (many agent-based models). **Continuous:** quantities change smoothly (system dynamics); computers approximate this with small steps, and smaller steps give a closer approximation.
-
-<a id="four-pillars-of-simulation"></a>
-
-### Four pillars of simulation
-
-_Concept_
-
-1. **Abstraction:** include only what's important, like a map that shows main roads, not every alley. (Abstraction decides **what** to include.)
-2. **Simplification:** as simple as possible while still capturing the key behaviour. (Simplification decides **how much detail** for what's included.)
-3. **Randomness:** model real-world uncertainty. Because each run differs, you run the simulation many times, and the **distribution of results** is the real output.
-4. **Experimentation:** run it, check it makes sense, adjust, like testing a recipe.
-
-"All models are wrong, but some are useful" (George Box).
-
-<a id="utilization"></a>
-
-### Utilization
-
-_Concept_
-
-The fraction of time a resource (a barista, a cashier, a server) is busy. It's the number that predicts trouble: **above roughly 85–90% utilization, queues grow rapidly**, and once arrivals outpace service, waits don't just increase, they explode.
-
-<a id="discrete-event-simulation-des"></a>
-
-### Discrete event simulation (DES)
-
-_Concept_
-
-Models a system as a sequence of distinct **events** over time (a customer arrives at a bank, a machine finishes a task). Between events nothing changes, so the simulation jumps straight to the next one, which makes DES efficient. The classic structure is **source → queue → server → sink**: entities are generated at the source, wait in the queue if the server is busy, are processed one at a time, and leave via the sink. Bottlenecks appear when entities arrive faster than the server can handle them. Used for queues (banks, call centres, emergency departments), manufacturing lines and logistics; the typical outputs are waiting times and queue lengths. Python library: SimPy.
-
-See also: [Coffee shop queue simulation](#coffee-shop-queue-simulation), [SimPy](#simpy)
-
-<a id="coffee-shop-queue-simulation"></a>
-
-### Coffee shop queue simulation
-
-_NumPy, Python_
-
-A runnable version of the course's coffee shop: one barista, random arrivals (exponential gaps averaging 4 minutes), drinks taking 2–5 minutes (uniform). Each customer starts being served at whichever comes later, their arrival or the barista becoming free; the difference is their wait. The whole shift is repeated 1,000 times (Monte Carlo) to show the range of outcomes.
-
-```python
-rng = np.random.default_rng(1)
-
-def simulate_shift(n_customers=200, mean_gap=4.0, service=(2, 5)):
-    arrivals = np.cumsum(rng.exponential(mean_gap, n_customers))   # arrival times (minutes)
-    service_times = rng.uniform(*service, n_customers)            # each drink takes 2-5 minutes
-    barista_free_at, waits = 0.0, []
-    for arrive, serve in zip(arrivals, service_times):
-        start = max(arrive, barista_free_at)    # wait if the barista is busy
-        waits.append(start - arrive)
-        barista_free_at = start + serve
-    return np.mean(waits)
-
-results = [simulate_shift() for _ in range(1000)]       # repeat the shift 1,000 times
-print(f"Average wait: {np.mean(results):.1f} min "
-      f"(5th-95th percentile: {np.percentile(results, 5):.1f}-{np.percentile(results, 95):.1f})")
-busy = [simulate_shift(mean_gap=3.0) for _ in range(1000)]
-print(f"Busier shop: {np.mean(busy):.1f} min average wait")
-# Average wait: 11.1 min (5th-95th percentile: 4.6-23.2)
-# Busier shop: 57.5 min average wait
-```
-
-The surprise: drinks average 3.5 minutes. With a customer every 4 minutes the barista is about 88% busy and waits average about 11 minutes; with a customer every 3 minutes arrivals outpace service, and waits balloon to nearly an hour and keep growing through the shift. **Small changes near full capacity cause huge changes in waiting time.** Good extensions: add a second barista, or report the share of customers waiting more than 10 minutes.
-
-See also: [Poisson arrivals and exponential gaps](#poisson-arrivals-and-exponential-gaps), [Utilization](#utilization)
-
-<a id="poisson-arrivals-and-exponential-gaps"></a>
-
-### Poisson arrivals and exponential gaps
-
-_Concept, NumPy_
-
-The standard way to model random arrivals. The **number** of arrivals per time period follows a **Poisson** distribution; the **time between** arrivals follows an **exponential** distribution. In code you usually sample the gaps and add them up to get arrival times, as in the coffee shop.
-
-```python
-gaps = rng.exponential(scale=4.0, size=200)    # average 4 minutes between customers
-arrival_times = np.cumsum(gaps)
-per_hour = rng.poisson(lam=15, size=8)         # arrivals in each of 8 hours
-```
-
-> **Watch out:** "Arrivals follow a Poisson distribution" is shorthand: the counts per period are Poisson, the gaps between arrivals are exponential.
-
-<a id="np-random-default-rng"></a>
-
-### np.random.default_rng()
-
-_NumPy_
-
-NumPy's modern random number generator. Create one generator (optionally with a seed for reproducible runs) and call its methods: `rng.random()` (uniform 0–1), `rng.uniform()`, `rng.normal()`, `rng.exponential()`, `rng.poisson()`, `rng.integers()` and `rng.choice()`. It replaces the older `np.random.choice`-style functions in new code.
-
-```python
-rng = np.random.default_rng(42)          # seed: same results every run
-rng.normal(loc=100, scale=15, size=5)
-rng.integers(1, 7, size=10)              # ten die rolls (upper bound excluded)
-```
-
-See also: [np.random.choice()](#np-random-choice), [Random seed (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#random-seed)
-
-<a id="agent-based-modelling-abm"></a>
-
-### Agent-based modelling (ABM)
-
-_Concept_
-
-A bottom-up approach that models many individual **agents**, each with its own attributes and rules (vaccinated or not, cautious or social), and lets them interact step by step. Large-scale patterns such as an epidemic curve or a traffic jam **emerge** from the local interactions; nobody programs them directly. The course example simulates influenza in a city: agents move, meet and pass on infection with set probabilities, and interventions are tested by changing the rules (raise vaccination from 40% to 70%) and comparing many runs. ABMs were widely used during COVID-19 to explore lockdowns and school closures. Other examples: traffic, retail shoppers, predator–prey systems, supply chains, warehouse robots.
-
-See also: [Emergence](#emergence)
-
-<a id="emergence"></a>
-
-### Emergence
-
-_Concept_
-
-Complex group behaviour arising from simple individual rules: birds flocking, traffic jams forming with no accident, an outbreak spreading through a population. It's the key idea behind agent-based modelling, and the reason ABMs show effects at the individual level rather than as averages.
-
-<a id="monte-carlo-simulation"></a>
-
-### Monte Carlo simulation
-
-_Concept, NumPy_
-
-Uses **repeated random sampling** to estimate outcomes under uncertainty: if you can't calculate an answer exactly, simulate the random process many times and look at the distribution of results. More runs give a more precise estimate (the Law of Large Numbers). Named after the Monte Carlo casino and developed in the 1940s by Stanislaw Ulam and John von Neumann during the Manhattan Project. Each iteration is one possible "world"; time often isn't involved at all. Inputs are probability distributions; outputs are risk estimates, intervals and result distributions, summarized by mean, standard deviation and percentiles.
-
-The course's flood example: heavy rain happens 20% of the time and, when it does, the river overflows 10% of the time.
-
-```python
-rng = np.random.default_rng(42)
-n = 100_000                                         # simulated days
-heavy_rain = rng.random(n) < 0.20                   # heavy rain 20% of the time
-overflow = heavy_rain & (rng.random(n) < 0.10)      # if heavy rain, 10% chance of overflow
-print(f"Estimated flood probability: {overflow.mean():.4f}")   # ≈ 0.0201 (exact: 0.02)
-```
-
-Monte Carlo is overkill for this simple case, but realistic versions (rainfall varying continuously, river levels depending on several days, upstream flows interacting) have no neat formula. It's also often combined with other approaches, such as running a DES 1,000 times with random inputs, as in the coffee shop.
-
-See also: [Simulation (Monte Carlo)](#simulation-monte-carlo), [Law of Large Numbers (LLN)](#law-of-large-numbers-lln), [Vectorized simulation](#vectorized-simulation), [Markov Chain Monte Carlo (MCMC)](#markov-chain-monte-carlo-mcmc)
-
-<a id="vectorized-simulation"></a>
-
-### Vectorized simulation
-
-_NumPy_
-
-Running all trials at once with array operations instead of a Python loop. The flood example draws 100,000 days in one call and combines them with `&`; it's typically far faster than the loop-based simulations in the probability notebook, which matters when you need millions of runs.
-
-```python
-rolls = rng.integers(1, 7, size=1_000_000)
-(rolls % 2 == 1).mean()                  # P(odd) ≈ 0.5, no loop needed
-```
-
-See also: [Vectorized operation (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#vectorized-operation)
-
-<a id="system-dynamics-sd"></a>
-
-### System dynamics (SD)
-
-_Concept_
-
-Models a system as **stocks** (accumulations) and **flows** (rates of change) connected by **feedback loops**, traditionally with differential equations. It works with aggregates ("the population", not individual people) and suits long-term, big-picture questions: population planning, policy, supply chains, ecology, climate. Developed by Jay Forrester at MIT in the 1950s. SD models can grow very complex, like the deck's causal-loop diagram of tourism, waste and pollution in the Maldives.
-
-See also: [Stocks and flows](#stocks-and-flows), [Feedback loop](#feedback-loop)
-
-<a id="stocks-and-flows"></a>
-
-### Stocks and flows
-
-_Concept, Python_
-
-A **stock** is an amount that accumulates (a bathtub's water, a population, inventory); a **flow** is a rate that changes it (the tap and the drain; births and deaths). Each step, the stock changes by inflow minus outflow. The course example is a town of 1,000 people with a 3% birth rate and 1% death rate:
-
-```python
-population, birth_rate, death_rate = 1000.0, 0.03, 0.01
-history = [population]
-for year in range(1, 51):
-    births = birth_rate * population        # inflow
-    deaths = death_rate * population        # outflow
-    population += births - deaths           # stock changes by inflow - outflow
-    history.append(population)
-round(history[10]), round(history[35]), round(history[50])   # (1219, 2000, 2692)
-```
-
-Net growth is 2% a year, so this is exponential growth, P(t) = 1,000 × 1.02ᵗ: about 1,219 after 10 years, doubling in about 35 years (the **rule of 70**: 70 ÷ 2% ≈ 35).
-
-<a id="feedback-loop"></a>
-
-### Feedback loop
-
-_Concept_
-
-A cycle where a quantity affects its own future values. A **reinforcing** (positive) loop amplifies change: more people → more births → faster growth. A **balancing** (negative) loop counteracts it: more people → more deaths. In the population example, with these constant rates the reinforcing loop wins, so growth is exponential.
-
-> **Watch out:** It's easy to misread the loops: the **deaths outflow is itself the balancing loop** and births are the reinforcing loop. With constant rates of 3% and 1% the population doesn't stabilize; it grows by 2% a year.
-
-<a id="choosing-a-simulation-approach"></a>
-
-### Choosing a simulation approach
-
-_Concept_
-
-| Approach             | Time                 | Logic                         | Typical uses                               |
-| -------------------- | -------------------- | ----------------------------- | ------------------------------------------ |
-| Discrete event (DES) | Jumps between events | Rule-based process flows      | Queues, logistics, healthcare              |
-| Agent-based (ABM)    | Steps                | Autonomous interacting agents | Epidemics, social behaviour, markets       |
-| System dynamics (SD) | Continuous           | Stocks, flows, feedback       | Long-term trends, policy, ecology          |
-| Monte Carlo          | Iterations           | Random sampling of inputs     | Risk, uncertainty, cost and time estimates |
-
-Choose by the research question, how individuals differ, the level of detail needed, the data available and the computing resources. They combine in practice: a hospital DES run 1,000 times with random inputs is also a Monte Carlo study. A good quick check: to estimate the risk a project runs over budget, use Monte Carlo.
-
-<a id="simpy"></a>
-
-### SimPy
-
-_Python_
-
-A Python library for discrete event simulation: you describe processes (customers arriving, waiting for a resource, being served) and SimPy manages the clock and the queues. Usually needs installing (`pip install simpy`).
-
-```python
-import simpy
-
-def customer(env, barista, rng):
-    with barista.request() as req:            # join the queue
-        yield req                              # wait for the barista
-        yield env.timeout(rng.uniform(2, 5))   # make the drink
-
-def arrivals(env, barista, rng):
-    while True:
-        yield env.timeout(rng.exponential(4))  # next customer arrives
-        env.process(customer(env, barista, rng))
-
-env = simpy.Environment()
-barista = simpy.Resource(env, capacity=1)
-env.process(arrivals(env, barista, np.random.default_rng(1)))
-env.run(until=480)                             # an 8-hour shift
-```
-
-The other libraries in the deck's toolkit are NumPy (random sampling, vectorized maths), SciPy (statistical distributions, optimization), pandas (analysing outputs) and Matplotlib (visualizing results).
-
-<a id="limitations-of-simulation"></a>
-
-### Limitations of simulation
-
-_Concept_
-
-Four from the slides: the **simplification vs accuracy** trade-off (too simple misses nuance, too complex is impractical); **computational constraints** (high-fidelity models need significant power and time); **expertise** (you need both subject knowledge and modelling skill); and **data quality** (limited or biased data forces assumptions). **Garbage in, garbage out:** the coffee shop result depends entirely on the assumed arrival and service times. And even with perfect data there's **structural uncertainty**: the model's choice of rules and feedbacks may itself be wrong.
-
-<a id="verification-and-validation"></a>
-
-### Verification and validation
-
-_Concept_
-
-**Verification:** "did we build the model right?" (the code does what we intended; no bugs). **Validation:** "did we build the right model?" (it matches reality). The deck's three validation steps: **real-world testing** against what actually happened and against benchmarks; **sensitivity and uncertainty analysis**; and **peer review** by experts to catch problems and build trust.
-
-See also: [Sensitivity analysis](#sensitivity-analysis)
-
-<a id="sensitivity-analysis"></a>
-
-### Sensitivity analysis
-
-_Concept_
-
-Changing one input at a time and watching how much the output moves. Inputs with a big effect deserve the most careful estimates; if results barely change across plausible values, the conclusion is robust. Changing the coffee shop's arrival gap from 4 to 3 minutes (and seeing the average wait jump from 11 to 57 minutes) is a sensitivity analysis; so is re-running the ROI with only 75% of the savings realised.
-
-See also: [Risk-adjusted ROI](#risk-adjusted-roi)
-
-<a id="s28-decision-trees"></a>
-
-## 28. Decision trees
-
-_A flowchart learned from data. How the CART algorithm chooses splits using Gini impurity, how to stop a tree from memorizing the training data, and how to read and visualize one. Examples use the cleaned Titanic data (`titanic_clean.csv`)._
-
-**In your capstone:** A single tree is a transparent baseline and a good way to explain rules to stakeholders. Control its depth to avoid overfitting.
-
-<a id="decision-tree"></a>
-
-### Decision tree
-
-_Concept_
-
-A model shaped like a flowchart that ends in a decision; each split represents a condition being true or false ("age < 34?", "has degree?"). For linear models an algorithm learns β; for trees it learns **where the splits occur**. Works for classification and regression, and is white-box.
-
-The learned "parameters" of a tree are which feature to split on at each node, the threshold, and the prediction at each leaf. A 0/1 feature is split as `has_degree < 0.5`. The same prediction can appear at several leaves via different paths. Trees will happily split on irrelevant features (the slides' left-handedness example) if they happen to fit the training data: a route to overfitting.
-
-> **Watch out:** Don't confuse the two kinds of tree: one that predicts a category (Candidate A or B) is a **classification** tree; a regression tree predicts a number at each leaf.
-
-<a id="root-node-internal-node-leaf-and-branch"></a>
-
-### Root node, internal node, leaf and branch
-
-_Concept_
-
-The **root node** is the first split at the top. **Internal nodes** are later splits. **Leaves** (terminal nodes) hold the final predictions. **Branches** are the paths between them. **Depth** is the number of split levels from root to the deepest leaf.
-
-<a id="cart-algorithm"></a>
-
-### CART algorithm
-
-_Concept_
-
-**C**lassification **A**nd **R**egression **T**rees, the standard way to fit a tree: (1) for each variable, find the best split value according to a splitting criterion; (2) split the data at the best split overall; (3) repeat on each new subset until a stopping criterion is met; (4) optionally prune (not done by default).
-
-CART (Breiman, Friedman, Olshen and Stone, 1984) builds **binary** trees: every split has exactly two branches. In step 1, the algorithm tries every feature and every possible threshold between its sorted values, scores each candidate split, and keeps the best. On the breast cancer data an unrestricted tree reaches depth 7 with 18 leaves and **100% training accuracy**, but 92.3% on test data.
-
-<a id="greedy-algorithm"></a>
-
-### Greedy algorithm
-
-_Concept_
-
-An algorithm that makes the best choice at each step without looking ahead. CART is greedy: it picks the best split now even if a worse split now would allow a much better tree later. Usually fine, but not guaranteed optimal.
-
-<a id="splitting-criterion"></a>
-
-### Splitting criterion
-
-_Concept_
-
-The loss a split is chosen to reduce. For **regression trees**: the MSE. For **classification trees**: Gini impurity by default (entropy is an alternative). The tree tries every possible split and keeps the one that reduces the loss most.
-
-**Why not accuracy?** A useful split often leaves both children predicting the majority class, so accuracy doesn't change and can't tell good splits from useless ones. Gini can. In the phone example, the age split predicts Android on both sides, yet still slightly lowers Gini. Before any split, the node predicts the majority class (Android): 15/25 = 60% accuracy, the null model. For regression trees, `criterion="squared_error"`, and each leaf predicts the mean of its points.
-
-<a id="gini-impurity"></a>
-
-### Gini impurity
-
-_Concept_
-
-How mixed the classes in a node are: **Gini = 1 − Σ pᵢ²**, where pᵢ is the proportion of class i. **0**: pure node (one class). **0.5**: maximum for two classes, a 50/50 split. With 10 iPhone and 15 Android buyers: 1 − (0.4² + 0.6²) = 0.48. Lower Gini means a purer node.
-
-```python
-def gini(counts):
-    p = np.array(counts) / sum(counts)
-    return 1 - np.sum(p ** 2)
-
-gini([10, 15])          # 0.48
-```
-
-Intuition: Gini is the probability that two points drawn at random (with replacement) from the node belong to **different** classes. With k equally common classes the maximum is **1 − 1/k**: 0.5 for two classes, 0.67 for three.
-
-Another worked example: a node with 8 rainy and 2 dry days has Gini 1 − (0.8² + 0.2²) = **0.32**. scikit-learn's feature importance is built from these impurity reductions.
-
-<a id="evaluating-a-split-with-gini"></a>
-
-### Evaluating a split with Gini
-
-_Concept_
-
-Compute the Gini of each child node, then take the average **weighted by the number of observations** in each. The split with the lowest weighted Gini wins. Splitting the phone buyers by gender (males 2 iPhone/12 Android, females 8/3) beats splitting by age (≤30: 4/8, 31+: 6/7), so the tree splits on gender first.
-
-```python
-w_gender = 14/25 * gini([2, 12]) + 11/25 * gini([8, 3])   # ≈ 0.31
-w_age = 12/25 * gini([4, 8]) + 13/25 * gini([6, 7])       # ≈ 0.47
-```
-
-<a id="entropy-and-cross-entropy"></a>
-
-### Entropy and cross-entropy
-
-_Concept_
-
-An alternative impurity measure, −Σ pᵢ log pᵢ (`criterion="entropy"`). In practice Gini and entropy almost always choose the same or very similar splits; Gini is scikit-learn's default mainly because it's slightly cheaper to compute (no logarithms).
-
-> **Watch out:** You'll sometimes see Gini's "differentiability" given as its advantage. Trees aren't fitted with gradients, so that doesn't matter here; the choice between Gini and entropy rarely changes the tree.
-
-<a id="stopping-criteria"></a>
-
-### Stopping criteria
-
-_Concept, scikit-learn_
-
-By default a tree keeps splitting until every leaf is pure, which is the perfectly overfit model. Any stopping rule acts as regularization, and each is a tuning parameter:
-
-- **`max_depth`**: levels allowed.
-- **`min_samples_split`**: minimum rows a node needs before it may split (default 2).
-- **`min_samples_leaf`**: minimum rows each resulting leaf must have (default 1: alarm bells).
-- **`min_impurity_decrease`**: the minimum reduction in impurity a split must achieve.
-- `max_leaf_nodes` and `ccp_alpha` (pruning).
-
-`min_samples_split` and `min_samples_leaf` differ: with `min_samples_split=10`, a node of 12 can still split into 11 and 1; with `min_samples_leaf=5` that split isn't allowed. `min_samples_leaf` directly prevents tiny, noisy leaves, so tune both.
-
-```python
-params = {"max_depth": [2, 3, 4, 5, None], "min_samples_split": [2, 10, 20],
-          "min_samples_leaf": [1, 5, 10]}
-gs = GridSearchCV(DecisionTreeClassifier(random_state=42), params, cv=5).fit(X_tr, y_tr)
-gs.best_params_, gs.best_score_          # breast cancer: min_samples_split=10, CV 0.934
-```
-
-<a id="ccp-alpha-cost-complexity-pruning"></a>
-
-### ccp_alpha (cost-complexity pruning)
-
-_scikit-learn_
-
-A complexity penalty like α in regularization: grow the tree, then prune back branches that don't improve the fit enough to justify their complexity. Larger `ccp_alpha` = smaller tree. Default 0 (no pruning).
-
-<a id="decisiontreeclassifier-and-decisiontreeregressor"></a>
-
-### DecisionTreeClassifier and DecisionTreeRegressor
-
-_scikit-learn_
-
-scikit-learn's tree models. No scaling or polynomial terms needed.
-
-```python
-from sklearn.tree import DecisionTreeClassifier
-
-X = pd.get_dummies(titanic.drop(columns=["PassengerId", "Name", "Survived"]),
-                   columns=["Pclass", "Sex", "Embarked"], drop_first=True)
-y = titanic["Survived"]
-tree = DecisionTreeClassifier(max_depth=4, min_samples_split=5)
-tree.fit(X, y)
-pd.DataFrame({"feature": X.columns, "importance": tree.feature_importances_}) \
-  .sort_values("importance", ascending=False)
-```
-
-<a id="tuning-tree-depth"></a>
-
-### Tuning tree depth
-
-_scikit-learn_
-
-Loop over depths and compare scores. **Training** accuracy always rises with depth, so make the decision using test or cross-validated scores.
-
-```python
-depths = range(1, 30)
-cv_scores = [cross_val_score(DecisionTreeClassifier(max_depth=d), X, y, cv=5).mean()
-             for d in depths]
-plt.plot(depths, cv_scores)
-```
-
-> **Watch out:** Scoring each depth on the **training** data only shows overfitting increasing; always compare depths on cross-validated or test scores.
-
-<a id="export-text"></a>
-
-### export_text()
-
-_scikit-learn_
-
-Prints a fitted tree as indented plain-text rules, handy when plotting isn't practical.
-
-```python
-from sklearn.tree import export_text
-print(export_text(tree, feature_names=list(X.columns)))
-```
-
-<a id="partitioning-the-feature-space"></a>
-
-### Partitioning the feature space
-
-_Concept_
-
-Another way to picture a tree: each split draws an axis-parallel line, dividing the feature space into rectangles, each with one prediction. For regression it looks like a 3D staircase. This is why trees can't draw smooth diagonal boundaries.
-
-Each split draws a line parallel to an axis ("age < 34" is a vertical line). A consequence of the staircase shape: trees produce **step-shaped** predictions and **can't extrapolate** beyond the range of their training data.
-
-<a id="decision-tree-pros-and-cons"></a>
-
-### Decision tree pros and cons
-
-_Concept_
-
-**Pros:** white-box (easy to visualize and explain), non-parametric, scale of features doesn't matter (no scaling needed: trees only compare values to thresholds), fast, little feature engineering (interactions are built in), handle categorical features naturally. **Cons:** overfit easily without stopping rules; **unstable** (a small change in the data can produce a very different tree); step-shaped predictions that can't extrapolate; biased towards the majority class with imbalanced data (use `class_weight="balanced"`); greedy. Random forests and gradient boosting fix most of the cons, at some cost to interpretability.
-
----
-
-<a id="s29-ensembles-bagging-and-random-forests"></a>
-
-## 29. Ensembles: bagging and random forests
-
-_Combining many models into one stronger one. Bootstrapping, bagging decision trees to cut their variance, estimating error with out-of-bag samples, and random forests' extra trick of decorrelating the trees. Examples use the ISLR heart disease data (`Heart.csv`)._
-
-**In your capstone:** Random forests are a strong, low-effort default for tabular data. Use cross-validated or OOB scores and permutation importance.
-
-<a id="ensemble-model"></a>
-
-### Ensemble model
-
-_Concept_
-
-A model that combines the predictions of many (often weaker) models into one. It's an actual statistical fact that aggregating many "ok" models beats relying on one. Ensembling mainly reduces variance, which makes overfit decision trees a prime candidate. Three main methods: **bagging**, **boosting** and **stacking**.
-
-Single trees are interpretable but high-variance; linear models are stable but often too simple (high bias). Ensembles trade some interpretability for much better accuracy. It works when the individual models make **different** mistakes that partly cancel out.
-
-<a id="wisdom-of-the-crowd"></a>
-
-### Wisdom of the crowd
-
-_Concept_
-
-"Individuals are dumb, but crowds are smart." In NPR Planet Money's 2015 experiment, over 17,000 people guessed Penelope the cow's weight online, and the **average** guess was within a few percent of the truth, closer than most individual guesses. Averaging cancels individual errors, and the spread of an average shrinks as more guesses are added.
-
-The condition that matters: the crowd must make **fairly independent** errors. If everyone copies one person, averaging doesn't help. Correlated trees are bagging's main weakness, and the reason random forests exist.
-
-> **Watch out:** It's tempting to think averaging improves any set of models. Averaging mainly reduces **variance**; averaging high-bias models leaves most of their bias in place. Reducing bias is boosting's job.
-
-<a id="bootstrap-sample"></a>
-
-### Bootstrap sample
-
-_Concept, NumPy_
-
-A random sample **with replacement**, the same size as the original data. Some rows appear several times and some (about 37%) not at all.
-
-```python
-idx = np.random.choice(len(df), size=len(df), replace=True)
-boot = df.iloc[idx]
-```
-
-On average a bootstrap sample contains about 63% of the distinct rows; about **36.8% (1/e)** are left out. Those left-out rows are the **out-of-bag** observations. In the deck's 9-row example, rows 1, 4, 6 and 9 weren't picked (4 of 9).
-
-```python
-rng = np.random.default_rng(0)
-idx = rng.choice(n, size=n, replace=True)
-1 - len(np.unique(idx)) / n          # ≈ 0.368 for large n
-```
-
-<a id="bootstrapping"></a>
-
-### Bootstrapping
-
-_Concept, NumPy_
-
-A resampling method that estimates the sampling distribution of a statistic (a mean, median, coefficient…) by recomputing it on many bootstrap samples. The notebook estimates the distribution of the median cholesterol level.
-
-```python
-chol = df["Chol"]
-boot_medians = [np.median(np.random.choice(chol, size=len(chol), replace=True))
-                for _ in range(500)]
-plt.hist(boot_medians, bins=20)
-```
-
-<a id="bagging-bootstrap-aggregating"></a>
-
-### Bagging (bootstrap aggregating)
-
-_Concept_
-
-Draw a bootstrap sample, fit a model (usually a deep, deliberately overfit decision tree: low bias, high variance) to it, and repeat B times (often 100–500). Predict with the **mean** of the B predictions (regression) or the **majority vote** (classification). Averaging unbiased, high-variance models gives an unbiased model with lower variance. More trees never hurt accuracy, only training time, and because the models are independent they can be trained in parallel (`n_jobs=-1`). scikit-learn's classifiers actually average the predicted **probabilities** across trees ("soft voting"), which usually matches the majority vote.
-
-Why correlation limits it: if B trees each have variance σ² and pairwise correlation ρ, their average has variance **ρσ² + (1 − ρ)σ²/B**. More trees shrink the second term, but the first term never goes away. Random forests attack ρ.
-
-On the Heart data: a single tree memorizes the training data (100%) but scores 0.720 on test; 500 bagged trees score 0.813 (CV 0.766). Same model type, much less variance.
-
-<a id="baggingclassifier"></a>
-
-### BaggingClassifier
-
-_scikit-learn_
-
-scikit-learn's bagging ensemble. `estimator` is the base model and `n_estimators` the number of bootstrap models. It can be grid-searched, including the base tree's own settings.
-
-```python
-from sklearn.ensemble import BaggingClassifier
-
-bag = BaggingClassifier(estimator=DecisionTreeClassifier(), n_estimators=100,
-                        random_state=2022)
-bag.fit(X_train, y_train)
-bag.score(X_test, y_test)
-
-pgrid = {"estimator__max_depth": [1, 2, 3, 4, None],
-         "estimator__min_samples_leaf": [1, 3, 5, 7]}
-gs = GridSearchCV(bag, pgrid, cv=5, n_jobs=4)
-```
-
-> **Watch out:** Older code uses `base_estimator=`; scikit-learn 1.2 renamed it `estimator` and 1.4 removed the old name, so check the documentation if older examples fail.
-
-<a id="out-of-bag-oob-observations-and-error"></a>
-
-### Out-of-bag (OOB) observations and error
-
-_Concept, scikit-learn_
-
-The rows a tree didn't see in its bootstrap sample are **out-of-bag** for that tree. Predict each row using only the trees for which it was out-of-bag, then compare with the truth: the OOB score is an estimate of out-of-sample performance without a train-test split or cross-validation.
-
-```python
-bag = BaggingClassifier(estimator=DecisionTreeClassifier(max_depth=4),
-                        n_estimators=100, oob_score=True, random_state=2022)
-bag.fit(X, y)
-bag.oob_score_
-```
-
-`oob_score_` is accuracy for classifiers and R² for regressors. Set `oob_score=True` **before** fitting (it requires `bootstrap=True`, the default). On the Heart data, the random forest's OOB accuracy (0.788) almost matches its 5-fold CV accuracy (0.784), at no extra cost; the test score (0.840) differs because the test set has only 75 patients.
-
-<a id="feature-importance-in-ensembles"></a>
-
-### Feature importance in ensembles
-
-_Concept, NumPy_
-
-Bagging gains accuracy but loses the single readable tree. You can still summarize importance: the total decrease in Gini (classification) or MSE (regression) from splits on each feature, averaged over all the trees. Random forests provide it directly as `feature_importances_`.
-
-```python
-importances = np.mean([t.feature_importances_ for t in bag.estimators_], axis=0)
-```
-
-On the Heart random forest the top five are fairly even: Oldpeak 0.113, MaxHR 0.107, Ca 0.106, Age 0.101, Thal_normal 0.097.
-
-> **Watch out:** Forest importances are more stable than a single tree's but still **biased** towards continuous and high-cardinality features, and computed on training data. `permutation_importance` on test data is more reliable.
-
-See also: [Permutation importance](#permutation-importance)
-
-<a id="random-forest"></a>
-
-### Random forest
-
-_Concept_
-
-Bagged decision trees plus one more source of randomness: **at each split, only a fresh random subset of m features is considered**. If one feature is very strong, plain bagging would put it at the top of every tree, so the trees would be near-copies; random forests **decorrelate** the trees so that averaging reduces variance more. A side effect: weaker features get a chance to be used, so the forest explores more patterns. When m = p (all features) it's ordinary bagging. Leo Breiman introduced the method in 2001.
-
-> **Watch out:** It's easy to describe random forests as giving each tree its own feature subset. It's a new random subset at **each split**; Choosing one subset per tree is a different technique (the "random subspace" method).
-
-<a id="max-features"></a>
-
-### max_features
-
-_scikit-learn_
-
-How many features each split may consider (m). The original recommendations are **√p for classification** and **p/3 for regression**; _The Elements of Statistical Learning_ suggests treating it as a tuning parameter. With 16 features, √16 = 4 per split.
-
-> **Watch out:** scikit-learn's defaults don't all follow the recommendation. `RandomForestClassifier` uses `max_features="sqrt"`, but `RandomForestRegressor` defaults to `max_features=1.0` (all features), which makes it **plain bagging** unless you change it. The default number of trees is 100 (it was 10 before scikit-learn 0.22); 500 is a common choice.
-
-<a id="randomforestclassifier-and-randomforestregressor"></a>
-
-### RandomForestClassifier and RandomForestRegressor
-
-_scikit-learn_
-
-```python
-from sklearn.ensemble import RandomForestClassifier
-
-rf = RandomForestClassifier(n_estimators=150, max_features=4,
-                            oob_score=True, random_state=1)
-rf.fit(X, y)
-rf.oob_score_
-pd.DataFrame({"feature": X.columns, "importance": rf.feature_importances_}) \
-  .sort_values("importance", ascending=False)
-cross_val_score(rf, X, y, cv=10).mean()
-```
-
-The course comparison on the Heart data (297 patients, null accuracy 0.533):
-
-| Model                     | Train | CV    | OOB   | Test  |
-| ------------------------- | ----- | ----- | ----- | ----- |
-| Single tree               | 1.000 | 0.730 |       | 0.720 |
-| 500 bagged trees          | 1.000 | 0.766 | 0.752 | 0.813 |
-| Random forest (500 trees) | 1.000 | 0.784 | 0.788 | 0.840 |
-
-Decorrelating the trees helped on every measure. Tune `max_features`, `min_samples_leaf` and `n_estimators` with `GridSearchCV`; `max_features=16` (all features) reproduces bagging.
-
-<a id="random-forest-pros-and-cons"></a>
-
-### Random forest pros and cons
-
-_Concept_
-
-**Pros:** performance competitive with the best supervised methods; little tuning needed; no scaling; handles non-linearity and interactions; robust to outliers; OOB error for free (though you still need a test set when tuning); feature importances that are more stable than a single tree's. **Cons:** less interpretable (black box), slower to train and to predict. One-line summary: bagging averages away variance; random forests make the trees different enough for averaging to work even better.
-
-<a id="parallelizable"></a>
-
-### Parallelizable
-
-_Concept_
-
-The trees in bagging and random forests are independent, so they can be trained simultaneously on several cores or machines (`n_jobs=-1`). Boosting can't do this because each model depends on the last.
-
-<a id="stacking"></a>
-
-### Stacking
-
-_Concept_
-
-Ensembling models of **any** kind together (linear regression, Lasso, a tree, a neural net…), then combining their predictions, either by voting/averaging or with a final model that learns how to weight them (`StackingClassifier`).
-
-In scikit-learn: `StackingClassifier` / `StackingRegressor`. Common in competitions; less common in production because of the added complexity.
-
-<a id="votingclassifier"></a>
-
-### VotingClassifier
-
-_scikit-learn_
-
-Combines different classifiers by majority vote (`voting="hard"`, default) or by averaging probabilities (`voting="soft"`).
-
-```python
-from sklearn.ensemble import VotingClassifier
-
-vc = VotingClassifier([
-    ("lr", LogisticRegression(max_iter=1000)),
-    ("knn", KNeighborsClassifier(n_neighbors=7)),
-    ("tree", DecisionTreeClassifier(max_depth=4, min_samples_leaf=7)),
-])
-vc.fit(X_train, y_train)
-vc.score(X_test, y_test)
-```
-
-<a id="which-model-is-best"></a>
-
-### Which model is best?
-
-_Concept_
-
-It depends on the task. In many business cases interpretability matters more than accuracy, so a decision tree or logistic regression may be preferred over an ensemble. Every model is a trade-off between bias and variance: ensembles reduce overfitting by lowering variance, at the cost of some bias and most of the interpretability.
-
----
-
-<a id="s30-ensembles-boosting"></a>
-
-## 30. Ensembles: boosting
-
-_The opposite strategy to bagging: chain weak, high-bias models together so each one fixes the previous one's mistakes. AdaBoost (built from scratch and in scikit-learn), gradient boosting and XGBoost. Examples use the spam detection data (`spam.csv`) and `make_moons`._
-
-**In your capstone:** Gradient boosting often gives the best accuracy on tabular data. Tune the learning rate, number of trees and depth with cross-validation, and compare it with a random forest.
-
-<a id="boosting"></a>
-
-### Boosting
-
-_Concept_
-
-An ensemble method that fits models **sequentially**, each one paying more attention to the parts of the data the previous ones got wrong. It takes **weak learners** and successively boosts them to **reduce bias**, just as a tutor focuses on the fractions a friend keeps getting wrong rather than the multiplication they already know.
-
-Bagging starts from low-bias, high-variance models and lowers the variance; boosting starts from high-bias, low-variance models and lowers the bias. Both aim for the sweet spot of the bias–variance curve from opposite ends. Boosting can overshoot into **overfitting** if run too long (too many trees, too high a learning rate). Gradient-boosted trees are often the most accurate models for tabular data.
-
-<a id="weak-learner"></a>
-
-### Weak learner
-
-_Concept_
-
-A model only a little better than random guessing: underfit, high-bias. Trees score well on almost everything practical (mixed feature types, missing values, outliers, irrelevant inputs, speed) except predictive power, and boosting fixes exactly that weakness. **AdaBoost** typically uses one-split **stumps** (scikit-learn's default); **gradient boosting** usually uses small trees (scikit-learn default `max_depth=3`, XGBoost default 6), which can capture interactions between features.
-
-<a id="decision-stump"></a>
-
-### Decision stump
-
-_Concept, scikit-learn_
-
-A decision tree with **a single split** (`max_depth=1`). The classic weak learner for AdaBoost. On the spam data, one stump alone is a weak classifier; a hundred boosted stumps are a strong one.
-
-```python
-stump = DecisionTreeClassifier(max_depth=1)
-```
-
-<a id="bagging-vs-boosting"></a>
-
-### Bagging vs boosting
-
-_Concept_
-
-|                              | Bagging / random forest | Boosting                                             |
-| ---------------------------- | ----------------------- | ---------------------------------------------------- |
-| Learners                     | Independent (parallel)  | Sequential                                           |
-| Goal                         | Reduce **variance**     | Reduce **bias**                                      |
-| Typical learner              | Deep, overfit trees     | Stumps (AdaBoost) or small trees (gradient boosting) |
-| Overfitting with more models | No (only slower)        | Yes, if run too long                                 |
-
-One-line summary: bagging averages independent overfit trees; boosting adds sequential underfit trees, each fixing the last one's errors.
-
-<a id="adaboost"></a>
-
-### AdaBoost
-
-_Concept_
-
-**Ada**ptive **Boost**ing. Start with equal weights on every observation. Repeat: fit a weak learner on the weighted data; compute its weighted error rate εₘ; give the learner a say in the final vote of **αₘ = ½ ln((1 − εₘ)/εₘ)**; then **increase the weights of the misclassified points** and decrease the rest. The final prediction is the sign of the weighted vote: sign(Σ αₘ Gₘ(x)). For the maths, y is coded as −1/1 instead of 0/1.
-
-AdaBoost was introduced by Freund and Schapire (1997). Reading αₘ: if err = 0.5 (guessing), α = 0 (no say); if err = 0.1, α = ½ ln 9 ≈ 1.1, and misclassified points end up weighted 9 times as heavily as correct ones relative to before. The AdaBoost.M1 version (as in _The Elements of Statistical Learning_) writes α = ln((1 − err)/err) (≈ 2.2 here) and multiplies only the misclassified weights by e^α = 9; the two forms give the same relative weights. Each stump is one vertical or horizontal line, but their weighted combination draws a complex boundary.
-
-> **Watch out:** This α is unrelated to the regularization α or the gradient descent step size; scikit-learn's `learning_rate` scales it. AdaBoost is sensitive to **noisy labels**: it keeps up-weighting points it can't fit.
-
-<a id="observation-weights"></a>
-
-### Observation weights
-
-_Concept_
-
-In AdaBoost, a probability distribution Dₜ over the rows that says how much each one matters to the next learner. After each round: Dₜ₊₁(i) = Dₜ(i) · e^(−αₜ yᵢ hₜ(xᵢ)), then normalize to sum to 1. Correctly classified rows (yᵢhₜ(xᵢ) = +1) shrink; misclassified rows (−1) grow.
-
-<a id="adaboost-from-scratch"></a>
-
-### AdaBoost from scratch
-
-_NumPy, scikit-learn_
-
-The code-along builds AdaBoost from four small functions: a weighted vote, the learner weight, the weight update and weighted resampling.
-
-```python
-def calculate_alpha(y_true, predictions):
-    error_rate = 1. - np.mean(y_true == predictions)
-    return 0.5 * np.log((1. - error_rate) / error_rate)
-
-def update_importance_weights(X, y_true, D, alpha, estimator):
-    y_signed = np.where(y_true == 1, 1, -1)
-    yhat_signed = np.where(estimator.predict(X) == 1, 1, -1)
-    D = D * np.exp(-alpha * y_signed * yhat_signed)
-    return D / D.sum()
-
-def sample_with_weights(X, y, D):
-    idx = np.random.choice(np.arange(len(y)), size=len(y), replace=True, p=D)
-    return X[idx], y[idx]
-
-D = np.ones(len(y)) / len(y)
-estimators, alphas = [], []
-for _ in range(10):
-    Xb, yb = sample_with_weights(X, y, D)
-    tree = DecisionTreeClassifier(max_depth=2).fit(Xb, yb)
-    alpha = calculate_alpha(y, tree.predict(X))
-    D = update_importance_weights(X, y, D, alpha, tree)
-    estimators.append(tree); alphas.append(alpha)
-```
-
-<a id="signum-and-indicator-functions"></a>
-
-### Signum and indicator functions
-
-_Concept, NumPy_
-
-Notation used in boosting and SVM maths. **sign(x)** is 1 if x is positive and −1 if negative (`np.sign`). The **indicator** I(A) is 1 if A is true and 0 otherwise, so the mean of an indicator is a proportion: `np.mean(y == y_hat)` is accuracy.
-
-<a id="adaboostclassifier"></a>
-
-### AdaBoostClassifier
-
-_scikit-learn_
-
-scikit-learn's AdaBoost (it implements the SAMME variant, very similar to the AdaBoost.M1 in the slides). Key hyperparameters: `estimator` (default a stump), `n_estimators` (number of rounds) and `learning_rate` (shrinks each learner's contribution).
-
-```python
-from sklearn.ensemble import AdaBoostClassifier
-
-ada = AdaBoostClassifier(estimator=DecisionTreeClassifier(max_depth=1),
-                         n_estimators=100, learning_rate=1)
-ada.fit(X_train, y_train)
-ada.score(X_train, y_train), ada.score(X_test, y_test)
-```
-
-On the Spambase data (4,601 emails, 57 word- and character-frequency features, 39.4% spam), 200 default stumps reach training 0.948 and test **0.933**: a small train–test gap, because boosting stumps doesn't overfit quickly.
-
-<a id="learning-rate-and-n-estimators"></a>
-
-### learning_rate and n_estimators
-
-_scikit-learn_
-
-`n_estimators` is the number of boosting rounds; more rounds lower bias but can eventually overfit. `learning_rate` scales how much each new model contributes; smaller values learn more slowly and usually need more rounds. They trade off against each other; "if you train for long enough, the learning rate won't matter" much.
-
-<a id="gradient-boosting"></a>
-
-### Gradient boosting
-
-_Concept_
-
-Instead of reweighting observations, each new tree is fitted to the **residuals** of the current ensemble (all of them; big residuals simply have more influence), and a small step of that tree is added on. Precisely, each tree fits the **negative gradient** of the loss (the "pseudo-residuals"); for squared error those are exactly y − ŷ, and for classification the loss ("deviance") is log loss. Each update is multiplied by a small **learning rate** (shrinkage, e.g. 0.1), so many small steps are taken, which reduces overfitting. It's gradient descent, but each step adds a tree instead of changing a coefficient. Introduced by Jerome Friedman (2001); unlike AdaBoost, you can choose the loss.
-
-Analogy: golf. The first shot gets you near the hole; each following putt corrects the remaining distance. Each tree is a putt.
-
-> **Watch out:** Each tree fits the **negative** gradient, the direction that reduces the loss; it's easy to drop the minus sign.
-
-<a id="gradientboostingclassifier"></a>
-
-### GradientBoostingClassifier
-
-_scikit-learn_
-
-scikit-learn's gradient boosting (`GradientBoostingRegressor` for regression). Defaults: 100 trees of depth 3, learning rate 0.1. Strong out of the box.
-
-```python
-from sklearn.ensemble import GradientBoostingClassifier
-
-gb = GradientBoostingClassifier(random_state=222)
-pgrid = {"learning_rate": [0.1, 1], "n_estimators": [10, 100], "max_depth": [1, 2, 3]}
-gs = GridSearchCV(gb, pgrid, cv=5, n_jobs=6).fit(X_train, y_train)
-gs.best_params_
-```
-
-Key hyperparameters: `n_estimators`, `learning_rate`, `max_depth`, and `subsample` (below 1.0 gives stochastic gradient boosting). Smaller learning rates need more trees but usually generalize better. On the spam data, 100 depth-3 trees (the defaults) score 0.968 train / **0.946** test, beating 200 stumps: slightly bigger trees capture interactions between words. scikit-learn's `HistGradientBoostingClassifier` is a much faster version that handles missing values natively.
-
-<a id="xgboost"></a>
-
-### XGBoost
-
-_Concept, xgboost_
-
-e**X**treme **G**radient **Boost**ing (Chen and Guestrin, 2016): gradient boosting with built-in **regularization** (penalties on tree complexity and leaf weights), second-order (Newton-style) optimization, efficient handling of sparse and missing data, and speed. It isn't part of scikit-learn but provides a scikit-learn-compatible API, so it works with pipelines and `GridSearchCV`. Alternatives with similar performance: LightGBM, CatBoost and scikit-learn's `HistGradientBoostingClassifier`.
-
-```python
-# pip install xgboost
-from xgboost import XGBClassifier
-
-X.columns = X.columns.str.replace("[", "lbracket", regex=False)   # see Watch out
-xgb = XGBClassifier(n_estimators=300, learning_rate=0.1, max_depth=4, random_state=42, n_jobs=-1)
-xgb.fit(X_train, y_train)
-xgb.score(X_test, y_test)                                          # spam: 0.952
-pd.Series(xgb.feature_importances_, index=X.columns).nlargest(3)
-# char_freq_$ 0.242, word_freq_remove 0.115, char_freq_! 0.099
-```
-
-**Controlling overfitting:** lower `learning_rate` (eta), smaller `max_depth`, `subsample` and `colsample_bytree` below 1, regularization (`reg_lambda`, `reg_alpha`), and early stopping on a validation set.
-
-> **Watch out:** XGBoost rejects feature names containing `[`, `]` or `<` (the spam data's `char_freq_[` raises an error), so rename columns first. It's efficient **for a boosting library** and scales to massive data, but it's still slower than a linear model or a single tree, especially when heavily tuned.
-
-<a id="catboost"></a>
-
-### CatBoost
-
-_Concept_
-
-Another gradient boosting library, suggested as a next step. Its strength is native support for categorical features, so there's no need to one-hot encode them.
-
-<a id="boosting-pros-and-cons"></a>
-
-### Boosting pros and cons
-
-_Concept_
-
-**Pros:** top-tier performance and all the benefits of tree-based models. **Cons:** harder to tune (many hyperparameters), slower to train, can overfit if run too long, sensitive to noisy labels, and the highest computational cost in the course. Interpretation isn't totally gone: feature importance, partial dependence plots and SHAP all work on boosted trees.
-
-> **Watch out:** "Can boosting be parallelized?" has a two-part answer: boosting **rounds** must run in sequence, but XGBoost, LightGBM and `HistGradientBoosting` parallelize the work **within** each tree.
-
-See also: [Model explainability](#model-explainability)
-
-<a id="comparing-adaboost-gradient-boosting-and-xgboost"></a>
-
-### Comparing AdaBoost, gradient boosting and XGBoost
-
-_Concept_
-
-**AdaBoost** reweights the observations the previous model got wrong. **Gradient boosting** fits each new model to the previous model's residuals. **XGBoost** is gradient boosting optimized for large data with missing values.
-
-Spam test accuracy (null 0.606): AdaBoost 0.933; gradient boosting 0.946; XGBoost 0.952; **random forest 0.953**. Boosting isn't always the winner: here a random forest ties it. Always compare against simpler baselines. Why not always boost? Simpler models are often good enough, and easier to tune, explain and maintain.
-
-<a id="make-moons"></a>
-
-### make_moons()
-
-_scikit-learn_
-
-Generates two interleaving half-circles: a toy dataset that a straight line can't separate, used to visualize boosting rounds.
-
-```python
-from sklearn.datasets import make_moons
-X, y = make_moons(n_samples=300, noise=0.5, random_state=42)
-```
-
----
-
-<a id="s31-support-vector-machines"></a>
-
-## 31. Support vector machines
-
-_Classifiers that find the widest possible gap between classes, then bend that gap with kernels. Maximal margin, soft margin and kernel SVMs, and the hyperparameters C and kernel. Examples use the wine data (red vs white) and the MNIST handwritten digits._
-
-**In your capstone:** Use SVMs when accuracy matters more than interpretability on scaled, medium-sized data.
-
-<a id="support-vector-machine-svm"></a>
-
-### Support vector machine (SVM)
-
-_Concept_
-
-A classification model (support vector regressors exist but are rarely used) that separates classes with the boundary that leaves the **widest margin** around it. Part of a wider family called **discriminant models**. Exceptional performance and works in high dimensions, but a black box, and data must be scaled.
-
-<a id="separating-hyperplane"></a>
-
-### Separating hyperplane
-
-_Concept_
-
-The boundary an SVM draws between classes: a line in 2D, a plane in 3D, a hyperplane in higher dimensions. Also called the **linear discriminant** or **decision boundary**. It is **not** the support vector.
-
-<a id="maximal-margin-classifier"></a>
-
-### Maximal margin classifier
-
-_Concept_
-
-SVM part I. Of all the lines that separate two perfectly separable classes, choose the one with the **maximal margin**: the widest empty space around it. Only possible when the classes can be separated perfectly, which never happens in real life.
-
-<a id="margin"></a>
-
-### Margin
-
-_Concept_
-
-The gap between the separating hyperplane and the nearest points on each side. Wider margins tend to generalize better.
-
-<a id="support-vectors"></a>
-
-### Support vectors
-
-_Concept_
-
-The points that lie exactly on the margin (or, in a soft-margin SVM, on the wrong side of it). They alone determine where the boundary sits. Important for how SVMs are fitted, but "not too relevant for us".
-
-<a id="soft-margin-classifier"></a>
-
-### Soft margin classifier
-
-_Concept_
-
-SVM part II. Real classes overlap, so allow some points to sit inside the margin or on the wrong side, measuring how far each one strays with a **slack variable** ξᵢ. The optimization balances a wide margin against the total slack.
-
-<a id="slack-variable"></a>
-
-### Slack variable
-
-_Concept_
-
-ξᵢ, the distance from a "wrong" point to its correct margin. Zero for points on the right side of their margin.
-
-<a id="c-svm"></a>
-
-### C (SVM)
-
-_scikit-learn_
-
-The SVM's regularization hyperparameter, controlling how much slack is tolerated. **Small C**: heavy regularization, a wider margin, more misclassified training points: more bias, less variance. **Large C**: little regularization, a near-perfect fit to the training data: less bias, more variance.
-
-```python
-pgrid = {"C": np.linspace(0.0001, 2, 10)}
-gcv = GridSearchCV(LinearSVC(max_iter=20000), pgrid, cv=cv).fit(X_sc, y)
-gcv.best_params_
-```
-
-See also: [C (inverse regularization strength)](#c-inverse-regularization-strength)
-
-<a id="optimization-problem-objective-and-constraints"></a>
-
-### Optimization problem: objective and constraints
-
-_Concept_
-
-Almost every ML model is fitted by optimizing a loss function. An optimization problem has an **objective function** to minimize or maximize and, optionally, **constraints** it must satisfy (unconstrained if there are none). OLS is unconstrained; Lasso can be written either way; SVMs are constrained ("maximize the margin subject to every point being on the right side").
-
-<a id="kernel"></a>
-
-### Kernel
-
-_Concept_
-
-Any function that takes two vectors and returns one number. The dot product is the **linear kernel**. Kernels let an SVM measure similarity in a transformed space where the classes become separable.
-
-<a id="kernel-trick"></a>
-
-### Kernel trick
-
-_Concept_
-
-Wherever a dot product between two vectors appears in an algorithm, replace it with a kernel. This bends the model by effectively mapping the data into a higher-dimensional space without ever computing that space. Adding polynomial features does something similar but one discrete term at a time; kernelizing "curves the very axes the model is fit upon".
-
-<a id="linear-polynomial-and-rbf-kernels"></a>
-
-### Linear, polynomial and RBF kernels
-
-_Concept, scikit-learn_
-
-**Linear**: does nothing; same as not kernelizing. **Polynomial**: adjust the degree d to add curvature (degree 2 works well for NLP data). **RBF (radial basis function)**: the most adjustable, so the most common; start with this. Which kernel? "As long as it's not linear, it matters surprisingly little" or, better, grid search it.
-
-```python
-SVC(kernel="linear"); SVC(kernel="poly", degree=2); SVC(kernel="rbf")
-```
-
-<a id="mercer-kernel"></a>
-
-### Mercer kernel
-
-_Concept_
-
-The mathematical condition a kernel must meet for the trick to work: there must be some mapping h with K(x, y) = h(x)·h(y). A 2nd-degree polynomial kernel maps n features to about n(n + 1)/2; the RBF kernel's h is **infinite-dimensional**, which is why regularization (C) is essential.
-
-<a id="gamma"></a>
-
-### gamma
-
-_scikit-learn_
-
-An RBF (and polynomial) kernel hyperparameter controlling how far one training point's influence reaches. High gamma = very local, wiggly boundaries (risk of overfitting). `gamma="scale"` is the sensible default.
-
-<a id="svc-and-linearsvc"></a>
-
-### SVC and LinearSVC
-
-_scikit-learn_
-
-`SVC` is the general kernel SVM. `LinearSVC` is a faster implementation for the linear kernel only, good for large datasets. Always scale first: SVMs use distances and regularization.
-
-```python
-from sklearn.svm import SVC, LinearSVC
-
-svc = SVC(C=100, kernel="rbf", gamma="scale")
-svc.fit(X_train, y_train)
-accuracy_score(y_test, svc.predict(X_test))
-```
-
-<a id="mnist-digits-load-digits"></a>
-
-### MNIST digits (load_digits)
-
-_scikit-learn_
-
-8×8 images of handwritten digits 0–9, each flattened into 64 pixel features. A multiclass problem where accuracy is a fair metric because every mistake is equally bad.
-
-```python
-from sklearn.datasets import load_digits
-
-digits = load_digits()
-X, y = digits.data, digits.target
-plt.imshow(digits.images[42], cmap=plt.cm.gray_r)
-```
-
-<a id="svm-pros-and-cons"></a>
-
-### SVM pros and cons
-
-_Concept_
-
-**Pros:** exceptional performance (historically widely used), effective with high-dimensional data, handle non-linear boundaries, fast on most datasets thanks to the kernel trick. **Cons:** complete black box, slow on very tall datasets, and must be scaled. Use them when predictive ability is all you care about.
-
----
-
-<a id="s32-gradient-descent-and-optimization"></a>
-
-## 32. Gradient descent and optimization
-
-_How models are actually fitted when there's no formula for the answer: walk downhill on the loss function. The algorithm, the learning rate, and what goes wrong. Examples fit a slope by hand to simulated soda sales._
-
-**In your capstone:** Explains what's happening when models fit, and why convergence warnings, scaling and learning rates matter.
-
-<a id="optimization"></a>
-
-### Optimization
-
-_Concept_
-
-Finding the minimum or maximum of an **objective function**, possibly subject to constraints. The calculus way is to set the derivative to zero and solve. With one notable exception (OLS), ML loss functions can't be solved that way, so we use iterative methods.
-
-Maximizing f is the same as minimizing −f, so ML usually talks only about minimizing. Everyday examples: the shortest route, the cheapest delivery schedule, the best coefficients for a model.
-
-<a id="derivative"></a>
-
-### Derivative
-
-_Concept_
-
-The slope of the tangent line to a function at a point. **Positive**: the function goes up to the right, so move left to go down. **Negative**: move right. **Zero**: a minimum, maximum or inflection point. For several parameters the vector of derivatives is the **gradient**.
-
-Example: f(x) = x² has derivative 2x, so at x = 3 the slope is 6. Setting the derivative to zero finds the flat spots: for f(x) = (x − 3)² + 1, f′(x) = 2(x − 3) = 0 gives the minimum at x = 3. But a zero derivative is necessary, not sufficient: f(x) = x³ is flat at x = 0 without a peak or valley (an inflection point).
-
-<a id="loss-function"></a>
-
-### Loss function
-
-_Concept_
-
-A function measuring the difference between y and ŷ, where **lower is better**; minimizing it means making predictions as close to the truth as possible, and the model's coefficients are the "position" being searched over. Examples: MSE (OLS), MSE + penalty (Ridge, Lasso), log loss (logistic regression), Gini/MSE (trees). Related words: **cost function** (often the average over all rows), **objective function** (whatever the algorithm optimizes).
-
-Why isn't accuracy used for **training**? It's a step function: nudging a coefficient slightly usually changes no predictions, so its gradient is zero almost everywhere and gives gradient descent nothing to follow. Log loss is smooth, so it works. For a positive case (y = 1) log loss is −log ŷ: small when ŷ is near 1, huge when ŷ is near 0, so confident wrong answers are punished hardest.
-
-<a id="closed-form-solution"></a>
-
-### Closed-form solution
-
-_Concept_
-
-An exact formula for the answer. OLS has one: β̂ = (XᵀX)⁻¹Xᵀy, and so does ridge regression. Lasso and logistic regression don't: lasso's |β| penalty has a sharp corner at zero (no derivative there, which is also why it produces exact zeros), and log loss has no algebraic minimum. Even OLS is sometimes solved iteratively on very large data, because inverting XᵀX gets expensive with many features.
-
-What libraries actually use: scikit-learn's `Lasso` uses **coordinate descent** (optimizing one coefficient at a time), and `LogisticRegression` defaults to **L-BFGS**, a quasi-Newton method; that's where `LogisticRegression`'s convergence warnings come from. Neural networks use gradient descent variants such as Adam.
-
-See also: [Quasi-Newton methods (BFGS, L-BFGS)](#quasi-newton-methods-bfgs-l-bfgs)
-
-<a id="gradient-descent"></a>
-
-### Gradient descent
-
-_Concept_
-
-"Goin' downhill." Start at a random point, compute the derivative there, take a step in the **opposite direction** of the gradient, and repeat until the steps become tiny:
-
-**new position = old position − α × gradient**
-
-Gradient descent is how most models with no closed-form solution are fitted, including neural networks.
-
-```python
-x, alpha = 1, 1
-for i in range(300):
-    x = x - alpha * f_deriv(x)
-```
-
-With several coefficients, the **gradient** is the vector of derivatives with respect to each one; it points in the direction of steepest increase, so moving against it is **steepest descent**. Because each move is α × slope, the steps shrink automatically as the curve flattens near the bottom, and a slight overshoot is fine: the slope on the other side points back. Stop when the step falls below a tolerance (e.g. 10⁻⁸), the loss stops improving, or `max_iter` is reached (scikit-learn then raises a ConvergenceWarning).
-
-Worked example: minimize f(x) = x² (f′(x) = 2x) from x₀ = 5 with α = 0.1: x₁ = 5 − 0.1 × 10 = 4, x₂ = 4 − 0.1 × 8 = 3.2; each step multiplies x by 0.8, heading towards 0.
-
-A reusable version, applied to the deck's "food for thought" function, whose minimum has no algebraic solution:
-
-```python
-def gradient_descent(grad, x0, alpha, tol=1e-8, max_iter=10_000):
-    x = x0
-    for k in range(max_iter):
-        step = alpha * grad(x)
-        x = x - step                       # move opposite to the gradient
-        if abs(step) < tol:                # stop when the move is small enough
-            return x, k + 1
-    return x, max_iter
-
-f  = lambda x: -np.log(x) / (1 + x)
-df = lambda x: -(1/x + 1 - np.log(x)) / (1 + x)**2
-x_min, iters = gradient_descent(df, x0=1.0, alpha=5.0)   # x ≈ 3.5911, f(x) ≈ -0.2785, 155 steps
-```
-
-<a id="learning-rate-step-size"></a>
-
-### Learning rate (step size, α)
-
-_Concept_
-
-How far to move each step: new position = old position − α × gradient. **Too large**: you overshoot and bounce or diverge. **Too small**: convergence takes forever, or never happens in your iteration budget. On f(x) = x² from x = 5:
-
-```python
-for alpha in [0.01, 0.1, 0.9, 1.1]:
-    x, iters = gradient_descent(lambda x: 2 * x, x0=5.0, alpha=alpha, max_iter=200)
-# 0.01: x = 0.088 after 200 steps (too slow) | 0.1: converged in 84 steps
-# 0.9: converged in 94 (zig-zagging)        | 1.1: x ≈ 3.4e16 (diverged)
-```
-
-A practical recipe: try values on a log scale (0.001, 0.01, 0.1, 1), plot the loss against iterations, and pick the largest α that decreases the loss smoothly. α is a hyperparameter, like k in kNN.
-
-> **Watch out:** α means different things across the course: the step size here, the regularization strength in scikit-learn (often written λ in textbooks), the significance level in statistics, and AdaBoost's model weight.
-
-See also: [Feature scaling and gradient descent](#feature-scaling-and-gradient-descent)
-
-<a id="feature-scaling-and-gradient-descent"></a>
-
-### Feature scaling and gradient descent
-
-_Concept_
-
-Gradient descent converges much faster, and one "normal" α works, when features are **standardized**. In the soda notebook, temperatures around 45 make the gradient scale with x² (≈ 2,000), so α = 0.01 explodes (β₁ ≈ 3.8 × 10¹⁶⁵ after 100 steps) and only a tiny α (0.0001) converges; the stability limit is roughly α < 0.0005. Standardize the feature and α = 0.1 works. Poorly scaled features also create long, flat valleys in the loss surface. It's another reason for the `StandardScaler` habit.
-
-<a id="convergence-and-tolerance"></a>
-
-### Convergence and tolerance
-
-_Concept, Python_
-
-Stop when an update changes the parameter by less than a small **tolerance**, and give up after `max_iter` iterations. If you hit the limit without converging, don't trust the result: change α rather than just raising the limit.
-
-```python
-def check_update(beta_1, updated_beta_1, tolerance=0.1):
-    return abs(beta_1 - updated_beta_1) < tolerance
-```
-
-<a id="gradient-descent-for-ols"></a>
-
-### Gradient descent for OLS
-
-_NumPy, Python_
-
-The notebook fits β₁ in sodas = 200,000 + 1,000·temp + ε by minimizing MSE (temperatures drawn from a Poisson(45) distribution). The gradient of MSE with respect to β₁ is (2/n) Σ −xᵢ(yᵢ − (β₁xᵢ + β₀)); the vectorized NumPy line replaces a slow loop.
-
-```python
-def beta_1_gradient(x, y, beta_1, beta_0):
-    return 2 * np.mean(-x * (y - (beta_1 * x + beta_0)))
-
-def gradient_descent(x, y, beta_1=0, alpha=0.01, max_iter=100):
-    for step in range(max_iter):
-        new_beta_1 = beta_1 - alpha * beta_1_gradient(x, y, beta_1, 200_000)
-        if abs(new_beta_1 - beta_1) < 0.1:
-            return new_beta_1                  # converged
-        beta_1 = new_beta_1
-    print("Did not converge: don't trust beta_1")
-    return beta_1
-
-gradient_descent(df["temp"], df["sodas"], beta_1=20, alpha=0.0001)   # ≈ 1,012.7 in about 16 steps
-```
-
-The result matches the exact least-squares slope with β₀ fixed (1,012.8); the true value is 1,000, and the gap is noise in the sample. When it doesn't converge, change α rather than raising `max_iter`.
-
-**Fitting all the coefficients at once** recovers the closed-form answer:
-
-```python
-rng = np.random.default_rng(0)
-X = np.column_stack([np.ones(200), rng.normal(size=(200, 2))])
-y = X @ np.array([3.0, 2.0, -1.0]) + rng.normal(scale=0.5, size=200)
-beta = np.zeros(3)
-for _ in range(1000):
-    gradient = -2 / len(y) * X.T @ (y - X @ beta)       # gradient of the MSE
-    beta -= 0.1 * gradient
-beta.round(3), np.linalg.solve(X.T @ X, X.T @ y).round(3)   # identical
-```
-
-> **Watch out:** This example fixes β₀ at its true value (200,000) and only learns β₁, a deliberate simplification; fitting both gives β₀ ≈ 198,639 and β₁ ≈ 1,042.
-
-<a id="local-vs-global-minimum"></a>
-
-### Local vs global minimum
-
-_Concept_
-
-A **local minimum** is lower than its neighbours; the **global minimum** is the lowest point overall. Gradient descent can get trapped in a local minimum depending on where it starts. The fix is to check that the loss function is convex.
-
-Gradient descent only sees the local slope, so on a non-convex loss it can stop in a local minimum. Mitigations: several random starts, momentum-based optimizers, or accepting a "good enough" minimum (common in neural networks). The starting point doesn't affect where you end up on a **convex** loss, only how long it takes.
-
-<a id="convex-function"></a>
-
-### Convex function
-
-_Concept_
-
-A bowl-shaped function: pick any two points on the curve and the straight line between them never dips below the curve (on a W-shape, the line between the two valleys passes under the middle hump). For a convex function **every local minimum is a global minimum**, so gradient descent can't get trapped. Convex: MSE for linear regression, ridge and lasso losses, and log loss for logistic regression. Non-convex: neural network losses, and some other methods such as k-means.
-
-> **Watch out:** The "second derivative never negative" test only applies to twice-differentiable functions: |β| (the lasso penalty) is convex but has no derivative at 0.
-
-<a id="flat-curves-vanishing-steps"></a>
-
-### Flat curves (vanishing steps)
-
-_Concept_
-
-Problem 4: where the curve is very flat, the gradient is tiny, so steps shrink and progress stalls even far from the minimum.
-
-In neural networks this is related to **vanishing gradients**. Poorly scaled features also create flat valleys; standardizing helps.
-
-<a id="choosing"></a>
-
-### Choosing α
-
-_Concept_
-
-Four approaches from the slides: (1) **manually**, by guess-and-check (also standard for neural nets); (2) **let α shrink over time** (sensible, but rarely works well); (3) **use a fancier algorithm**: IRLS (used by GLMs such as logistic regression), Adam and RMSProp (neural networks); (4) **second-order methods** such as Newton's method.
-
-Learning-rate **schedules** (step decay, cosine decay) are widely used in deep learning alongside adaptive optimizers.
-
-<a id="adam-rmsprop-and-irls"></a>
-
-### Adam, RMSProp and IRLS
-
-_Concept_
-
-Smarter optimizers that adapt the step size automatically. **Adam** (Adaptive Moment Estimation) keeps running averages of past gradients (momentum) and of their squares, giving each parameter its own adaptive step; it's the default optimizer for most neural networks. **RMSProp** scales steps by recent gradient sizes. **Iteratively reweighted least squares (IRLS)** solves a sequence of weighted least-squares problems; statsmodels fits logistic regression this way (equivalent to Newton's method for that problem).
-
-> **Watch out:** Adam stands for Adaptive **Moment Estimation**; "Adaptive Momentum" is a common slip.
-
-<a id="newton-s-method"></a>
-
-### Newton's method
-
-_Concept_
-
-A **second-order** method: it uses the curvature (the second derivative) as well as the slope, replacing α with 1/f″(x). Dividing by the curvature takes big steps where the function curves gently and small steps where it curves sharply; on a quadratic like x² it lands on the minimum in **one step**. With n parameters it needs the gradient ∇f and the **Hessian** ∇²f, the n × n matrix of all second derivatives: a model with a million parameters would need a trillion entries, which is why it's rarely used directly.
-
-> **Watch out:** Newton's method converges very fast **near** the minimum of a well-behaved convex function, but it isn't guaranteed to work: it can diverge when started far away, and on non-convex functions it converges to any flat spot, including maxima and saddle points. And derivatives don't have to be estimated: automatic differentiation (PyTorch, TensorFlow, JAX) computes exact derivatives of any program.
-
-See also: [Quasi-Newton methods (BFGS, L-BFGS)](#quasi-newton-methods-bfgs-l-bfgs)
-
-<a id="quasi-newton-methods-bfgs-l-bfgs"></a>
-
-### Quasi-Newton methods (BFGS, L-BFGS)
-
-_Concept, scikit-learn_
-
-Methods that approximate the inverse Hessian cheaply from recent gradients, getting much of Newton's speed without computing second derivatives. **L-BFGS** (limited-memory BFGS) is scikit-learn's default solver for `LogisticRegression` (`solver="lbfgs"`), so you've been using a near-Newton method all along. `scipy.optimize.minimize` uses BFGS by default for unconstrained problems.
-
-```python
-from scipy.optimize import minimize
-minimize(lambda v: f(v[0]), x0=[1.0], method="L-BFGS-B", bounds=[(0.01, None)]).x   # ≈ [3.591]
-```
-
-<a id="stochastic-gradient-descent-sgd"></a>
-
-### Stochastic gradient descent (SGD)
-
-_Concept, scikit-learn_
-
-A variant that estimates the gradient from one row or a small batch at a time instead of the whole dataset: noisier steps, but much faster on big data. The basis for training neural networks, and available in scikit-learn as `SGDRegressor` and `SGDClassifier`.
-
----
-
-<a id="s33-unsupervised-learning-and-k-means-clustering"></a>
-
-## 33. Unsupervised learning and k-means clustering
-
-_No y-variable: finding structure in X itself. What clustering is for, how k-means works, and how to judge clusters when there's no right answer, using inertia, the elbow method and the silhouette score. Examples use `make_blobs`, Old Faithful geyser eruptions and the seeds and iris labs._
-
-**In your capstone:** For segmentation questions: scale, compare k with inertia and silhouette, then profile the clusters so they mean something to the business.
-
-<a id="unlabeled-data"></a>
-
-### Unlabeled data
-
-_Concept_
-
-Data with no y-variable (no **label**). Unsupervised learning works with it. There is no clear objective, no "right answer" and so no easy way to tell how well you're doing; results need domain expertise and human interpretation.
-
-See also: [Unsupervised learning](#unsupervised-learning)
-
-<a id="semi-supervised-learning"></a>
-
-### Semi-supervised learning
-
-_Concept_
-
-A model that uses both labelled and unlabelled data, useful when labels are expensive to get.
-
-<a id="clustering"></a>
-
-### Clustering
-
-_Concept_
-
-Grouping observations into clusters so that members of the same cluster are more similar to each other than to members of other clusters. The algorithm decides what the clusters look like; you decide what they mean.
-
-<a id="uses-of-clustering"></a>
-
-### Uses of clustering
-
-_Concept_
-
-**Market segmentation** (which customer group isn't buying, and why?), **recommender systems** (what are people in your cluster watching?), **political polling** (voter groups), discovering categories, reducing the number of classes (apples, pears → fruit), dimensionality reduction, and **pre-processing**: creating labels for supervised learning.
-
-<a id="clustering-algorithms"></a>
-
-### Clustering algorithms
-
-_Concept_
-
-There are many because "the notion of cluster cannot be precisely defined": **k-means** (mean centroids), **DBSCAN** (density), **hierarchical/agglomerative** (merging), affinity propagation, mean shift, spectral clustering, Birch and k-medoids. Clustering is exploratory, not confirmatory.
-
-<a id="birch-and-affinity-propagation"></a>
-
-### Birch and Affinity Propagation
-
-_scikit-learn_
-
-Two further scikit-learn clustering algorithms, offered as a bonus in the comparison lab. **Birch** builds a compact tree of cluster summaries in one pass over the data, so it scales to very large datasets; you can still set `n_clusters` for the final grouping. **Affinity Propagation** finds clusters by points "sending messages" to each other until a set of exemplar points emerges; like DBSCAN it **chooses the number of clusters itself**, controlled by its `damping` and `preference` settings, and it's slow on large data.
-
-```python
-from sklearn.cluster import Birch, AffinityPropagation
-
-Birch(n_clusters=3).fit(Xs).labels_                       # scaled iris: ARI ≈ 0.66
-ap = AffinityPropagation(random_state=42).fit(Xs)
-len(ap.cluster_centers_indices_)                          # 9 clusters found on scaled iris
-```
-
-Left to choose for itself, Affinity Propagation finds 9 clusters on iris, a reminder that "the algorithm picks k" doesn't mean it picks the k you'd expect.
-
-<a id="k-means"></a>
-
-### k-means
-
-_Concept_
-
-Partitions the data into **k** clusters, each with a **centroid** (its mean), assigning every point to its nearest centroid so as to minimize the within-cluster sum of squares. Algorithm: (1) pick k; (2) initialize k centroids; (3) assign each point to the nearest centroid; (4) move each centroid to the centre of its cluster; (5) repeat 3–4 until the centroids stop moving. It's guaranteed to converge, but possibly to a local minimum.
-
-k-means minimizes the within-cluster squared distance, and its loss is non-convex: different starting centroids can give different answers, which is why `n_init` runs it several times.
-
-<a id="centroid"></a>
-
-### Centroid
-
-_Concept_
-
-The centre (mean position) of a cluster. It doesn't have to be an actual data point.
-
-<a id="centroid-initialization"></a>
-
-### Centroid initialization
-
-_scikit-learn_
-
-How the starting centroids are chosen (`init`): **`"k-means++"`** (default: spreads the starting centroids far apart), `"random"`, or an array of starting points you supply (only if you already know the data well). Because results depend on the start, scikit-learn runs several initializations (`n_init`) and keeps the best.
-
-<a id="kmeans"></a>
-
-### KMeans
-
-_scikit-learn_
-
-```python
-from sklearn.cluster import KMeans
-from sklearn.datasets import make_blobs
-
-data, _ = make_blobs(n_samples=100, centers=3, cluster_std=1.5, random_state=42)
-df = pd.DataFrame(data, columns=["x1", "x2"])
-X_scaled = StandardScaler().fit_transform(df)       # very important step!
-km = KMeans(n_clusters=3, random_state=42)
-km.fit(X_scaled)
-df["cluster"] = km.labels_
-```
-
-> **Watch out:** `KMeans()` with no arguments uses **8 clusters**; always set `n_clusters`. And since scikit-learn 1.4, `n_init="auto"` runs k-means only **once** with k-means++, so an unlucky start can land in a poor local minimum. On scaled iris, a single run with `random_state=42` splits setosa in two and merges the other species (ARI 0.43); `n_init=10` gives the clean answer (ARI ≈ 0.62). Without `random_state`, the clusters change on every run. Use `KMeans(n_clusters=3, n_init=10, random_state=42)`.
-
-<a id="labels-and-cluster-centers"></a>
-
-### labels* and cluster_centers*
-
-_scikit-learn_
-
-After fitting, `labels_` holds each row's cluster number (same as `km.predict(X)`), and `cluster_centers_` holds the centroid coordinates **in the scaled units** the model saw. Un-scale them with the scaler's `inverse_transform` to read them in original units.
-
-```python
-km.labels_
-centroids = pd.DataFrame(sc.inverse_transform(km.cluster_centers_), columns=["x1", "x2"])
-df.groupby("cluster").mean()        # same centroids, computed from the data
-```
-
-<a id="cluster-labels-are-arbitrary"></a>
-
-### Cluster labels are arbitrary
-
-_Concept, pandas_
-
-Cluster numbers are just names: "cluster 0" in one run might be "cluster 2" in the next, and neither has anything to do with class 0 in your true labels. That's why the evaluation lab asks you to match clusters to species before comparing them. Compare with a **crosstab**, or use metrics that ignore the numbering (ARI, homogeneity, completeness, V-measure).
-
-```python
-import seaborn as sns
-from sklearn.preprocessing import LabelEncoder
-
-iris = sns.load_dataset("iris")                   # or sklearn.datasets.load_iris()
-X, y = iris.drop(columns="species"), iris["species"]
-labels = KMeans(n_clusters=3, n_init=10, random_state=42).fit(StandardScaler().fit_transform(X)).labels_
-
-pd.crosstab(y, labels)                            # setosa sits alone in one cluster;
-                                                  # versicolor and virginica overlap
-species_ind = LabelEncoder().fit_transform(y)     # 'setosa' -> 0, 'versicolor' -> 1, ...
-mapping = pd.crosstab(labels, species_ind).idxmax(axis=1)    # each cluster -> its majority class
-aligned = pd.Series(labels).map(mapping)          # now comparable with species_ind
-```
-
-See also: [External cluster metrics](#external-cluster-metrics), [Adjusted Rand index (ARI)](#adjusted-rand-index-ari)
-
-<a id="scaling-before-clustering"></a>
-
-### Scaling before clustering
-
-_Concept_
-
-k-means uses distances, so a feature with a large range dominates. In the slides, the red point's 5 nearest neighbours look completely different once the x-axis is rescaled. Standardize first, though in the seeds lab unscaled data happened to score better, so it's worth checking.
-
-The seeds lab writes a function that tries every k on the raw data, `normalize`d rows, `StandardScaler` and `MinMaxScaler`, and keeps the highest silhouette.
-
-> **Watch out:** There's no universally best scaler, so compare a few. Silhouette scores computed on differently scaled versions of the data are each measured in their own space, so comparing them across scalings is only a rough guide.
-
-<a id="make-blobs"></a>
-
-### make_blobs()
-
-_scikit-learn_
-
-Generates round, well-separated clusters: the ideal case for k-means. `make_circles()` and `make_moons()` generate the shapes k-means fails on.
-
-<a id="inertia-within-cluster-sum-of-squares"></a>
-
-### Inertia (within-cluster sum of squares)
-
-_Concept, scikit-learn_
-
-The sum of squared distances from each point to its cluster's centroid. **Low inertia = dense clusters.** Worked example from the slides: centroid (5, 7) and points (7, 10), (8, 8), (3, 5), (7, 5) give 13 + 10 + 8 + 8 = 39. Problems: it isn't interpretable, and it always falls as k rises, so you can't just minimize it.
-
-```python
-km.inertia_
-```
-
-<a id="elbow-method"></a>
-
-### Elbow method
-
-_Concept, matplotlib_
-
-Plot inertia against k and look for the "elbow": the k after which adding clusters stops improving inertia much.
-
-```python
-inertia_list = [KMeans(n_clusters=k, random_state=42).fit(X_scaled).inertia_
-                for k in range(1, 11)]
-plt.plot(range(1, 11), inertia_list, marker="o")
-```
-
-<a id="silhouette-score"></a>
-
-### Silhouette score
-
-_Concept, scikit-learn_
-
-How well separated and cohesive the clusters are. For each point, **sᵢ = (bᵢ − aᵢ) / max(aᵢ, bᵢ)**, where aᵢ (**cohesion**) is its mean distance to points in its own cluster and bᵢ (**separation**) is its mean distance to points in the nearest other cluster. Average over all points. **1** = perfect clustering, **0** = just OK (overlapping), **−1** = points in the wrong clusters. Higher is better; needs k ≥ 2.
-
-```python
-from sklearn.metrics import silhouette_score
-
-silhouette_list = [silhouette_score(X_scaled,
-                                    KMeans(n_clusters=k, random_state=42).fit(X_scaled).labels_)
-                   for k in range(2, 11)]
-plt.plot(range(2, 11), silhouette_list, marker="o")
-```
-
-> **Watch out:** Silhouette rewards compact, round blobs, so it can mislead for density-based clusters. On the circles data, DBSCAN's correct two-ring solution scores silhouette **0.24**, lower than k-means' completely wrong solution (0.27). For non-convex clusters, judge visually or with labels. And compute it on the **same (scaled) data** the model was fitted on; passing the unscaled X is an easy slip.
-
-<a id="choosing-the-number-of-clusters"></a>
-
-### Choosing the number of clusters
-
-_Concept_
-
-There's no single right answer. Options: domain knowledge or business needs ("I need three marketing profiles"), visualization (only practical in 2–3 dimensions), the elbow method, the silhouette score, or, if the clusters feed a supervised model, tuning k for that model's performance.
-
-> **Watch out:** The silhouette score finds the **best-separated** grouping, which isn't always the "true" number of groups. On scaled iris it prefers k = 2 (0.58) over k = 3 (0.48), because setosa is far from the other two species, which overlap. The seeds lab's automatic search also picks k = 2 for three wheat varieties, which is why silhouette alone can be untrustworthy. Combine scores with plots and domain knowledge.
-
-<a id="k-means-assumptions"></a>
-
-### k-means assumptions
-
-_Concept_
-
-k-means works best when k is right, clusters are **isotropic** (round/spherical), every variable has similar variance, and clusters are roughly the same size. These are "pretty much never met with real data", yet k-means often still works well.
-
-<a id="k-means-sensitivities"></a>
-
-### k-means sensitivities
-
-_Concept_
-
-k-means is sensitive to **outliers** (they drag centroids), **centroid initialization** (different starts, different clusters) and **non-linear shapes** (it can't find rings or crescents). Worst of all, it always returns k clusters, even when the data have no natural groups.
-
-<a id="k-means-strengths-and-weaknesses"></a>
-
-### k-means strengths and weaknesses
-
-_Concept_
-
-**Strengths:** simple, computationally efficient, intuitive results, always converges. **Weaknesses:** scale dependent, unsuitable for varying shapes and densities, evaluation is subjective, sensitive to outliers, initialization and non-linearity.
-
-<a id="transfer-learning"></a>
-
-### Transfer learning
-
-_Concept_
-
-Reusing a model trained on one task as the starting point for a related task. Using cluster labels as inputs to a later supervised model is mentioned as part of this idea.
-
----
-
-<a id="s34-dbscan-and-hierarchical-clustering"></a>
-
-## 34. DBSCAN and hierarchical clustering
-
-_Two clustering methods that break k-means's rules: DBSCAN finds dense regions of any shape and labels outliers, and agglomerative clustering builds clusters by merging. Plus metrics for comparing clusters with known labels. Examples use NHL team statistics, `make_circles` and seven shape-testing datasets (flame, spiral, jain…)._
-
-**In your capstone:** Use DBSCAN or HDBSCAN for irregular shapes and outliers, and agglomerative clustering when a hierarchy helps tell the story.
-
-<a id="dbscan"></a>
-
-### DBSCAN
-
-_Concept_
-
-**D**ensity-**B**ased **S**patial **C**lustering of **A**pplications with **N**oise. Clusters are areas of **high density** separated by low-density areas. It finds clusters of any contiguous shape, works out how many clusters there are, and leaves outliers unclustered.
-
-Proposed by Ester, Kriegel, Sander and Xu (1996). Clusters grow by connecting **core points** that are within eps of each other ("reachability"); border points are reached but don't spread the cluster further. Uses: spatial data (GPS hotspots, crime locations), anomaly detection (unusual transactions as noise), irregularly shaped groups.
-
-See also: [HDBSCAN](#hdbscan)
-
-<a id="eps-and-min-samples"></a>
-
-### eps and min_samples
-
-_scikit-learn_
-
-DBSCAN's two hyperparameters. **`eps`** (epsilon) is the search radius: the maximum distance for two points to count as neighbours. **`min_samples`** is the number of points (**including the point itself**) that must lie within eps of a point for it to be a **core point**. The defaults are `eps=0.5, min_samples=5`. Always scale features first, because eps is a distance.
-
-```python
-from sklearn.cluster import DBSCAN
-
-dbscan = DBSCAN(eps=0.5, min_samples=3)
-dbscan.fit(X_scaled)
-dbscan.labels_
-```
-
-Results are very sensitive to eps. On the NHL practice lab (90 team-seasons, 25 standardized features, `min_samples=3`): eps = 2 gives 2 clusters and 84 of 90 points as noise; eps = 3 gives 5 clusters and 39 noise; eps = 4 gives 1 cluster and 4 noise. Having to choose both is "a huge disadvantage".
-
-> **Watch out:** `min_samples` isn't "the minimum size of a cluster": it's the neighbourhood count (including the point itself) that makes a point a core point.
-
-See also: [k-distance plot](#k-distance-plot)
-
-<a id="k-distance-plot"></a>
-
-### k-distance plot
-
-_scikit-learn, matplotlib_
-
-A heuristic for choosing eps: for each point, find the distance to its k-th nearest neighbour (k = min_samples), sort those distances, and plot them. The "elbow", where distances start rising steeply, is a reasonable eps: points beyond it sit in sparse regions.
-
-```python
-from sklearn.neighbors import NearestNeighbors
-
-k = 3
-dists, _ = NearestNeighbors(n_neighbors=k).fit(X_scaled).kneighbors(X_scaled)
-plt.plot(np.sort(dists[:, -1]))          # look for the elbow
-```
-
-<a id="core-border-and-noise-points"></a>
-
-### Core, border and noise points
-
-_Concept_
-
-**Core points** have at least `min_samples` points within `eps`. **Border points** are in a cluster (within `eps` of a core point) but don't have enough neighbours themselves. **Noise points** belong to no cluster.
-
-```python
-core = np.zeros_like(dbscan.labels_, dtype=bool)
-core[dbscan.core_sample_indices_] = True
-```
-
-<a id="noise-label-1"></a>
-
-### Noise label (−1)
-
-_scikit-learn, Python_
-
-DBSCAN labels noise points **−1**, so don't count it as a cluster.
-
-```python
-labels = dbscan.labels_
-n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
-(labels == -1).sum()          # number of outliers
-```
-
-> **Watch out:** Clustering metrics treat −1 as just one more cluster. On the "jain" shape dataset, DBSCAN finds one cluster plus 100 noise points yet still scores ARI 0.97, because the noise happens to match the sparser true cluster.
-
-<a id="dbscan-pros-and-cons"></a>
-
-### DBSCAN pros and cons
-
-_Concept_
-
-**Pros:** any contiguous shape (k-means only handles round blobs); tells you how many clusters there are; finds outliers. **Cons:** needs roughly uniform density; two hyperparameters to tune; bad settings flag too many outliers; struggles when data are dense in one area and spread out elsewhere (as with the NHL data). Ideal for rings (`make_circles`).
-
-**Verified on the course's circles data:** DBSCAN recovers both rings perfectly (adjusted Rand index 1.0), while k-means slices them into halves (ARI ≈ 0).
-
-See also: [HDBSCAN](#hdbscan)
-
-<a id="hdbscan"></a>
-
-### HDBSCAN
-
-_scikit-learn_
-
-Hierarchical DBSCAN: handles clusters of **varying density**, DBSCAN's main weakness, and only needs `min_cluster_size` (no eps). In scikit-learn since version 1.3; noise points are still labelled −1.
-
-```python
-from sklearn.cluster import HDBSCAN
-labels = HDBSCAN(min_cluster_size=10).fit_predict(X_scaled)
-```
-
-<a id="make-circles"></a>
-
-### make_circles()
-
-_scikit-learn_
-
-Generates one ring inside another: the shape where DBSCAN succeeds and k-means fails.
-
-```python
-from sklearn.datasets import make_circles
-X, y = make_circles(n_samples=1000, noise=0.1, factor=0.2, random_state=123)
-```
-
-<a id="hierarchical-clustering"></a>
-
-### Hierarchical clustering
-
-_Concept_
-
-Builds a hierarchy of nested clusters. **Agglomerative** (bottom-up): start with every point as its own cluster and merge the closest pair repeatedly. **Divisive** (top-down): start with one cluster and split. Agglomerative is almost always preferred.
-
-<a id="agglomerative-clustering"></a>
-
-### Agglomerative clustering
-
-_scikit-learn_
-
-Merge clusters one by one until `n_clusters` remain, using a **linkage** rule to decide which clusters are closest.
-
-```python
-from sklearn.cluster import AgglomerativeClustering
-
-agg = AgglomerativeClustering(n_clusters=3, linkage="ward")
-agg.fit(X_scaled)
-agg.labels_
-```
-
-Instead of `n_clusters`, you can set `distance_threshold` to cut the tree at a chosen height.
-
-<a id="linkage"></a>
-
-### Linkage
-
-_Concept_
-
-How the distance between two clusters is measured when merging. **Ward** (default): merge the pair that least increases within-cluster variance; it makes compact, similar-sized, k-means-like clusters and requires Euclidean distance. **Single**: minimum distance between any two points; it follows chains of nearby points, so it handles long, curved shapes, but can "chain" separate clusters together through a few bridging points. Also **complete** (maximum distance) and **average** (average distance).
-
-On the comparison lab's spiral data, single linkage scores ARI **1.0** vs ward ≈ 0; on "pathbased", single scores 0.0 (chaining merges everything) vs ward 0.48.
-
-<a id="dendrogram"></a>
-
-### Dendrogram
-
-_Concept, SciPy_
-
-A tree diagram of the merges in agglomerative clustering, from individual points at the bottom up to a single cluster ("until All is One"). The height of each join shows how far apart the merged clusters were; cutting the tree at a height gives a set of clusters.
-
-```python
-from scipy.cluster.hierarchy import linkage, dendrogram
-Z = linkage(X_scaled, method="ward")
-dendrogram(Z)
-```
-
-Long vertical gaps between joins suggest natural places to cut.
-
-<a id="comparing-clustering-algorithms"></a>
-
-### Comparing clustering algorithms
-
-_Concept_
-
-The comparison lab runs k-means, agglomerative clustering and DBSCAN on seven benchmark shape datasets with known labels. Scored with the adjusted Rand index (1 = perfect, 0 = chance), using the notebook's parameters:
-
-| Dataset     | True k | k-means | Ward  | Single | DBSCAN |
-| ----------- | ------ | ------- | ----- | ------ | ------ |
-| flame       | 2      | 0.45    | 0.19  | 0.01   | 0.88   |
-| aggregation | 7      | 0.76    | 0.81  | 0.80   | 0.81   |
-| compound    | 6      | 0.54    | 0.55  | 0.74   | 0.96   |
-| jain        | 2      | 0.32    | 0.51  | 0.26   | 0.97   |
-| pathbased   | 3      | 0.46    | 0.48  | 0.00   | 0.92   |
-| r15         | 15     | 0.99    | 0.98  | 0.54   | 0.79   |
-| spiral      | 3      | −0.01   | −0.00 | 1.00   | 1.00   |
-
-No algorithm wins everywhere. DBSCAN excels on irregular shapes; k-means and ward are best on round, well-separated blobs (r15); single linkage is perfect on the spiral and useless on pathbased. **Choosing a method:** round blobs and a known k → k-means; irregular shapes and outliers → DBSCAN or HDBSCAN; you need a hierarchy or dendrogram → agglomerative, with the linkage chosen to suit the shapes. Always look at the clusters, not just a score.
-
-> **Watch out:** Set `random_state=42` on `KMeans` so results don't change on each run. k-medoids isn't in core scikit-learn (it's in the separate `scikit-learn-extra` package).
-
-See also: [Adjusted Rand index (ARI)](#adjusted-rand-index-ari)
-
-<a id="adjusted-rand-index-ari"></a>
-
-### Adjusted Rand index (ARI)
-
-_scikit-learn_
-
-An external clustering metric: how well the cluster labels agree with the true labels, counting pairs of points placed together or apart, corrected for chance. **1 = perfect match, ≈ 0 = random, can be slightly negative.** Like V-measure, it ignores the cluster numbering.
-
-```python
-from sklearn.metrics import adjusted_rand_score
-adjusted_rand_score(df["label"], AgglomerativeClustering(3, linkage="single").fit(df[["x", "y"]]).labels_)
-```
-
-<a id="external-cluster-metrics"></a>
-
-### External cluster metrics
-
-_Concept, scikit-learn_
-
-When true labels happen to be available (as in the labs), you can check clusters against them. **Homogeneity**: each cluster contains only one class. **Completeness**: all members of a class end up in the same cluster. **V-measure**: their harmonic mean. **Adjusted mutual information**: agreement corrected for chance. All range up to 1 and don't care about the cluster numbering.
-
-```python
-from sklearn import metrics
-metrics.homogeneity_score(y, labels)
-metrics.completeness_score(y, labels)
-metrics.v_measure_score(y, labels)
-metrics.adjusted_mutual_info_score(y, labels)
-```
-
-On the NHL data, DBSCAN's clusters barely match team rank (homogeneity 0.118, completeness 0.103, V-measure 0.11): not every dataset has natural clusters, which is itself a useful finding.
-
-See also: [Adjusted Rand index (ARI)](#adjusted-rand-index-ari)
-
-<a id="normalize-vs-scalers"></a>
-
-### normalize() vs scalers
-
-_scikit-learn_
-
-`sklearn.preprocessing.normalize` rescales each **row** to length 1 (useful for direction-based similarity), whereas `StandardScaler` and `MinMaxScaler` rescale each **column**. The seeds lab compares all three for k-means.
-
-```python
-from sklearn.preprocessing import normalize, MinMaxScaler
-Xn = normalize(X)
-Xmm = MinMaxScaler().fit_transform(X)
-```
-
----
-
-<a id="s35-principal-component-analysis-pca"></a>
-
-## 35. Principal component analysis (PCA)
-
-_Squeezing many correlated variables into a few uncorrelated ones that keep most of the information. What PCA does visually, how SVD does it mathematically, how many components to keep, and when not to use it. Examples use the wine data and the "Doug the Pug" image compression demo._
-
-**In your capstone:** Use PCA to compress many correlated features or to visualize structure, and tune the number of components inside a pipeline.
-
-<a id="dimensionality-reduction"></a>
-
-### Dimensionality reduction
-
-_Concept_
-
-Reducing the number of variables (dimensions) while keeping as much useful information as possible. Helps when there are too many variables, some meaningless and some redundant (multicollinear). An unsupervised technique.
-
-Two kinds: **feature selection** keeps a subset of the original features (lasso dropping features); **feature extraction** creates new features from combinations of the originals (PCA). PCA is the most common linear method; t-SNE and UMAP are non-linear methods used mainly for visualization. Examples of wide data: surveys with 200 questions, sensors with hundreds of readings, images with thousands of pixels, the 90 polynomial wine features.
-
-<a id="principal-component-analysis-pca"></a>
-
-### Principal component analysis (PCA)
-
-_Concept_
-
-Condenses your x-variables into **principal components**: new variables that are combinations of the originals, ordered by how much of the data's variability (its "information") they capture, and **uncorrelated** with each other. Keep the first few and drop the rest: perhaps z₁…z₁₀ carry as much information as x₁…x₂₀₀. Geometrically, PCA is a **rotation** of the (centred) axes to line up with the directions the data spread along. PCA ignores y entirely, which is why it's often used as a preprocessing step before a supervised model.
-
-Benefits: faster models, less overfitting, easy 2D/3D visualization, and no multicollinearity.
-
-> **Watch out:** PCs are **uncorrelated** (perpendicular directions), which isn't the same as independent unless the data are multivariate normal. And a component doesn't automatically keep the predictive power of the variables it combines: because PCA is unsupervised, the highest-variance direction isn't necessarily the most predictive, and occasionally a small-variance direction is exactly what separates the classes.
-
-See also: [PCA (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#principal-component-analysis-pca)
-
-<a id="principal-component"></a>
-
-### Principal component
-
-_Concept_
-
-One of the new axes PCA creates. PC1 points in the direction of greatest variance, PC2 the greatest remaining variance at right angles to PC1, and so on. Sometimes called **rotations**, because geometrically PCA rotates the axes to line up with the data.
-
-<a id="pca-in-scikit-learn"></a>
-
-### PCA in scikit-learn
-
-_scikit-learn_
-
-Scale first, then fit and transform. The result `Z` has the same number of rows, with columns now being principal components.
-
-```python
-from sklearn.decomposition import PCA
-
-X_sc = StandardScaler().fit_transform(X)
-pc = PCA()                       # or PCA(n_components=5)
-Z = pc.fit_transform(X_sc)
-plt.scatter(Z[:, 0], Z[:, 1], c=wine["red_wine"], alpha=0.2, cmap="Dark2")
-```
-
-> **Watch out:** Always standardize first, or the column with the biggest units dominates PC1.
-
-`PCA(n_components=0.9)` keeps just enough components for 90% of the variance. `pc.transform(X)` returns the **PC scores**, the data in the new coordinates.
-
-On the wine data (6,497 wines, 12 standardized features, target `red_wine`): PC1 explains 25.3%, PC2 22.1%, PC3 13.7% (61% in three), and 8 of 12 components reach 90%. A PC1-vs-PC2 scatter separates red and white wines well, even though PCA never saw the labels.
-
-> **Watch out:** Be clear about the target: here the model predicts `red_wine` (colour), with quality kept as a feature. PCA strictly requires **centring**; standardizing as well is needed whenever features use different units, which is almost always.
-
-<a id="explained-variance-and-explained-variance-ratio"></a>
-
-### Explained variance and explained variance ratio
-
-_scikit-learn_
-
-`explained_variance_` is the variance captured by each component; `explained_variance_ratio_` scales those to proportions that sum to 1, so you can say "the first two components explain 50% of the variance". Use `np.cumsum` to see how many components reach, say, 90%.
-
-```python
-pc.explained_variance_ratio_
-np.cumsum(pc.explained_variance_ratio_)
-```
-
-Each component's variance is σ²/(n − 1), where σ is its singular value; that's exactly `explained_variance_`.
-
-```python
-np.argmax(np.cumsum(pc.explained_variance_ratio_) >= 0.9) + 1    # components needed for 90%: 8
-```
-
-> **Watch out:** `explained_variance_` holds the **variances** of the components, not the singular values (σ) themselves; the two are easy to mix up.
-
-<a id="loadings-components"></a>
-
-### Loadings (components\_)
-
-_scikit-learn_
-
-`pc.components_` holds the weights (loadings) that build each component from the original features, one row per component. Large absolute weights show which features drive a component. On the standardized wine data, PC1 is driven by **total sulfur dioxide (0.47), free sulfur dioxide (0.42) and volatile acidity (−0.39)**. This is the Vᵀ matrix from the SVD.
-
-```python
-pd.DataFrame(pc.components_[:3], columns=X.columns, index=["PC1", "PC2", "PC3"])
-pd.Series(pc.components_[0], index=X.columns).sort_values(key=abs, ascending=False).head(3)
-```
-
-> **Watch out:** Read loadings from PCA (or SVD) on **standardized** data. On unscaled data, sulfur dioxide and density appear to dominate PC1 simply because of their units.
-
-<a id="scree-plot"></a>
-
-### Scree plot
-
-_matplotlib_
-
-A plot of explained variance ratio against component number. The old statistician's rule of thumb: keep the components before the "elbow". In modern practice, grid search the number of components instead.
-
-```python
-plt.plot(pc.explained_variance_ratio_, marker="o")
-```
-
-Common rules for how many components to keep: enough to explain 80–90% of the variance; the elbow of the scree plot; or, best when there's a downstream model, tune the number by cross-validation.
-
-<a id="choosing-n-components-with-grid-search"></a>
-
-### Choosing n_components with grid search
-
-_scikit-learn_
-
-Put PCA inside a pipeline and treat the number of components as a hyperparameter.
-
-```python
-pipe = Pipeline([
-    ("sc", StandardScaler()),
-    ("poly", PolynomialFeatures(include_bias=False)),
-    ("pc", PCA()),
-    ("lr", LogisticRegression(max_iter=1000)),
-])
-gs = GridSearchCV(pipe, {"pc__n_components": np.arange(1, 40)}, cv=5, n_jobs=4)
-gs.fit(X_train, y_train)
-```
-
-In the course pipeline (scaler → 90 polynomial features → PCA → logistic regression with `penalty=None`, `max_iter=5000`), CV accuracy for predicting wine colour rises quickly then flattens: 1 PC 0.803, 2 → 0.814, 3 → 0.857, 5 → 0.937, 10 → 0.978, 20 → 0.984, best 36 PCs (0.992 CV, 0.993 test). A few components get you most of the way.
-
-> **Watch out:** The older syntax `LogisticRegression(penalty='none')` errors in current scikit-learn; use `penalty=None` (or `C=np.inf` from 1.8), and check the documentation for your version.
-
-<a id="singular-value-decomposition-svd"></a>
-
-### Singular value decomposition (SVD)
-
-_Concept, NumPy_
-
-Every matrix can be decomposed as **X = U D Vᵀ**, like factorizing a number (12 = 2 × 2 × 3) to reveal its structure: rotation × stretching × rotation. For an n × p centred (usually standardized) data matrix: **U** (n × p) holds the left-singular vectors, **D** (p × p, diagonal) the **singular values** (non-negative, in descending order, measuring how much information each direction holds), and **Vᵀ** (p × p) the right-singular vectors, whose rows are the principal component directions. U and V are orthogonal (UᵀU = I). PCA is computed this way, and Z = XV gives the PC scores.
-
-```python
-u, s, vh = np.linalg.svd(X_sc, full_matrices=False)      # SCALED data
-np.allclose(np.abs(vh), np.abs(pc.components_))           # True (signs can flip)
-np.allclose(s**2 / (len(X_sc) - 1), pc.explained_variance_)   # True
-```
-
-> **Watch out:** Run the SVD on the **same standardized data** PCA was fitted on, or the vectors won't match `pc.components_`. Singular values are non-negative (they can be zero).
-
-<a id="dimensionality-reduced-reconstruction"></a>
-
-### Dimensionality-reduced reconstruction
-
-_NumPy_
-
-Keep only the first k singular values and vectors to rebuild an approximation of the data. The Doug the Pug demo does this to an image: k = 50 or 100 looks almost like the full picture with a fraction of the numbers, while k = 5 is a blur.
-
-```python
-doug = np.mean(plt.imread("doug.jpg"), axis=2)      # greyscale image as a matrix
-u, s, vh = np.linalg.svd(doug)
-k = 50
-approx = u[:, :k] @ np.diag(s)[:k, :k] @ vh[:k, :]
-plt.imshow(1 - approx, cmap="Greys")
-```
-
-<a id="pca-assumptions"></a>
-
-### PCA assumptions
-
-_Concept_
-
-**Linearity**: PCA finds linear relationships (from the covariance matrix) and misses non-linear ones; methods like t-SNE handle those. **Large variance means importance**: directions with lots of spread are assumed to matter and directions with little spread are discarded.
-
-<a id="when-to-use-pca-and-when-not"></a>
-
-### When to use PCA (and when not)
-
-_Concept_
-
-**Use it** when p ≫ n (or p ≈ n), when variables are highly multicollinear (including images, which are correlated by design), or when there are simply many variables. **Don't use it** when you need to interpret the model, since components are blends of the original features, or when you only have a few features.
-
-Summary of the trade-off: fewer, uncorrelated features (faster, less overfitting, no multicollinearity), but the components are hard to interpret and PCA ignores the target. PCA **extracts** features; it doesn't **select** them.
-
-<a id="covariance-matrix-eigenvectors-and-eigenvalues"></a>
-
-### Covariance matrix, eigenvectors and eigenvalues
-
-_Concept_
-
-Matt's "three signposts" for explaining PCA in an interview. PCA finds the **eigenvectors** of the data's **covariance matrix** (the directions of the principal components); the **eigenvalues** say how much variance each direction captures.
-
----
-
-<a id="s36-recommender-systems"></a>
-
-## 36. Recommender systems
-
-_Suggesting items a user will like. The main families of recommenders, and an item-based collaborative filter built from MovieLens ratings with a pivot table, a sparse matrix and cosine similarity._
-
-**In your capstone:** For "what should we recommend?" questions with ratings data, an item-based cosine-similarity recommender is a solid first build.
-
-<a id="recommender-system"></a>
-
-### Recommender system
-
-_Concept_
-
-A system that predicts which items (films, products, songs) a user will like and suggests them. The approach you choose depends on what rating data, if any, you have.
-
-<a id="collaborative-filtering"></a>
-
-### Collaborative filtering
-
-_Concept_
-
-Recommends based on **patterns in many users' ratings**, without needing to know anything about the items themselves. **Item-based**: "people who liked this film also liked…" (items are similar if the same users rate them similarly). **User-based**: find users similar to you and recommend what they liked.
-
-<a id="content-based-knowledge-based-and-hybrid-recommenders"></a>
-
-### Content-based, knowledge-based and hybrid recommenders
-
-_Concept_
-
-**Content-based** recommenders use information about the items themselves (genre, actors, keywords). **Knowledge-based** recommenders use input from the user to make informed suggestions (filters, preferences). **Hybrid** recommenders combine several approaches.
-
-<a id="utility-ratings-matrix"></a>
-
-### Utility (ratings) matrix
-
-_pandas_
-
-A table with one row per item, one column per user and ratings as values: the input for an item-based recommender. (For user-based, swap rows and columns.) Most cells are empty because each user rates only a few items.
-
-```python
-df = pd.merge(ratings, movies, on="movieId", how="left")
-rating_mx = pd.pivot_table(df, index="title", columns="userId", values="rating")
-```
-
-Build it from a merge of ratings and movie titles. A **left** merge keeps every rating and attaches its title (many ratings to one movie). Always check row counts after a merge: the merged table should have exactly as many rows as `ratings`; more means duplicate keys, fewer means lost rows.
-
-```python
-df = pd.merge(ratings, movies, on="movieId", how="left")
-ratings.shape, movies.shape, df.shape            # rows of df should equal rows of ratings
-df = df.drop(columns=["timestamp", "movieId", "genres"])
-```
-
-See also: [.merge() (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#merge)
-
-<a id="sparse-matrix"></a>
-
-### Sparse matrix
-
-_SciPy_
-
-A data structure that stores only the non-zero values of a mostly-empty matrix, saving huge amounts of memory. Fill missing ratings with 0 first.
-
-```python
-from scipy import sparse
-ratings_sparse = sparse.csr_matrix(rating_mx.fillna(0))
-```
-
-<a id="cosine-similarity"></a>
-
-### Cosine similarity
-
-_Concept_
-
-Similarity between two vectors measured by the **angle** between them: cos θ = (a·b) / (‖a‖‖b‖). 1 = pointing the same way (identical taste pattern), 0 = unrelated. It ignores vector length, so a user who rates everything highly still compares sensibly. **Cosine distance** = 1 − cosine similarity.
-
-<a id="pairwise-distances"></a>
-
-### pairwise_distances()
-
-_scikit-learn_
-
-Computes the distance between every pair of rows, returning a square matrix. With `metric="cosine"` it compares every film with every other film.
-
-```python
-from sklearn.metrics.pairwise import pairwise_distances
-
-dists = pairwise_distances(ratings_sparse, metric="cosine")
-df_rec = pd.DataFrame(dists, index=rating_mx.index, columns=rating_mx.index)
-df_rec["John Wick (2014)"].sort_values().head()       # closest = most similar
-```
-
-`cosine_distances(ratings_sparse)` is an identical, shorter alternative.
-
-<a id="mean-centering-ratings"></a>
-
-### Mean centering ratings
-
-_Concept_
-
-Subtracting each user's (or the overall) average rating so that a 4 from a harsh critic and a 4 from someone who rates everything 5 aren't treated the same. Mentioned as an optional step before computing similarities.
-
-> **Watch out:** Films with very few ratings produce strange recommendations (the notebook's "What the hell?" Frozen example). Filtering out rarely rated items helps.
-
----
-
-<a id="s37-bayesian-statistics"></a>
-
-## 37. Bayesian statistics
-
-_A one-shot introduction to the other school of statistics: treating unknown parameters as uncertain, describing that uncertainty with probability distributions, and updating them with data (prior + data → posterior). Covers Bayes' theorem, probability mass and density functions, conjugate priors, MCMC and an election-forecasting example, building on the probability and simulation sections._
-
-**In your capstone:** Use Bayesian methods to combine prior knowledge with limited data, and to report results as direct probabilities ("P(B beats A) = 97%").
-
-<a id="bayesian-statistics"></a>
-
-### Bayesian statistics
-
-_Concept_
-
-An approach to statistics that treats unknown quantities (parameters) as **uncertain**, describes that uncertainty with probability distributions, and **updates** them as data arrives. The workflow: (1) make parametric assumptions about the process; (2) assign **prior** beliefs to the parameters, reflecting prior knowledge and how confident you are; (3) collect data; (4) combine prior and data into **posterior** estimates. Today's posterior can become tomorrow's prior as new data arrives. Named after Thomas Bayes (c. 1701–1761), an English minister and mathematician whose theorem was published after his death; Pierre-Simon Laplace developed the ideas much further.
-
-See also: [Frequentist vs Bayesian](#frequentist-vs-bayesian), [Bayes' theorem](#bayes-theorem)
-
-<a id="frequentist-vs-bayesian"></a>
-
-### Frequentist vs Bayesian
-
-_Concept_
-
-The philosophical difference is about **parameters**. In **frequentist** statistics (everything earlier in the course: hypothesis tests, p-values, confidence intervals), a parameter such as a true average is a **fixed, unknown number**, and probability describes how often things happen over many repetitions. In **Bayesian** statistics, parameters are **random variables** with distributions, so you can assign prior information to them and make direct probability statements about them.
-
-The usual case made for Bayesian methods: frequentism struggles with one-time events (an election), small or expensive samples, bad luck in small experiments, and can only use data, not other knowledge. The real heart of it is the last point: Bayesian methods formally include prior knowledge (expert opinion, previous studies).
-
-> **Watch out:** Neither approach always wins. Frequentist methods are used for elections and small samples too, and with lots of data the two approaches usually give similar answers. Both are widely used.
-
-See also: [Probability](#probability)
-
-<a id="bayes-theorem"></a>
-
-### Bayes' theorem
-
-_Concept_
-
-Derived from the multiplication rule: P(A ∩ B) = P(A)P(B | A) = P(B)P(A | B), so
-
-**P(B | A) = P(A | B) · P(B) / P(A)**
-
-It **flips the conditional**, turning P(A | B), which is often easy to know, into P(B | A), which is what we usually want. The classic example: a disease affects 1% of people; a test catches 99% of cases but gives false positives 5% of the time. Then P(disease | positive) = 0.99 × 0.01 / (0.99 × 0.01 + 0.05 × 0.99) ≈ **0.167**: only about 1 in 6 positives actually have the disease.
-
-```python
-p_d, sens, false_pos = 0.01, 0.99, 0.05
-p_pos = sens * p_d + false_pos * (1 - p_d)          # total probability of testing positive
-sens * p_d / p_pos                                   # 0.167
-```
-
-See also: [Base rate fallacy](#base-rate-fallacy), [Multiplication rule (intersections)](#multiplication-rule-intersections), [Conditional probability](#conditional-probability)
-
-<a id="base-rate-fallacy"></a>
-
-### Base rate fallacy
-
-_Concept_
-
-Ignoring how rare something is when interpreting evidence: assuming a 99%-sensitive test means a positive result is 99% likely to be right. When the base rate is low, most positives are false alarms, as in the disease example (1 in 6) and the wind farm's alarm precision (about 14%). Confusing P(positive | disease) with P(disease | positive) is known in law as the **prosecutor's fallacy**.
-
-See also: [Base rate and false alarms](#base-rate-and-false-alarms)
-
-<a id="prior-likelihood-and-posterior"></a>
-
-### Prior, likelihood and posterior
-
-_Concept_
-
-Bayes' theorem with whole distributions, where θ stands for the parameters and x for the data:
-
-**f(θ | x) = f(x | θ) · f(θ) / f(x)**
-
-- **Prior f(θ):** what you believe about the parameters before seeing the data, as a distribution (e.g. "elections usually end close to 50/50"; "previous studies found an effect around 2%"). A **strong** (narrow) prior needs a lot of data to move; a **weak** (wide) prior lets the data dominate.
-- **Likelihood f(x | θ):** how probable the observed data would be for each possible parameter value (e.g. a binomial likelihood for a poll). Less an assumption than a choice of how to parametrize the problem.
-- **Marginal f(x):** the probability of the data, which doesn't depend on θ; it's just the constant that makes the posterior integrate to 1 (you can usually ignore it).
-- **Posterior f(θ | x):** your updated beliefs after the data.
-
-So **posterior ∝ likelihood × prior** (∝ = "proportional to": the shape is right, it just needs rescaling).
-
-<a id="probability-mass-and-density-functions"></a>
-
-### Probability mass and density functions
-
-_Concept, SciPy_
-
-Every random variable has a function describing where its probability is spread, usually written f. For a **discrete** variable, the **probability mass function (PMF)** gives actual probabilities: P(X = x) = f(x). For a **continuous** variable, the **probability density function (PDF)** gives a density, not a probability; probabilities are **areas** under the curve, and a density can even exceed 1.
+Setting α = 0.05 means accepting a 5% chance of a false positive when there's really no effect. Lowering α reduces false positives but, with the same sample size, increases false negatives. More data reduces both. A simulation makes α concrete: test two groups drawn from the **same** distribution many times, and about 5% of the tests come out "significant" anyway.
 
 ```python
 from scipy import stats
-stats.binom.pmf(55, 100, 0.5)        # 0.0485 = P(exactly 55 heads in 100 fair flips)
-stats.norm.pdf(0)                    # 0.3989 = a density at 0, not a probability
-stats.norm.cdf(1) - stats.norm.cdf(-1)   # 0.683 = P(-1 < Z < 1), an area
+rng = np.random.default_rng(0)
+p_values = [stats.ttest_ind(rng.normal(7, 1, 50), rng.normal(7, 1, 50)).pvalue for _ in range(2000)]
+np.mean(np.array(p_values) < 0.05)       # close to 0.05: false positives when H0 is true
 ```
 
-See also: [Normal distribution (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#normal-gaussian-distribution)
+See also: [Significance level (α)](#significance-level), [Statistical power](#statistical-power), [p-value](#p-value)
 
-<a id="conjugate-prior-beta-binomial"></a>
+<a id="multiple-testing"></a>
 
-### Conjugate prior (Beta–binomial)
-
-_Concept, SciPy_
-
-A prior that, combined with a particular likelihood, gives a posterior in the **same family**, so the posterior has a formula and no simulation is needed. The standard example: a **Beta(a, b)** prior on a proportion plus binomial data (s successes, f failures) gives a **Beta(a + s, b + f)** posterior. The **Beta distribution** lives between 0 and 1, which makes it a natural prior for a rate or probability; Beta(1, 1) is flat, and Beta(50, 50) is concentrated near 0.5.
-
-A poll of 100 voters with 55 for candidate A:
-
-```python
-for name, a, b in [("flat prior", 1, 1), ("'close to 50/50' prior", 50, 50)]:
-    post = stats.beta(a + 55, b + 45)
-    lo, hi = post.ppf([0.025, 0.975])
-    print(f"{name}: mean {post.mean():.3f}, 95% interval {lo:.3f}-{hi:.3f}, P(A wins) {1 - post.cdf(0.5):.2f}")
-# flat prior:             mean 0.549, interval 0.452-0.644, P(A wins) 0.84
-# 'close to 50/50' prior: mean 0.525, interval 0.456-0.594, P(A wins) 0.76
-```
-
-The prior tempers an over-confident reading of one poll: the estimate shrinks from 0.549 towards 0.5, and the chance that A is ahead falls from 84% to 76%.
-
-<a id="credible-interval"></a>
-
-### Credible interval
+### Multiple testing
 
 _Concept_
 
-A Bayesian interval that is a direct probability statement about the parameter: "there's a 95% probability the true support is between 45.2% and 64.4%". A frequentist **confidence interval** can't be read that way, because the true value is fixed; its 95% describes the method's long-run success rate over repeated samples. With lots of data and weak priors the two intervals are often numerically similar.
-
-> **Watch out:** Frequentists report uncertainty too, not just a point estimate (standard errors, confidence intervals); the difference is the interpretation.
-
-<a id="grid-approximation"></a>
-
-### Grid approximation
-
-_NumPy, SciPy_
-
-Computing a posterior without a formula: evaluate likelihood × prior on a fine grid of parameter values, then divide by the total so it sums to 1. It shows that the "ignored denominator" is just this rescaling, and reproduces the conjugate answer exactly.
+Every test at α = 0.05 carries a 5% false-positive risk, so running many tests makes at least one false positive likely. With 20 independent tests on data with no real effects, the chance of at least one "significant" result is 1 − 0.95²⁰, about 64%. The notes call this inflating the **family-wise error rate**, and it's why Step 1 of experimental design keeps the list of questions short. If you do test many things, say so, and use a stricter threshold, such as the **Bonferroni correction** (α divided by the number of tests).
 
 ```python
-grid = np.linspace(0, 1, 1001)
-unnormalized = stats.binom.pmf(55, 100, grid) * stats.beta.pdf(grid, 50, 50)
-posterior = unnormalized / unnormalized.sum()
-np.sum(grid * posterior)             # 0.525, same as the formula
+n_tests = 20
+1 - 0.95 ** n_tests          # 0.64: chance of at least one false positive
+0.05 / n_tests               # 0.0025: Bonferroni threshold per test
 ```
 
-Grids work for one or two parameters; with many parameters the number of grid points explodes, which is where MCMC comes in.
+See also: [Type I and Type II errors](#type-i-and-type-ii-errors), [p-value](#p-value), [Four steps of experimental design](#four-steps-of-experimental-design)
 
-<a id="markov-chain-monte-carlo-mcmc"></a>
+<a id="reject-vs-fail-to-reject-the-null"></a>
 
-### Markov Chain Monte Carlo (MCMC)
+### Reject vs fail to reject the null
 
 _Concept_
 
-A family of algorithms that draw random samples whose distribution matches the posterior, **without ever computing f(x)**. Except in simple conjugate cases, posteriors can't be calculated by hand, so in practice you sample. With thousands of posterior samples you can compute anything: the mean, credible intervals, the probability a parameter exceeds a threshold. It builds directly on the Monte Carlo ideas from the simulation section.
+**Rejecting** the null means the data would be too unlikely if the null were true. It doesn't prove the alternative. **Failing to reject** means there isn't enough evidence against the null. It doesn't prove the null is true either.
 
-See also: [Monte Carlo simulation](#monte-carlo-simulation), [PyMC](#pymc)
+<a id="one-tailed-vs-two-tailed-test"></a>
 
-<a id="pymc"></a>
-
-### PyMC
-
-_Python_
-
-The leading Python library for Bayesian modelling with MCMC (install with `pip install pymc`). You write the prior and likelihood, and PyMC samples the posterior. The poll model:
-
-```python
-import pymc as pm
-
-with pm.Model():
-    p = pm.Beta("p", alpha=50, beta=50)                    # prior: close to 50/50
-    pm.Binomial("votes", n=100, p=p, observed=55)          # likelihood: 55 of 100
-    trace = pm.sample(2000, random_seed=42)
-trace.posterior["p"].mean().item()                          # ≈ 0.525, matching the formula
-```
-
-Alternatives include Stan (via CmdStanPy) and NumPyro.
-
-> **Watch out:** Older tutorials refer to "PyMC3". The library was renamed **PyMC** from version 4, and some of its API changed, so follow the current documentation. On some restricted or single-core environments sampling can fail while detecting CPU cores; pass `chains=2, cores=1` to `pm.sample`.
-
-<a id="bayesian-election-forecasting"></a>
-
-### Bayesian election forecasting
+### One-tailed vs two-tailed test
 
 _Concept_
 
-Elections happen once, which makes them a natural fit for Bayesian methods. Nate Silver's forecasts (formerly at FiveThirtyEight, now in his Silver Bulletin newsletter) are the deck's example. His **prior** uses a fact people forget early in an election cycle: elections usually end up close to 50/50, which stops a forecast overreacting to one dramatic early poll. Poll data form the **likelihood**, and polls are graded by quality, acting like weights (another prior assumption). Schematically: f(p | x) ∝ f(x | p, θ) · f(p) · f(θ), where p is the probability candidate A wins and θ the poll-quality ratings.
+A **one-tailed** test has a direction in the alternative ("red buttons get _more_ clicks than blue"). A **two-tailed** test looks for any difference in either direction ("there _is_ a difference in heart function"). Two-tailed is the safer default unless you have a strong reason to expect a direction in advance.
 
-> **Watch out:** Judging a single probabilistic forecast is hard. In 2016 his model gave Trump about a 30% chance, higher than most rivals: the result was a surprise, but not proof the forecast was "wrong". FiveThirtyEight was closed by ABC News in 2025, and "Twitter" is now X.
+<a id="t-test-stats-ttest-ind"></a>
 
-<a id="bayesian-a-b-testing"></a>
+### t-test (stats.ttest_ind)
 
-### Bayesian A/B testing
+_SciPy, Concept_
 
-_NumPy_
-
-Comparing two conversion rates by sampling from each posterior. Page A converts 120 of 1,000 visitors and page B 150 of 1,000; with flat Beta(1, 1) priors:
+Tests whether the means of two independent groups differ. `stats.ttest_ind()` returns the t-statistic and a two-tailed p-value. For a one-tailed test, pass `alternative="greater"` or `"less"`.
 
 ```python
-rng = np.random.default_rng(42)
-a = rng.beta(1 + 120, 1 + 880, 100_000)        # posterior samples for page A's rate
-b = rng.beta(1 + 150, 1 + 850, 100_000)        # posterior samples for page B's rate
-(b > a).mean()                                 # P(B is better) ≈ 0.975
-np.mean(b / a - 1)                             # expected relative lift ≈ 26%
+from scipy import stats
+diet = sodas.loc[sodas["soda"] == "diet_big_lemon", "rating"]
+zero = sodas.loc[sodas["soda"] == "big_lemon_zero", "rating"]
+t_stat, p_value = stats.ttest_ind(diet, zero)
+print(f"t = {t_stat:.2f}, p = {p_value:.3f}")
 ```
 
-The output answers the business question directly ("97.5% probability B converts better"), which a p-value doesn't.
+<a id="welch-s-t-test-and-paired-t-test"></a>
 
-See also: [A/B test (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#a-b-test)
+### Welch's t-test and paired t-test
+
+_SciPy_
+
+Two variants of the t-test that match different designs.
+
+- **Welch's t-test**, `stats.ttest_ind(a, b, equal_var=False)`, compares two **independent** groups without assuming they have the same spread. It's the safer default for a [Between-subject design](#between-subject-design).
+- The **paired t-test**, `stats.ttest_rel(before, after)`, is for a [Within-subject design](#within-subject-design), where each person gives both measurements. It tests the mean of each person's **difference**, which removes person-to-person variation.
+
+The `alternative=` argument chooses the tail: `"two-sided"` (default), `"greater"` or `"less"`.
+
+In the BIG Sodas data (200 ratings per soda), Big Lemon Zero averages 7.515 and Diet Big Lemon 5.440. Both the standard and Welch's t-test give t ≈ −20.6 with a p-value far below 0.05.
+
+```python
+from scipy import stats
+zero = sodas.loc[sodas["soda"] == "big_lemon_zero", "rating"]
+diet = sodas.loc[sodas["soda"] == "diet_big_lemon", "rating"]
+stats.ttest_ind(diet, zero)                         # assumes equal variances
+stats.ttest_ind(diet, zero, equal_var=False)        # Welch: no equal-variance assumption
+stats.ttest_ind(zero, diet, alternative="greater")  # one-tailed: is Zero rated higher?
+
+rng = np.random.default_rng(1)                      # paired example: same 30 tasters, both sodas
+first = rng.normal(6, 1, 30)
+second = first + rng.normal(0.4, 0.5, 30)
+stats.ttest_rel(second, first)
+```
+
+> **Watch out:** using `ttest_ind` on paired data ignores the pairing and usually misses real effects. Match the test to the design: one group of people tasting both drinks calls for `ttest_rel`.
+
+See also: [t-test (stats.ttest_ind)](#t-test-stats-ttest-ind), [Within-subject design](#within-subject-design), [One-tailed vs two-tailed test](#one-tailed-vs-two-tailed-test), [Effect size (Cohen's d)](#effect-size-cohen-s-d)
+
+<a id="effect-size-cohen-s-d"></a>
+
+### Effect size (Cohen's d)
+
+_Concept_
+
+A p-value says whether a difference is likely to be real. It doesn't say whether the difference is **big**: with enough data, a tiny, unimportant difference becomes "significant". An **effect size** measures the size of the difference. **Cohen's d** is the difference in means divided by the pooled standard deviation. As a rough guide, 0.2 is small, 0.5 medium and 0.8 large. Report it next to every p-value.
+
+```python
+zero = sodas.loc[sodas["soda"] == "big_lemon_zero", "rating"]
+diet = sodas.loc[sodas["soda"] == "diet_big_lemon", "rating"]
+pooled_sd = np.sqrt((zero.var() + diet.var()) / 2)       # equal group sizes (200 each)
+d = (zero.mean() - diet.mean()) / pooled_sd
+round(d, 2)                                              # about 2.1: a very large effect
+```
+
+See also: [p-value](#p-value), [Statistical power](#statistical-power), [Welch's t-test and paired t-test](#welch-s-t-test-and-paired-t-test)
+
+<a id="anova"></a>
+
+### ANOVA
+
+_Concept_
+
+Analysis of variance: a test for whether the means of **three or more** groups differ. Named in the slides alongside the t-test (in SciPy, `stats.f_oneway`).
+
+<a id="a-b-test"></a>
+
+### A/B test
+
+_Concept_
+
+A hypothesis test applied in marketing, web analytics and product development: show version A to some users and version B to others at random, then compare a metric such as **click-through rate** (the % of viewers who click). H₀ is usually "there is no difference between versions".
+
+<a id="statistical-power"></a>
+
+### Statistical power
+
+_Concept_
+
+The ability of a study to detect an effect that really exists. Power rises with sample size, so throwing away rows (for example, deleting rows with missing data) reduces it.
 
 ---
 
-<a id="s38-capstone-playbook"></a>
+<a id="s8-missing-data"></a>
 
-## 38. Capstone playbook
+## 8. Missing data
 
-_How to use this glossary for your capstone: running the data science lifecycle end to end on your own, specific question. Each stage lists what to do, the entries to read, and the mistakes that are easiest to make. Four tested code templates (classification, regression, time series and clustering) give you a leak-free starting point to adapt to your data._
+_Finding missing values, understanding why they're missing, and choosing how to handle them. The course priority order: find the real data if you can, otherwise impute, and delete only as a last resort. Examples use the Titanic dataset._
 
-<a id="using-this-glossary-for-your-capstone"></a>
+**In your capstone:** build a missingness table (count and percentage per column) on day one, and ask why each gap exists before you fill it. Decide per column (drop, impute, flag, or recover), write the reason down, and do any imputation inside a scikit-learn pipeline fitted on the training data only. Copy-paste recipes: [Audit missing values by field type](#audit-missing-values-by-field-type), [Visualise missing data with missingno](#visualise-missing-data-with-missingno), [Fill gaps by field type](#fill-gaps-by-field-type), [Fill gaps with models](#fill-gaps-with-models).
 
-### Using this glossary for your capstone
+<a id="missing-data"></a>
 
-_Concept_
-
-Your capstone answers one specific question by following the **data science lifecycle**: frame the problem → get and understand the data → choose a validation strategy → build baselines → train and tune candidate models → evaluate honestly → interpret and explain → communicate the value → plan deployment and next steps. The stages below map each step to the sections of this glossary. It's a loop, not a line: findings at any stage can send you back to reframe the question or rethink the data, and that's normal.
-
-A strong capstone shows **judgement** as much as technique: why this question, why this metric, why this model, how you know it isn't leaking or overfitting, and what the result means for the stakeholder.
-
-See also: [Data science lifecycle](#data-science-lifecycle), [Modeling workflow (end to end)](#modeling-workflow-end-to-end)
-
-<a id="stage-1-frame-the-question"></a>
-
-### Stage 1: Frame the question
+### Missing data
 
 _Concept_
 
-Write a **specific, measurable** problem statement before touching a model: what you'll predict or discover, for whom, the decision it supports, and how you'll know it worked. Decide the **problem type** (regression, classification, time series forecasting, clustering, recommendation) and the **success metrics**, both technical (e.g. recall ≥ 0.8) and business (e.g. fewer missed failures). Estimate the **value** (ROI) and check the **ethics**: whose data is it, and who's affected by mistakes?
-
-Read: [Problem framing](#problem-framing), [Problem statement](#problem-statement), [SMART goals](#smart-goals), [Stakeholder](#stakeholder), [Success metrics and hypotheses](#success-metrics-and-hypotheses), [Framing the problem type early](#framing-the-problem-type-early), [Feasibility assessment](#feasibility-assessment), [Return on investment (ROI)](#return-on-investment-roi), [Ethical, legal and strategic implications](#ethical-legal-and-strategic-implications), [Framing checklist](#framing-checklist).
-
-> **Watch out:** "Predict X" isn't a problem statement until it says why it matters and what counts as success. And with a rare outcome, a success target of "high accuracy" is meaningless: see [Base rate and false alarms](#base-rate-and-false-alarms).
-
-<a id="stage-2-get-and-understand-the-data"></a>
-
-### Stage 2: Get and understand the data
-
-_Concept_
-
-Identify the **target** column and each feature's type, clean it, and explore it (the Unit 2 EDA toolkit). Check class balance, missing values, outliers, correlations, and whether rows are independent or ordered in time. For every feature, ask: **would I know this value at the moment I make the prediction?** If not, it's leakage.
-
-Read: [Types of variables](#types-of-variables), [Data leakage (in model evaluation)](#data-leakage-in-model-evaluation), [Imbalanced classes](#imbalanced-classes), [No multicollinearity (M)](#no-multicollinearity-m), [Time series](#time-series), and the [Unit 2 glossary](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD) for cleaning and EDA.
-
-> **Watch out:** Columns that are consequences of the target (like `accept` and `enroll` when predicting applications, or `casual` + `registered` when predicting total rentals) make a model look brilliant and useless at the same time. Drop them before modelling.
-
-<a id="stage-3-choose-the-split-and-validation-strategy"></a>
-
-### Stage 3: Choose the split and validation strategy
-
-_Concept_
-
-Split **before** any fitting, so the test set represents genuinely unseen data. Use a stratified split for imbalanced classification, a chronological split for anything time-ordered, and group-aware splits when the same customer or patient appears in several rows. Tune with cross-validation on the training data only; look at the test set **once**, at the end.
-
-Read: [Train-test split](#train-test-split), [test_size, stratify and shuffle](#test-size-stratify-and-shuffle), [k-fold cross-validation](#k-fold-cross-validation), [Other cross-validation schemes](#other-cross-validation-schemes), [Three-way split (validation set)](#three-way-split-validation-set), [Time series train/test split](#time-series-train-test-split).
-
-> **Watch out:** Each time you change a model because of its test score, the test set leaks a little into your choices. Make decisions on cross-validation scores.
-
-<a id="stage-4-build-baselines"></a>
-
-### Stage 4: Build baselines
-
-_Concept_
-
-Every result needs a comparison. Before any real model, compute what you'd get with no model at all: the mean (regression), the majority class (classification) or the last value or last season (forecasting). Then build one simple, interpretable model (linear or logistic regression, a shallow tree). Report every later model against both.
-
-Read: [Null model (baseline) for regression](#null-model-baseline-for-regression), [Null accuracy](#null-accuracy), [DummyClassifier](#dummyclassifier), [Naive and seasonal naive forecasts](#naive-and-seasonal-naive-forecasts).
+Whenever no value is stored for a variable in an observation. Shown as `NaN`, `None`, `NULL`, `NA` or blank cells, and sometimes disguised as placeholders like `"?"`, `0` or `-999`. It's extremely common in real data and can seriously distort analysis and model performance.
 
 ```python
-from sklearn.dummy import DummyClassifier, DummyRegressor
-DummyClassifier(strategy="most_frequent").fit(X_train, y_train).score(X_test, y_test)
-DummyRegressor(strategy="mean").fit(X_train, y_train)
+titanic = pd.read_csv("https://raw.githubusercontent.com/datasciencedojo/datasets/master/titanic.csv")
 ```
 
-<a id="stage-5-choose-candidate-models"></a>
+<a id="isnull-isna"></a>
 
-### Stage 5: Choose candidate models
+### .isnull() / .isna()
+
+_pandas_
+
+Return `True` wherever a value is missing (the two names do the same thing). Chain `.sum()` to count missing values per column, or `.mean()` for the proportion. `.notnull()` / `.notna()` is the opposite.
+
+```python
+titanic.isnull().sum()             # count per column
+titanic.isnull().mean() * 100      # % missing per column
+titanic[titanic["Age"].isnull()]   # rows missing Age
+```
+
+See also: [Cookbook: Audit missing values by field type](#audit-missing-values-by-field-type)
+
+<a id="missingness-table"></a>
+
+### Missingness table
+
+_pandas_
+
+The first missing-data check on any dataset: the count and percentage of missing values per column, sorted worst first. `isnull()` gives True/False, and because True counts as 1, `.sum()` counts the missing values and `.mean()` gives the share missing. For Titanic, only three columns have gaps: `Cabin` 687 (77.1%), `Age` 177 (19.9%) and `Embarked` 2 (0.2%).
+
+```python
+missing = (pd.DataFrame({"n_missing": titanic.isnull().sum(),
+                         "pct_missing": (titanic.isnull().mean() * 100).round(1)})
+             .query("n_missing > 0")
+             .sort_values("pct_missing", ascending=False))
+missing
+```
+
+See also: [.isnull() / .isna()](#isnull-isna), [Column deletion](#column-deletion), [Missingness heatmap](#missingness-heatmap), [Cookbook: Audit missing values by field type](#audit-missing-values-by-field-type)
+
+<a id="missingness-heatmap"></a>
+
+### Missingness heatmap
+
+_seaborn_
+
+A picture of where the gaps are: `sns.heatmap(df.isnull(), cbar=False)` draws every cell, with missing ones highlighted. It shows patterns a count can't, such as columns that are missing together, or gaps that start at a particular row (a sign of a merge or collection problem). The [missingno](#missingno) library's `msno.matrix()` draws a similar chart.
+
+```python
+fig, ax = plt.subplots(figsize=(8, 4))
+sns.heatmap(titanic.isnull(), cbar=False, yticklabels=False, cmap="viridis", ax=ax)
+ax.set_title("Titanic: missing values (light = missing)")
+```
+
+See also: [missingno](#missingno), [Patterns of missingness](#patterns-of-missingness), [Missingness table](#missingness-table), [Cookbook: Visualise missing data with missingno](#visualise-missing-data-with-missingno)
+
+<a id="placeholder-values-for-missing-data"></a>
+
+### Placeholder values for missing data
+
+_Concept, pandas_
+
+Missing values often arrive disguised: `"?"`, `"N/A"`, `"unknown"`, an empty string, `-999`, `9999` or `0`. pandas only recognises some of these as missing, so the others hide inside your statistics. A `-999` age drags the mean down, and a `"?"` turns a numeric column into text, which is exactly what happens to `horsepower` in the autoMPG data. Find them by looking at `value_counts()` and at the minimum and maximum of every column, then convert them to real `NaN`.
+
+```python
+auto["horsepower"].dtype                                   # str: '?' is hiding in the column
+(auto["horsepower"] == "?").sum()                          # 6 placeholders
+auto["horsepower"] = pd.to_numeric(auto["horsepower"].replace("?", np.nan))
+auto["horsepower"].isna().sum()                            # 6 real missing values now
+
+ages = pd.Series([34, -999, 51, 28])
+ages.replace(-999, np.nan).mean()                          # 37.67 instead of -221.5
+```
+
+> **Watch out:** filling missing values with a code such as `-999` is risky outside tree-based models. Linear models and distance-based models treat it as a real number. If the fact that a value is missing matters, add a [Missing indicator](#missing-indicator) column instead.
+
+See also: [read_csv() options for messy files](#read-csv-options-for-messy-files), [pd.to_numeric()](#pd-to-numeric), [Constant value imputation](#constant-value-imputation)
+
+<a id="patterns-of-missingness"></a>
+
+### Patterns of missingness
 
 _Concept_
 
-Pick two to four candidates suited to your problem type and data size, ranging from interpretable to powerful (for tabular classification: logistic regression → random forest → gradient boosting). Use the [Choosing an approach by question type](#choosing-an-approach-by-question-type) and [Model selection cheat sheet](#model-selection-cheat-sheet) tables below. More complex isn't automatically better: with limited data a simpler model often generalizes best.
+How the gaps are laid out in a dataset. **Swiss cheese**: random holes scattered throughout. **File cabinet**: whole sections or records missing. **Diagonal (monotone)**: progressive missingness, common in long-running studies as people drop out over time.
 
-Read: [Bias–variance trade-off](#bias-variance-trade-off), [Fitting sine exercise](#fitting-sine-exercise), [Which model is best?](#which-model-is-best).
+<a id="missingno"></a>
 
-<a id="choosing-an-approach-by-question-type"></a>
+### missingno
 
-### Choosing an approach by question type
+_missingno_
+
+A small library for visualising missing data. `msno.matrix()` shows gaps row by row (white lines are missing values), `msno.bar()` shows completeness per column, and `msno.heatmap()` shows whether missingness in one column tends to go with missingness in another.
+
+```python
+import missingno as msno
+msno.matrix(titanic, figsize=(10, 6))
+msno.bar(titanic)
+msno.heatmap(titanic)
+```
+
+See also: [Cookbook: Visualise missing data with missingno](#visualise-missing-data-with-missingno)
+
+<a id="mcar-missing-completely-at-random"></a>
+
+### MCAR (Missing Completely At Random)
 
 _Concept_
 
-| Your question looks like…                       | Problem type              | Start with                             | Then try                                                          | Headline metrics                                   | Baseline               |
-| ----------------------------------------------- | ------------------------- | -------------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------- | ---------------------- |
-| "How much / how many…?"                         | Regression                | Linear regression                      | Ridge/Lasso, random forest, gradient boosting                     | RMSE or MAE, R²                                    | Predict the mean       |
-| "Will it happen / which category…?"             | Classification            | Logistic regression                    | kNN, random forest, gradient boosting, SVM                        | F1, recall/precision, ROC AUC                      | Majority class         |
-| "…and the event is rare"                        | Imbalanced classification | Logistic regression with class weights | Resampling in a pipeline, boosting                                | Recall, precision, F1, balanced accuracy, PR curve | Majority class         |
-| "What will it be next week/month?"              | Time series forecasting   | Seasonal naive, ARIMA/SARIMA           | ARIMA with exogenous predictors, VAR, tree models on lag features | MAE (or RMSE), AIC for model choice                | Naive / seasonal naive |
-| "How volatile/risky will it be?"                | Volatility forecasting    | GARCH(1, 1)                            | Other GARCH orders                                                | Forecast variance vs realized                      | Constant variance      |
-| "What natural groups exist?"                    | Clustering                | k-means on scaled data                 | DBSCAN/HDBSCAN, agglomerative                                     | Silhouette, inertia (elbow), cluster profiles      | —                      |
-| "Can I simplify these many features?"           | Dimensionality reduction  | PCA                                    | PCA inside a supervised pipeline                                  | Explained variance; downstream CV score            | All features           |
-| "What should we recommend?"                     | Recommendation            | Item-based collaborative filtering     | Content-based, hybrid                                             | Sense-checked recommendations, hit rate            | Most popular items     |
-| "Which version is better, and how sure are we?" | Experiment / Bayesian     | Bayesian A/B test                      | Frequentist test (Unit 2)                                         | P(B better), credible interval                     | —                      |
-| "What happens if…?"                             | Simulation                | Monte Carlo                            | Discrete event, agent-based, system dynamics                      | Distribution of outcomes (percentiles)             | Current state          |
+Missingness unrelated to anything in the data, observed or not: a lab sample broken in transport, a sensor glitch. If data is MCAR, deleting incomplete rows doesn't add bias, but you do lose statistical power.
 
-See also: [Regression vs classification tasks](#regression-vs-classification-tasks), [Choosing a classification metric](#choosing-a-classification-metric), [Choosing a regression metric](#choosing-a-regression-metric)
+<a id="mar-missing-at-random"></a>
 
-<a id="model-selection-cheat-sheet"></a>
+### MAR (Missing At Random)
 
-### Model selection cheat sheet
+_Concept_
+
+Missingness related to **other observed** variables, but not to the missing value itself. In the survey example, health scores are missing only for online respondents, so it depends on survey method, which you can see. MAR can bias results if handled carelessly, but you can model it from the observed columns.
+
+> **Watch out:** the same example can be MAR or MNAR depending on what explains it. "Higher earners skip the income question" is **MNAR** if the skipping depends on income itself. It's **MAR** only if, once you account for columns you did record (such as ZIP code and occupation), income no longer affects who skips.
+
+<a id="mnar-missing-not-at-random"></a>
+
+### MNAR (Missing Not At Random)
+
+_Concept_
+
+Missingness related to the **missing value itself**: people with very high incomes withhold income; unhappy employees skip the job-satisfaction question. The most problematic type, because the data you'd need to correct for it is exactly what's missing.
+
+> **Watch out:** No test can reliably tell MAR from MNAR. Deciding takes subject-matter expertise plus exploration of who is missing.
+
+<a id="classifying-missingness-the-survey-exercise"></a>
+
+### Classifying missingness: the survey exercise
+
+_Concept_
+
+The missing-data deck's skills challenge shows a full survey of 15 people, then the same table with gaps, and asks why each column is missing. You classify each one by comparing what's missing with what was recorded:
+
+| Column           | Missing for  | What the full table shows                       | Mechanism                                    |
+| ---------------- | ------------ | ----------------------------------------------- | -------------------------------------------- |
+| Income           | IDs 4, 9, 13 | nothing special about those three people        | MCAR                                         |
+| Job satisfaction | IDs 6, 9, 14 | the hidden values were the low scores (3, 4, 4) | MNAR: less satisfied people skipped it       |
+| Health score     | IDs 2, 8     | one online respondent and one phone respondent  | no clear link to survey method in this table |
+
+The health-score row is the most instructive. With only two gaps, one from each survey method, you can't tell whether missingness depends on method. Small samples make missingness mechanisms hard to identify. The other caveat is that we could only call job satisfaction MNAR because we saw the full table first. In real data you never see the hidden values, which is the point the deck makes next.
+
+In practice you can test some patterns, such as whether missingness differs between groups you recorded, but no test can tell MAR from MNAR, because the deciding information is the missing value itself. That decision needs domain knowledge. The formal test for MCAR, **Little's MCAR test**, exists in R and some Python packages, but not in pandas or scikit-learn.
+
+```python
+titanic["age_missing"] = titanic["Age"].isna()
+titanic.groupby("Pclass")["age_missing"].mean().round(3)   # differs by class: not MCAR
+titanic.groupby("Survived")["age_missing"].mean().round(3)
+```
+
+See also: [MCAR (Missing Completely At Random)](#mcar-missing-completely-at-random), [MAR (Missing At Random)](#mar-missing-at-random), [MNAR (Missing Not At Random)](#mnar-missing-not-at-random)
+
+<a id="unit-missingness"></a>
+
+### Unit missingness
+
+_Concept_
+
+An entire observation (row) is missing: a survey never returned, a participant who dropped out, a household that didn't answer the census. It reduces sample size and threatens **representativeness**, and can cause selection bias if certain types of people are more likely to be missing.
+
+<a id="item-missingness"></a>
+
+### Item missingness
+
+_Concept_
+
+Specific values (cells) are missing in otherwise complete rows: a skipped income question, one missing blood test. It produces a swiss-cheese pattern and complicates multivariate analysis. Usually handled with imputation.
+
+<a id="deletion-methods"></a>
+
+### Deletion methods
+
+_Concept_
+
+Handling missing data by removing information. Three kinds: **listwise deletion** (drop rows), **pairwise deletion** (use whatever is available per calculation) and **column deletion** (drop variables). Simple, but each throws data away.
+
+<a id="listwise-deletion-complete-case-analysis"></a>
+
+### Listwise deletion (complete-case analysis)
+
+_Concept, pandas_
+
+Remove every row that has _any_ missing value. Simple, but it can shrink the data drastically, cut statistical power, quietly remove whole groups, and add bias unless the data is MCAR.
+
+```python
+complete = titanic.dropna()
+print(f"Kept {len(complete) / len(titanic):.1%} of rows")
+```
+
+**The multiplicative trap.** Small amounts of missingness spread across many columns add up. With 20 columns, each missing 5% of values at random, the chance a row is complete is 0.95²⁰ ≈ 0.36, so listwise deletion throws away about **64%** of rows. On Titanic, `dropna()` keeps only **183 of 891** rows, because `Cabin` alone is missing for 77% of passengers.
+
+```python
+1 - 0.95 ** 20                     # 0.64: share of rows lost
+len(titanic.dropna()), len(titanic)   # (183, 891)
+len(titanic.drop(columns="Cabin").dropna())   # 712: drop the sparse column first
+```
+
+Deletion also changes **who** is left. The 183 complete Titanic rows are 86.3% first-class passengers (24.2% in the full data), mostly because cabin numbers were recorded for first class. Their survival rate is 67.2% against 38.4% overall, so any analysis of the complete cases badly overstates survival.
+
+```python
+complete = titanic.dropna()
+complete["Pclass"].value_counts(normalize=True).round(3).to_dict()    # {1: 0.863, 2: 0.082, 3: 0.055}
+round(complete["Survived"].mean(), 3), round(titanic["Survived"].mean(), 3)   # (0.672, 0.384)
+```
+
+<a id="dropna"></a>
+
+### .dropna()
+
+_pandas_
+
+Removes rows (or, with `axis=1`, columns) containing missing values. `subset=[...]` only checks the listed columns; `thresh=n` keeps rows with at least `n` non-missing values.
+
+```python
+titanic.dropna()                       # any missing value
+titanic.dropna(subset=["Age"])         # only where Age is missing
+loans = loans.dropna(subset=["Loan Title"])
+```
+
+<a id="pairwise-deletion"></a>
+
+### Pairwise deletion
+
+_Concept_
+
+Uses all available data for each calculation separately, only excluding a row from the calculations that need its missing value. pandas' `.corr()` works this way. It keeps more data than listwise deletion but can give inconsistent sample sizes across results, and even mathematically impossible correlation matrices.
+
+<a id="column-deletion"></a>
+
+### Column deletion
+
+_Concept, pandas_
+
+Drop variables with too many missing values. The threshold (20%? 30%?) is a judgement call, and you risk throwing away an important variable.
+
+```python
+threshold = 0.3
+kept = titanic.loc[:, titanic.isnull().mean() < threshold]   # drops Cabin
+titanic.drop(columns=["Cabin"])                               # or drop by name
+```
+
+<a id="imputation"></a>
+
+### Imputation
+
+_Concept_
+
+Filling in missing values with estimates. **Simple imputation** uses straightforward rules (mean, constant, last value); **advanced imputation** uses models such as regression, KNN or multiple imputation (beyond the scope of this course). Every method has trade-offs.
+
+See also: [Cookbook: Fill gaps by field type](#fill-gaps-by-field-type)
+
+<a id="fillna"></a>
+
+### .fillna()
+
+_pandas_
+
+Replaces missing values with a value, a Series (matched by index), or a dictionary of `{column: value}`. The workhorse of simple imputation.
+
+```python
+titanic["Age"] = titanic["Age"].fillna(titanic["Age"].mean())
+titanic["Cabin"] = titanic["Cabin"].fillna("Unknown")
+titanic = titanic.fillna({"Embarked": "S", "Age": 28})
+```
+
+See also: [Cookbook: Fill gaps by field type](#fill-gaps-by-field-type)
+
+<a id="mean-median-mode-imputation"></a>
+
+### Mean / median / mode imputation
+
+_Concept, pandas_
+
+Replace missing values with the column's mean or median (numeric) or mode (categorical). Simple, but it artificially shrinks variance, creates a spike at one value, weakens relationships between variables and understates standard errors. The median is safer than the mean for skewed data.
+
+```python
+median_age = titanic["Age"].median()
+titanic["Age"] = titanic["Age"].fillna(median_age)
+mode_port = titanic["Embarked"].mode()[0]
+titanic["Embarked"] = titanic["Embarked"].fillna(mode_port)
+```
+
+> **Watch out:** simple imputation is only acceptable when a wrong guess is harmless. Imputing a patient's **blood type** with the most common type would be dangerous, because transfusions must be cross-matched. It's an example of where imputation is inappropriate, not of good practice. Also check that each imputation cell fills the column it means to: copying the mean cell to make a median cell and forgetting to change the variable leaves the gaps unfilled. A final `.isna().sum()` check catches this.
+
+See also: [Cookbook: Fill gaps by field type](#fill-gaps-by-field-type)
+
+<a id="constant-value-imputation"></a>
+
+### Constant value imputation
+
+_Concept, pandas_
+
+Replace missing values with a fixed value such as `0` or `"Unknown"`. Appropriate when missingness itself means something (no spending recorded means $0 spent), but it creates artificial clusters in charts and analysis.
+
+```python
+titanic["Cabin"] = titanic["Cabin"].fillna("Unknown")
+```
+
+<a id="last-observation-carried-forward-locf"></a>
+
+### Last Observation Carried Forward (LOCF)
+
+_Concept, pandas_
+
+In time-ordered data, fill a gap with the most recent previous value, e.g. reuse last month's blood-pressure reading. Easy to explain, but it assumes nothing changed, understates variability and can hide trends.
+
+```python
+readings = pd.Series([120, None, None, 135], index=pd.date_range("2024-01", periods=4, freq="MS"))
+readings.ffill()       # forward fill: 120, 120, 120, 135
+```
+
+<a id="group-based-imputation"></a>
+
+### Group-based imputation
+
+_Concept, pandas_
+
+Fill missing values with the mean or median of similar rows rather than the whole column, e.g. the average age of passengers with the same class and sex. Keeps more of the real structure than a single overall value.
+
+```python
+group_means = titanic.groupby(["Pclass", "Sex"])["Age"].transform("mean")
+titanic["Age"] = titanic["Age"].fillna(group_means)
+```
+
+See also: [Cookbook: Fill gaps by field type](#fill-gaps-by-field-type)
+
+<a id="missing-indicator"></a>
+
+### Missing indicator
+
+_Concept, pandas_
+
+A new 0/1 column flagging which rows _were_ missing before you imputed them. It preserves the information that a value was missing, which can itself be predictive.
+
+```python
+titanic["Age_missing"] = titanic["Age"].isnull().astype(int)
+titanic["Age"] = titanic["Age"].fillna(titanic["Age"].median())
+```
+
+See also: [Cookbook: Fill gaps by field type](#fill-gaps-by-field-type)
+
+<a id="missing-data-decision-order"></a>
+
+### Missing data decision order
+
+_Concept_
+
+The course's order of preference for dealing with gaps.
+
+1. **Recover the real data.** Re-query the API, fix the join, ask the data owner.
+2. **Understand why it's missing** (MCAR, MAR or MNAR), using EDA and domain knowledge.
+3. **Impute** with a method that suits the mechanism and the model, inside a pipeline, adding a [Missing indicator](#missing-indicator) when the gap itself may carry information.
+4. **Delete** rows or columns only as a last resort: when the missingness is negligible or truly unrecoverable, and you've checked it doesn't bias who's left.
+
+Whatever you choose, write it down per column with the reason. Your capstone report should say how much was missing and what you did.
+
+See also: [Missing data](#missing-data), [Deletion methods](#deletion-methods), [Imputation](#imputation), [Missing-data decisions](#missing-data-decisions)
+
+<a id="simpleimputer"></a>
+
+### SimpleImputer
+
+_scikit-learn_
+
+scikit-learn's transformer for simple imputation inside a pipeline. `strategy=` can be `"mean"`, `"median"`, `"most_frequent"` (mode) or `"constant"` (with `fill_value=`). Because it's fitted on training data only, it avoids data leakage.
+
+```python
+from sklearn.impute import SimpleImputer
+from sklearn.model_selection import train_test_split
+
+X = housing[["sqft", "bedrooms"]].copy()
+X.loc[X.sample(frac=0.1, random_state=1).index, "sqft"] = np.nan   # knock out 10% of sqft
+X_train, X_test = train_test_split(X, test_size=0.2, random_state=42)
+
+imputer = SimpleImputer(strategy="median")
+X_train[["sqft"]] = imputer.fit_transform(X_train[["sqft"]])   # learn the median from training rows
+X_test[["sqft"]] = imputer.transform(X_test[["sqft"]])          # reuse it on the test rows
+imputer.statistics_                                              # the learned median
+```
+
+See also: [Cookbook: Leak-free imputation and encoding in a pipeline](#leak-free-imputation-and-encoding-in-a-pipeline)
+
+<a id="knnimputer-and-iterativeimputer"></a>
+
+### KNNImputer and IterativeImputer
+
+_scikit-learn_
+
+**Multivariate** imputers that use the other columns to estimate each missing value, so related columns help. That makes them better than a single mean or median when values are missing at random (MAR).
+
+- `KNNImputer(n_neighbors=5)` fills a gap with the average of the 5 most similar rows. Scale the columns first, because it measures distance.
+- `IterativeImputer` predicts each column from the others with a regression model, round after round. It's scikit-learn's version of **MICE** (multiple imputation by chained equations). It's still marked experimental, so you must import `enable_iterative_imputer` first.
+
+The missing-data deck lists these as advanced methods. Like every imputer, fit them on training data only, inside a pipeline.
+
+```python
+from sklearn.experimental import enable_iterative_imputer  # noqa: F401  (required import)
+from sklearn.impute import IterativeImputer, KNNImputer
+
+num = titanic[["Age", "Fare", "SibSp", "Parch", "Pclass"]]
+knn_filled = KNNImputer(n_neighbors=5).fit_transform(num)
+iter_filled = IterativeImputer(random_state=0, max_iter=10).fit_transform(num)
+np.isnan(knn_filled).sum(), np.isnan(iter_filled).sum()       # (0, 0)
+```
+
+> **Watch out:** no imputer fixes MNAR data, because the information needed is the missing value itself. Imputed values are estimates. Treating them as real observations makes your results look more certain than they are.
+
+See also: [SimpleImputer](#simpleimputer), [MAR (Missing At Random)](#mar-missing-at-random), [Pipeline with imputation](#pipeline-with-imputation), [Cookbook: Fill gaps with models](#fill-gaps-with-models)
+
+---
+
+<a id="s9-eda-for-modeling"></a>
+
+## 9. EDA for modeling
+
+_Exploring data with a machine learning model in mind: random variables, distributions and model choice, correlation, standardization, correlation vs causation, plus the handful of scikit-learn basics the notebooks use to show why all this matters._
+
+**In your capstone:** this is the bridge from cleaning to modelling. Identify the target and decide regression or classification, check class balance, look for features that are suspiciously strong (leakage) or redundant (multicollinearity), and let what you find decide the model family and the preprocessing. Fit a simple baseline before anything clever. Copy-paste recipes: [Profile a dataset quickly](#profile-a-dataset-quickly), [Define validation rules and check your data](#define-validation-rules-and-check-your-data), [Detect and treat outliers](#detect-and-treat-outliers), [Summarise by group](#summarise-by-group).
+
+<a id="eda-for-modeling"></a>
+
+### EDA for modeling
+
+_Concept_
+
+Exploration aimed at building a model: finding relationships in the data, seeing which features correlate with the target, checking model assumptions, and creating new features. Goals from the slides: understand structure and quality, find patterns and anomalies, detect issues to clean, generate hypotheses, inform feature selection and engineering, and guide the choice of algorithm.
+
+<a id="garbage-in-garbage-out"></a>
+
+### Garbage in, garbage out
+
+_Concept_
+
+A model can only be as good as the data it learns from. Skipping EDA means missing the quality problems that will quietly ruin the results.
+
+<a id="data-quality-assessment"></a>
+
+### Data quality assessment
+
+_Concept, pandas_
+
+Checking data for problems before modeling: **missing values**, **outliers** (legitimate or errors), **inconsistencies** (contradictory or impossible values), **duplicate records**, **inappropriate data types**, and **class imbalance** in the target.
+
+```python
+titanic.isnull().sum()                          # missing values per column
+titanic.duplicated().sum()                      # exact duplicate rows
+titanic.dtypes
+titanic["Survived"].value_counts(normalize=True)   # class balance of the target
+```
+
+See also: [Cookbook: Define validation rules and check your data](#define-validation-rules-and-check-your-data), [Cookbook: Profile a dataset quickly](#profile-a-dataset-quickly)
+
+<a id="classifying-variables-in-code"></a>
+
+### Classifying variables in code
+
+_pandas_
+
+The EDA for modeling notebook starts by sorting columns into **continuous** and **discrete/categorical** with a helper function, so each group gets the right summaries and plots. The usual rule: text columns are categorical, and so are numeric columns with only a few distinct values (such as `Pclass` or a 1–5 rating). Everything else numeric is continuous.
+
+Write the type test so it works in pandas 3. Text columns now have the `str` dtype, so a check like `dtype == "object"` misses them.
+
+```python
+def classify_variables(df, max_levels=10):
+    """Split columns into continuous and categorical lists (works in pandas 2 and 3)."""
+    continuous, categorical = [], []
+    for col in df.columns:
+        s = df[col]
+        if pd.api.types.is_numeric_dtype(s) and not pd.api.types.is_bool_dtype(s) \
+                and s.nunique() > max_levels:
+            continuous.append(col)
+        else:
+            categorical.append(col)      # text, booleans, and numbers with few levels
+    return continuous, categorical
+
+classify_variables(titanic.drop(columns=["PassengerId", "Name", "Ticket"]))
+# (['Age', 'Fare'], ['Survived', 'Pclass', 'Sex', 'SibSp', 'Parch', 'Cabin', 'Embarked'])
+```
+
+> **Watch out:** `if df[col].dtype == "object"` quietly treats every text column as non-text in pandas 3. Use `pd.api.types.is_string_dtype()` or `is_numeric_dtype()` instead. The 10-level cut-off is a judgement call: a column such as `SibSp` (0–8 siblings) can be treated either way.
+
+See also: [Continuous variable](#continuous-variable), [Discrete / categorical variable](#discrete-categorical-variable), [String dtype (str) in pandas 3](#string-dtype-str-in-pandas-3), [.select_dtypes()](#select-dtypes)
+
+<a id="duplicate-rows-and-leakage"></a>
+
+### Duplicate rows and leakage
+
+_Concept_
+
+Exact duplicate rows inflate counts, and they also make a model look better than it is. If the same row lands in both the training set and the test set, the model is "tested" on data it has already seen. The EDA for modeling deck lists this under data-quality checks. Look for duplicates before you split, decide whether they're errors or genuine repeats, and remove confirmed errors first. When several rows legitimately belong to the same customer or patient, keep that person's rows together on one side of the split.
+
+```python
+titanic.duplicated().sum()                         # 0 exact duplicates in Titanic
+housing.duplicated().sum()
+lego.duplicated(subset=["Name", "Year", "Theme"]).sum()   # possible repeats worth a look
+```
+
+See also: [.duplicated()](#duplicated), [.drop_duplicates()](#drop-duplicates), [Data leakage](#data-leakage), [Data leakage in model evaluation (Unit 3)](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#data-leakage-in-model-evaluation)
+
+<a id="capped-values"></a>
+
+### Capped values
+
+_Concept_
+
+Some datasets replace every value above a limit with the limit itself. In the California housing data, `median_house_value` is capped at **$500,001** (965 districts sit exactly on it) and `housing_median_age` at **52** (1,273 districts). Caps show up as a spike in the last bin of a histogram. A model can't learn anything above the cap, and its errors will be biased for the most expensive districts. Options: keep them and say so, remove capped rows, or treat the cap as its own category.
+
+```python
+cap = housing_df["median_house_value"].max()
+(housing_df["median_house_value"] == cap).sum(), cap                 # (965, 500001.0)
+(housing_df["housing_median_age"] == 52).sum()                       # 1273
+housing_df["median_house_value"].plot(kind="hist", bins=50, title="Spike at the $500,001 cap")
+```
+
+See also: [Histogram](#histogram), [Outlier decisions](#outlier-decisions), [Data quality assessment](#data-quality-assessment), [Cookbook: Detect and treat outliers](#detect-and-treat-outliers)
+
+<a id="class-imbalance"></a>
+
+### Class imbalance
+
+_Concept_
+
+When one category of the target is much more common than another, e.g. 98% "not fraud" and 2% "fraud". A model can score 98% accuracy by always guessing the majority class, so imbalance changes how you train and evaluate.
+
+<a id="cardinality"></a>
+
+### Cardinality
+
+_Concept, pandas_
+
+The number of unique values in a categorical variable. Low cardinality (3 garage types) is easy to encode; high cardinality (1,000 cities) causes problems for one-hot encoding.
+
+```python
+lego["Theme"].nunique()
+```
+
+See also: [Cookbook: Fix misspelled and inconsistent categories](#fix-misspelled-and-inconsistent-categories)
+
+<a id="random-variable"></a>
+
+### Random variable
+
+_Concept_
+
+A variable whose value depends on chance. More formally, a function mapping the outcomes of a random process to numbers (a coin flip to 0/1, a die roll to 1–6). In data science, every column is treated as a random variable: we observe its values but can't predict them perfectly.
+
+It's the **probabilities** of the outcomes that add up to 1, not the values themselves: a fair coin maps HEADS → 1 and TAILS → 0, each with probability 0.5.
+
+<a id="discrete-vs-continuous-random-variable"></a>
+
+### Discrete vs continuous random variable
+
+_Concept_
+
+**Discrete** random variables take countable values (number of customers, defects, 0/1 outcomes) and are described by a **probability mass function (PMF)**, which gives the probability of each exact value. **Continuous** ones take any value in a range (height, time) and are described by a **probability density function (PDF)**, where probabilities come from areas under the curve.
+
+<a id="common-distributions-in-data"></a>
+
+### Common distributions in data
+
+_Concept_
+
+The shapes you'll meet most often, and the modelling hint each one gives:
+
+| Distribution | Looks like                                | Typical data                                      | Hint                           |
+| ------------ | ----------------------------------------- | ------------------------------------------------- | ------------------------------ |
+| Normal       | symmetric bell                            | measurement error, heights                        | fine for linear models         |
+| Log-normal   | long right tail; normal after taking logs | prices, incomes, house values                     | log-transform                  |
+| Exponential  | many small values, few large              | waiting times, the synthetic `income_area`        | log or power transform         |
+| Poisson      | counts of events, right-skewed when small | defects per day, visits                           | count models, `log1p`          |
+| Uniform      | flat                                      | random IDs, `year_built` in the synthetic housing | nothing to fix                 |
+| Bimodal      | two peaks                                 | mixed populations                                 | look for the grouping variable |
+
+The EDA for modeling notebook's distribution tests compare columns against these shapes with histograms, Q-Q plots and skewness.
+
+```python
+rng = np.random.default_rng(42)
+samples = pd.DataFrame({"normal": rng.normal(50, 10, 5000),
+                        "lognormal": rng.lognormal(3, 0.6, 5000),
+                        "exponential": rng.exponential(10, 5000),
+                        "poisson": rng.poisson(3, 5000)})
+samples.skew().round(2)              # near 0 for normal, clearly positive for the others
+samples.hist(bins=40, figsize=(10, 6))
+```
+
+See also: [Distribution](#distribution), [Normal (Gaussian) distribution](#normal-gaussian-distribution), [Skewness](#skewness), [Log transformation](#log-transformation)
+
+<a id="expected-value"></a>
+
+### Expected value
+
+_Concept_
+
+The long-run average value of a random variable, i.e. its theoretical mean. Along with variance, standard deviation and quantiles, it's one of the key properties of a random variable.
+
+<a id="realisation"></a>
+
+### Realisation
+
+_Concept_
+
+An actual observed value of a random variable. Each row in a dataset is one realisation of the random process; each column is a different random variable.
+
+<a id="population-vs-sample"></a>
+
+### Population vs sample
+
+_Concept_
+
+The **population** is everyone or everything you want to know about; a **sample** is the subset you actually have data on. Statistical inference uses the sample to draw conclusions about the population.
+
+<a id="feature-independent-variable"></a>
+
+### Feature (independent variable)
+
+_Concept_
+
+An input variable a model uses to make predictions, conventionally stored in `X`. Also called a predictor or independent variable.
+
+<a id="target-dependent-variable"></a>
+
+### Target (dependent variable)
+
+_Concept_
+
+The output variable a model aims to predict, conventionally stored in `y`. A model estimates P(Y|X): the probability distribution of the target given the features.
+
+```python
+X = housing.drop(columns=["price"])
+y = housing["price"]
+```
+
+<a id="regression-vs-classification"></a>
+
+### Regression vs classification
+
+_Concept_
+
+Two main kinds of supervised machine learning. **Regression** predicts a number (house price). **Classification** predicts a category (species, fraud or not). **Clustering** is unsupervised: it groups rows without a target.
+
+<a id="linear-model-assumptions"></a>
+
+### Linear model assumptions
+
+_Concept_
+
+Ordinary linear regression assumes a **linear relationship** between features and target, **normally distributed residuals** (the errors), and **homoscedasticity** (residuals with constant spread). Logistic regression assumes a linear relationship with the **log-odds** of the target, but not the other two. Breaking the normality or constant-spread assumptions mainly makes confidence intervals and p-values unreliable. A non-linear relationship is the one that biases the coefficients and the predictions. The fixes are transforming variables (log, square root, Box-Cox) or switching model family.
+
+<a id="residual"></a>
+
+### Residual
+
+_Concept_
+
+The difference between an actual value and the model's prediction for it (actual minus predicted). Patterns in residuals reveal what the model is missing.
+
+<a id="homoscedasticity"></a>
+
+### Homoscedasticity
+
+_Concept_
+
+Residuals having roughly the same spread at every level of the prediction. The opposite, **heteroscedasticity**, looks like a funnel shape in a residual plot and is common with skewed targets such as prices.
+
+<a id="tree-based-models"></a>
+
+### Tree-based models
+
+_Concept_
+
+Decision trees, random forests and gradient boosting. They split the data with yes/no rules, make no distributional assumptions, handle non-linear relationships naturally, and are much less sensitive to feature scale. Extreme skew and outliers can still affect them.
+
+<a id="correlation"></a>
+
+### Correlation
+
+_Concept_
+
+A measure of the **direction** and **strength** of the relationship between two numeric variables. Positive: they rise together. Negative: one rises as the other falls. Correlation is a starting point for investigation, not a conclusion.
+
+<a id="pearson-correlation-coefficient-r"></a>
+
+### Pearson correlation coefficient (r)
+
+_Concept, pandas, SciPy_
+
+Measures the strength of a **linear** relationship, from −1 (perfect negative) through 0 (no linear relationship) to +1 (perfect positive). It's the **standardized covariance**: the covariance divided by the product of the two standard deviations. pandas' `.corr()` uses Pearson by default. Rough guide from the slides: 0.7–1 strong, 0.3–0.7 moderate, 0–0.3 weak.
+
+```python
+lego["Pieces"].corr(lego["USD_MSRP"])            # pandas skips rows with a NaN in either column
+from scipy import stats
+pair = lego[["Pieces", "USD_MSRP"]].dropna()
+r, p_value = stats.pearsonr(pair["Pieces"], pair["USD_MSRP"])   # SciPy needs NaNs removed
+```
+
+> **Watch out:** Pearson only sees straight lines. A perfect U-shaped relationship can give r ≈ 0, and a single outlier can flip the sign. Always plot the scatter.
+
+<a id="covariance"></a>
+
+### Covariance
+
+_Concept_
+
+How two variables vary together: positive if they tend to be above their means at the same time. Its size depends on the units, which is why it's standardized into a correlation.
+
+<a id="correlation-matrix"></a>
+
+### Correlation matrix
+
+_pandas, seaborn_
+
+A table of correlations between every pair of numeric columns, usually shown as a heatmap. Sort one column of it to rank features by how strongly they relate to the target.
+
+```python
+corr = housing_df.corr(numeric_only=True)
+corr["median_house_value"].sort_values(ascending=False)
+sns.heatmap(corr, annot=True, cmap="coolwarm", center=0)
+```
+
+See also: [Cookbook: EDA charts: relationships, correlation and time](#eda-charts-relationships-correlation-and-time)
+
+<a id="correlation-with-the-target"></a>
+
+### Correlation with the target
+
+_pandas_
+
+A quick way to rank numeric features: correlate each one with the target and sort by the **absolute** value (a strong negative correlation is as useful as a strong positive one). It only finds **linear, one-at-a-time** relationships, so treat it as a starting list, not a feature-selection rule. A suspiciously high value (near ±1) is a reason to check for leakage.
+
+```python
+target_corr = (housing_df.corr(numeric_only=True)["median_house_value"]
+                         .drop("median_house_value")
+                         .sort_values(key=abs, ascending=False))
+target_corr.round(3)            # median_income comes first
+```
+
+See also: [Correlation matrix](#correlation-matrix), [Pearson correlation coefficient (r)](#pearson-correlation-coefficient-r), [Data leakage](#data-leakage)
+
+<a id="anscombe-s-quartet"></a>
+
+### Anscombe's quartet
+
+_Concept_
+
+Four small datasets, published by Francis Anscombe in 1973, that have practically the same mean of x (9.0), mean of y (7.5) and correlation (r ≈ 0.816). Plotted, they look completely different: a straight-line trend, a curve, a line with one outlier, and a vertical cluster with one extreme point. It's the classic case for the EDA deck's rule: **always plot your data**, and never trust a summary number on its own.
+
+```python
+anscombe = sns.load_dataset("anscombe")
+anscombe.groupby("dataset").apply(lambda d: d["x"].corr(d["y"])).round(3)   # all about 0.816
+sns.lmplot(data=anscombe, x="x", y="y", col="dataset", col_wrap=2, height=2.5, ci=None)
+```
+
+See also: [Correlation](#correlation), [Scatter plot](#scatter-plot), [Nonlinear relationships and correlation](#nonlinear-relationships-and-correlation)
+
+<a id="nonlinear-relationships-and-correlation"></a>
+
+### Nonlinear relationships and correlation
+
+_Concept_
+
+Pearson's r only measures **straight-line** relationships. A strong but curved relationship, such as a U-shape, can have r close to 0. Spearman's rank correlation catches relationships that only ever go up (or only ever go down), even when they curve, but not U-shapes. The EDA for modeling notebook's "correlation's limitations" exercise builds exactly this case. A scatter plot is the only reliable check.
+
+```python
+x = np.linspace(-3, 3, 200)
+y_u = x ** 2                                  # perfect U-shape
+y_exp = np.exp(x)                             # always increasing, but curved
+round(np.corrcoef(x, y_u)[0, 1], 3)           # about 0: Pearson sees nothing
+from scipy import stats
+round(stats.pearsonr(x, y_exp)[0], 3), round(stats.spearmanr(x, y_exp)[0], 3)   # Spearman = 1.0
+```
+
+See also: [Pearson correlation coefficient (r)](#pearson-correlation-coefficient-r), [Spearman rank correlation](#spearman-rank-correlation), [Anscombe's quartet](#anscombe-s-quartet)
+
+<a id="spearman-rank-correlation"></a>
+
+### Spearman rank correlation
+
+_Concept, pandas, SciPy_
+
+Correlation calculated on the **ranks** of the values rather than the values themselves, so it captures any **monotonic** relationship (always rising or always falling, even if curved) and is less affected by outliers.
+
+```python
+housing_df.corr(method="spearman", numeric_only=True)
+from scipy import stats
+rho, p_value = stats.spearmanr(housing_df["median_income"], housing_df["median_house_value"])
+```
+
+<a id="kendall-s-tau"></a>
+
+### Kendall's tau
+
+_Concept, SciPy_
+
+Another rank-based correlation, based on how many pairs of points are in the same order on both variables. Robust to outliers and works well on small samples.
+
+```python
+from scipy import stats
+tau, p_value = stats.kendalltau(customers["age"], customers["customer_id"])
+```
+
+<a id="other-correlation-measures"></a>
+
+### Other correlation measures
+
+_Concept_
+
+**Point-biserial**: between a continuous and a binary variable. **Distance correlation**: detects non-linear dependence. **Mutual information**: from information theory, can capture almost any kind of relationship.
+
+<a id="multicollinearity"></a>
+
+### Multicollinearity
+
+_Concept_
+
+When two or more **features** are strongly correlated with each other (e.g. |r| > 0.8), so they carry largely redundant information. It makes linear model coefficients unstable and hard to interpret. Fixes include dropping one of the pair or combining them.
+
+<a id="variance-inflation-factor-vif"></a>
+
+### Variance inflation factor (VIF)
+
+_Concept, statsmodels_
+
+A number for each feature that measures how well the **other** features predict it. A VIF of 1 means it's unrelated to the others. Above about 5 the overlap is worth noticing, and above 10 it's serious, which is the threshold the EDA for modeling deck uses. High VIFs make a linear model's coefficients unstable and hard to interpret, though they don't necessarily hurt its predictions. Unlike a correlation matrix, VIF also catches a feature that is a combination of **several** others.
+
+```python
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+from statsmodels.tools.tools import add_constant
+
+features = housing_df[["total_rooms", "total_bedrooms", "population", "households",
+                       "median_income", "housing_median_age"]].dropna()
+X = add_constant(features)                       # VIF needs an intercept column
+vif = pd.Series([variance_inflation_factor(X.values, i) for i in range(1, X.shape[1])],
+                index=features.columns).round(1).sort_values(ascending=False)
+vif                       # rooms, bedrooms and households overlap heavily
+```
+
+See also: [Multicollinearity](#multicollinearity), [Correlation matrix](#correlation-matrix), [Variance inflation factor (Unit 3)](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#variance-inflation-factor-vif)
+
+<a id="principal-component-analysis-pca"></a>
+
+### Principal Component Analysis (PCA)
+
+_Concept_
+
+A technique that turns many correlated features into fewer uncorrelated "components" capturing most of the variation. Used for multivariate exploration and dimensionality reduction. It needs standardized data. Mentioned in the course; covered properly later.
+
+<a id="standardization-feature-scaling"></a>
+
+### Standardization / feature scaling
 
 _Concept, scikit-learn_
 
-| Model                       | Task                     | Scale features?                  | Key hyperparameters                                | Interpretability            | Watch for                               |
-| --------------------------- | ------------------------ | -------------------------------- | -------------------------------------------------- | --------------------------- | --------------------------------------- |
-| Linear regression           | Regression               | No (yes to compare coefficients) | —                                                  | High                        | Assumptions (LINEM), outliers, leakage  |
-| Ridge / Lasso / ElasticNet  | Regression               | **Yes**                          | `alpha`, `l1_ratio`                                | High                        | Choose alpha by CV                      |
-| Logistic regression         | Classification           | Recommended                      | `C`, penalty                                       | High (odds ratios)          | Default L2 penalty, perfect separation  |
-| kNN                         | Both                     | **Yes**                          | `n_neighbors`, `weights`, `p`                      | Medium                      | Slow on big data, many features         |
-| Decision tree               | Both                     | No                               | `max_depth`, `min_samples_leaf`, `ccp_alpha`       | High                        | Overfits; unstable                      |
-| Random forest               | Both                     | No                               | `n_estimators`, `max_features`, `min_samples_leaf` | Medium (importances)        | Regressor default uses all features     |
-| Gradient boosting / XGBoost | Both                     | No                               | `learning_rate`, `n_estimators`, `max_depth`       | Low–medium (SHAP)           | Overfits if run too long                |
-| SVM (`SVC`)                 | Classification           | **Yes**                          | `C`, `kernel`, `gamma`                             | Low                         | Slow on very large data                 |
-| k-means                     | Clustering               | **Yes**                          | `n_clusters`, `n_init`                             | Medium (centroids)          | Round, similar-sized clusters only      |
-| DBSCAN / HDBSCAN            | Clustering               | **Yes**                          | `eps`, `min_samples` / `min_cluster_size`          | Medium                      | Sensitive to eps; varying density       |
-| Agglomerative               | Clustering               | **Yes**                          | `n_clusters`, `linkage`                            | Medium (dendrogram)         | Slow on large data                      |
-| PCA                         | Dimensionality reduction | **Yes**                          | `n_components`                                     | Low (components are blends) | Ignores the target                      |
-| ARIMA / SARIMA              | Forecasting              | —                                | `order`, `seasonal_order`                          | Medium                      | Needs stationarity; chronological split |
-| GARCH                       | Volatility               | Rescale returns                  | `p`, `q`                                           | Medium                      | Needs the `arch` package                |
-| VAR                         | Multivariate forecasting | —                                | `maxlags`, `ic`                                    | Medium                      | Parameters grow fast                    |
+Putting features on comparable scales so that large-valued ones (income in tens of thousands) don't dominate small ones (age). Required or strongly helpful for k-means, PCA, neural networks, regularised regression (Lasso, Ridge), support vector machines and KNN; it also speeds up training and makes coefficients comparable. Tree models barely need it.
 
-See also: [Scaling for distance-based models](#scaling-for-distance-based-models), [Standardize before regularizing](#standardize-before-regularizing)
+See also: [Z-score standardization](#z-score-standardization), [Min-max scaling (normalisation)](#min-max-scaling-normalisation), [Robust scaling](#robust-scaling)
 
-<a id="stage-6-build-a-pipeline-and-tune"></a>
+<a id="scaling-and-linear-regression-predictions"></a>
 
-### Stage 6: Build a pipeline and tune
+### Scaling and linear regression predictions
 
 _Concept, scikit-learn_
 
-Put **all** preprocessing (imputation, scaling, encoding, resampling) and the model into one pipeline, then tune it with `GridSearchCV` (or `RandomizedSearchCV` for big grids) on the training data. Choose `scoring` to match your headline metric. Check whether the best values sit at the edge of your grid, and treat tiny CV differences as ties.
+Scaling the features doesn't change an ordinary linear regression's predictions. The coefficients change to match the new units, but the fitted line is the same, so R² is identical. Scaling matters for models that use distances or penalties (k-nearest neighbours, regularized regression, gradient descent). For plain linear regression, a better score comes from better features, not from scaling. The feature engineering notebook's pipeline beats its baseline because it adds `income_area` and `neighborhood`, which drive price in the synthetic data.
 
-Read: [Pipelines (in tuning)](#pipelines-in-tuning), [Pipeline with ColumnTransformer](#pipeline-with-columntransformer), [Pipeline + GridSearchCV](#pipeline-gridsearchcv), [step\_\_parameter naming](#step-parameter-naming), [Choosing a scoring metric for tuning](#choosing-a-scoring-metric-for-tuning), [Reading grid search results](#reading-grid-search-results), [imbalanced-learn pipeline](#imbalanced-learn-pipeline).
+```python
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 
-> **Watch out:** Fitting a scaler, imputer, encoder or resampler on all the data before splitting is the most common source of leakage. Inside a pipeline it can't happen.
+X_train, X_test, y_train, y_test = train_test_split(
+    housing[["sqft", "bedrooms", "bathrooms", "income_area"]], housing["price"],
+    test_size=0.2, random_state=42)
+plain = LinearRegression().fit(X_train, y_train).score(X_test, y_test)
+scaled = make_pipeline(StandardScaler(), LinearRegression()).fit(X_train, y_train).score(X_test, y_test)
+np.isclose(plain, scaled)          # True: same R² with or without scaling
+```
 
-<a id="stage-7-evaluate-honestly"></a>
+See also: [Standardization / feature scaling](#standardization-feature-scaling), [Pipeline](#pipeline), [Regularization (Unit 3)](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#regularization)
 
-### Stage 7: Evaluate honestly
+<a id="z-score-standardization"></a>
+
+### Z-score standardization
+
+_Concept, scikit-learn_
+
+Subtract the mean and divide by the standard deviation: z = (x − μ) / σ. The result has mean 0 and standard deviation 1, and each value says how many standard deviations it sits from the mean. Best for roughly normal data with outliers already handled. In scikit-learn: `StandardScaler`.
+
+```python
+from sklearn.preprocessing import StandardScaler
+scaled = StandardScaler().fit_transform(housing[["sqft"]])
+```
+
+<a id="min-max-scaling-normalisation"></a>
+
+### Min-max scaling (normalisation)
+
+_Concept, scikit-learn_
+
+Rescale to a fixed range, usually [0, 1]: (x − min) / (max − min). Keeps the distribution's shape but is very sensitive to outliers, since one extreme value squashes everything else. Useful for image data and algorithms needing bounded, positive inputs. In scikit-learn: `MinMaxScaler`.
+
+```python
+from sklearn.preprocessing import MinMaxScaler
+scaled = MinMaxScaler().fit_transform(housing[["income_area"]])
+```
+
+> **Watch out:** for **sparse** data (mostly zeros, such as one-hot or word-count columns), use `MaxAbsScaler`, which divides by the largest absolute value and keeps zeros as zeros. `MinMaxScaler` subtracts the minimum, which can turn zeros into non-zero values and destroys the sparsity.
+
+<a id="robust-scaling"></a>
+
+### Robust scaling
+
+_Concept, scikit-learn_
+
+Subtract the **median** and divide by the **IQR**, so outliers have little influence on the scaling. Best when data has outliers or is skewed. In scikit-learn: `RobustScaler`.
+
+```python
+from sklearn.preprocessing import RobustScaler
+scaled = RobustScaler().fit_transform(housing[["price"]])
+```
+
+<a id="scaling-doesn-t-change-a-distribution-s-shape"></a>
+
+### Scaling doesn't change a distribution's shape
 
 _Concept_
 
-Evaluate the chosen model **once** on the test set, with the metrics you committed to in Stage 1, next to the baselines. For classifiers, show the confusion matrix and consider the threshold; for regressors, show the residual plot and errors in real units; for forecasts, compare with naive baselines and check that residuals look like white noise. Compare models on the **same scale** and the same data.
+A common misconception, highlighted in the EDA for modeling deck: "StandardScaler makes data normal". It doesn't. Standardization, min-max scaling and robust scaling are **linear**: they shift and stretch the values but keep the shape, including skewness and outliers. A right-skewed column is still exactly as right-skewed after scaling. To change the shape, you need a **non-linear** transformation such as a log, Box-Cox, Yeo-Johnson or quantile transform.
 
-Read: [Reading train vs test scores](#reading-train-vs-test-scores), [Confusion matrix](#confusion-matrix), [Classification threshold](#classification-threshold), [Precision–recall curve](#precision-recall-curve), [Residual plot](#residual-plot), [Comparing models on the same scale](#comparing-models-on-the-same-scale), [Ljung–Box test](#ljung-box-test), [Resampling is a trade-off](#resampling-is-a-trade-off).
+```python
+from sklearn.preprocessing import MinMaxScaler, PowerTransformer, StandardScaler
+x = housing_df[["median_house_value"]]
+pd.Series({
+    "original": x.skew().iloc[0],
+    "StandardScaler": pd.Series(StandardScaler().fit_transform(x).ravel()).skew(),
+    "MinMaxScaler": pd.Series(MinMaxScaler().fit_transform(x).ravel()).skew(),
+    "Yeo-Johnson": pd.Series(PowerTransformer().fit_transform(x).ravel()).skew(),
+}).round(3)               # the first three are identical; only the power transform changes it
+```
 
-> **Watch out:** A result that looks too good to be true (99% accuracy, R² of 0.98) usually is. Check for leakage, perfect separation, duplicates, or a time-series split that let the future in.
+See also: [Standardization / feature scaling](#standardization-feature-scaling), [Distribution transformation](#distribution-transformation), [Power transformation (Box-Cox, Yeo-Johnson)](#power-transformation-box-cox-yeo-johnson)
 
-<a id="stage-8-interpret-and-explain"></a>
+<a id="causation"></a>
 
-### Stage 8: Interpret and explain
+### Causation
 
 _Concept_
 
-Explain **what drives the predictions** (global: permutation importance, coefficients, partial dependence) and **why a particular case was predicted as it was** (local: SHAP). Translate effects into stakeholder language with units ("each extra $1,000 of radio spend is associated with about 189 more units sold"), and remember these are associations, not causes.
+X **causes** Y if changing X directly changes Y. To claim it you need, at minimum: a statistical association, X happening before Y, no alternative explanations, and a plausible mechanism. Even these are necessary but not sufficient, which is why causation is much harder to establish than correlation.
 
-Read: [Interpreting coefficients](#interpreting-coefficients), [Interpreting logistic regression coefficients](#interpreting-logistic-regression-coefficients), [Permutation importance](#permutation-importance), [Partial dependence plot (PDP)](#partial-dependence-plot-pdp), [SHAP (SHapley Additive exPlanations)](#shap-shapley-additive-explanations), [Global vs local explanations](#global-vs-local-explanations), [Proxy variable](#proxy-variable).
+<a id="correlation-does-not-imply-causation"></a>
 
-<a id="stage-9-communicate-the-value"></a>
-
-### Stage 9: Communicate the value
+### Correlation does not imply causation
 
 _Concept_
 
-Tell the story the stakeholder needs: the question and why it matters → the data and approach (briefly) → results against the baseline **in business terms** → what drives the predictions → limitations and risks → recommendation and next steps. Quantify value where you can (savings, risk-adjusted ROI, with a range), and be explicit about what the model **can't** do.
+Two variables moving together doesn't mean one causes the other. Common reasons for a misleading correlation: **reverse causality**, **confounding**, **coincidence** (spurious correlation) and **selection bias**. Treat a correlation as the start of an investigation.
 
-A presentation outline that works: (1) problem and stakeholder; (2) data and key EDA findings; (3) approach and validation strategy; (4) results vs baseline; (5) interpretation; (6) value and recommendations; (7) limitations, ethics and next steps.
+<a id="reverse-causality"></a>
 
-Read: [Return on investment (ROI)](#return-on-investment-roi), [Risk-adjusted ROI](#risk-adjusted-roi), [Sensitivity analysis](#sensitivity-analysis), [Why explainability matters](#why-explainability-matters).
+### Reverse causality
 
-<a id="stage-10-deploy-monitor-and-next-steps"></a>
+_Concept_
 
-### Stage 10: Deploy, monitor and next steps
+The causal arrow runs the opposite way to what you assumed. More police in an area correlates with more crime, but crime draws the police, not the other way round.
 
-_Concept, Python_
+<a id="confounding-variable"></a>
 
-After choosing a model, **refit it on all the training data** (or all data, for forecasts), save the whole pipeline, and describe how it would be used and monitored: what triggers retraining, which metrics to track, what happens when the data drift.
+### Confounding variable
+
+_Concept_
+
+A third variable that causes both of the variables you're comparing, creating a correlation between them. Hot weather drives both ice cream sales and shark attacks; age drives both coffee drinking and health problems in the notebook simulation.
+
+<a id="spurious-correlation"></a>
+
+### Spurious correlation
+
+_Concept_
+
+A correlation that arises by coincidence, from small samples, or from two unrelated things both trending over time: Nicolas Cage films and pool drownings, margarine consumption and the divorce rate in Maine.
+
+<a id="establishing-causality"></a>
+
+### Establishing causality
+
+_Concept_
+
+The **randomised controlled trial (RCT)** is generally considered the gold standard. Alternatives when an RCT isn't possible: **natural experiments**, **quasi-experimental designs**, and causal inference methods such as propensity score matching, difference-in-differences, instrumental variables and regression discontinuity. Domain knowledge of the mechanism is always part of the case.
+
+<a id="scikit-learn-sklearn"></a>
+
+### scikit-learn (sklearn)
+
+_scikit-learn_
+
+Python's main machine learning library. Everything follows the same pattern: create an object, call `.fit()` on training data to learn, then `.transform()` (preprocessing) or `.predict()` (models). Modules used in the course: `preprocessing`, `impute`, `compose`, `pipeline`, `model_selection`, `linear_model`, `metrics` and `datasets`.
+
+<a id="train-test-split"></a>
+
+### train_test_split()
+
+_scikit-learn_
+
+Randomly splits features and target into a **training set** (to learn from) and a **test set** (held back to check performance on unseen data). `test_size=0.2` keeps 20% for testing; `random_state` makes the split reproducible.
+
+```python
+from sklearn.model_selection import train_test_split
+X = housing[["sqft", "bedrooms", "bathrooms"]]
+y = housing["price"]
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42)
+X_train.shape, X_test.shape      # ((800, 3), (200, 3))
+```
+
+> **Watch out:** Split **before** fitting any scaler, encoder or imputer, so that nothing learned from the test set leaks into training.
+
+**In Unit 3:** [Train-test split](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#train-test-split), [test_size, stratify and shuffle](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#test-size-stratify-and-shuffle), [k-fold cross-validation](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#k-fold-cross-validation)
+
+<a id="random-state"></a>
+
+### random_state
+
+_scikit-learn_
+
+scikit-learn's version of a random seed. Setting it (often to `42`) makes splits, synthetic datasets and randomized models give the same result every run.
+
+<a id="training-set-and-test-set"></a>
+
+### Training set and test set
+
+_Concept_
+
+The **training set** is the data a model learns from. The **test set** is kept aside and only used at the end to estimate how well the model performs on data it has never seen. Scoring a model on its own training data gives over-optimistic results.
+
+<a id="fit-predict"></a>
+
+### fit / predict
+
+_scikit-learn_
+
+`model.fit(X_train, y_train)` learns patterns from training data; `model.predict(X_test)` applies them to new rows. Every scikit-learn model uses these two methods.
+
+```python
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(
+    housing[["sqft", "bedrooms", "bathrooms"]], housing["price"], test_size=0.2, random_state=42)
+model = LinearRegression()
+model.fit(X_train, y_train)      # learn the coefficients from training rows
+y_pred = model.predict(X_test)   # predict prices for rows the model hasn't seen
+```
+
+> **Watch out:** scikit-learn models need numeric features with no missing values. Encode categories and impute first, or let a pipeline do it.
+
+<a id="linearregression-and-logisticregression"></a>
+
+### LinearRegression and LogisticRegression
+
+_scikit-learn_
+
+Two simple models used in the notebooks to show the effect of transformations and scaling. **Linear regression** predicts a number as a weighted sum of features. **Logistic regression**, despite the name, is a classification model that predicts the probability of a category. Fitted weights live in `model.coef_`.
+
+<a id="evaluation-metrics-r-mse-rmse-mae-accuracy"></a>
+
+### Evaluation metrics (R², MSE, RMSE, MAE, accuracy)
+
+_scikit-learn_
+
+Numbers that score predictions against actual values. For regression: **R²** (share of variation explained, 1 is perfect), **MSE** (mean squared error), **RMSE** (its square root, in the target's units) and **MAE** (mean absolute error). For classification: **accuracy** (share of correct predictions).
+
+```python
+from sklearn import metrics
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(
+    housing[["sqft", "bedrooms", "bathrooms"]], housing["price"], test_size=0.2, random_state=42)
+y_pred = LinearRegression().fit(X_train, y_train).predict(X_test)
+
+r2   = metrics.r2_score(y_test, y_pred)
+rmse = metrics.root_mean_squared_error(y_test, y_pred)    # same units as price
+mae  = metrics.mean_absolute_error(y_test, y_pred)
+print(f"R² {r2:.3f}  RMSE {rmse:,.0f}  MAE {mae:,.0f}")
+```
+
+<a id="baseline-model"></a>
+
+### Baseline model
+
+_Concept_
+
+A simple reference model (e.g. linear regression on three raw numeric features) to compare against. If your engineered pipeline can't beat the baseline, the extra complexity isn't paying off.
+
+<a id="synthetic-and-toy-datasets"></a>
+
+### Synthetic and toy datasets
+
+_scikit-learn_
+
+scikit-learn can generate data with known properties, which is useful for experiments: `make_regression()` and `make_classification()`. It also ships classic small datasets like `load_iris()`.
+
+```python
+from sklearn.datasets import make_regression, load_iris
+X, y = make_regression(n_samples=1000, n_features=5, noise=20, random_state=42)
+iris = load_iris()
+iris_df = pd.DataFrame(iris.data, columns=iris.feature_names)
+```
+
+```python
+from sklearn.datasets import make_classification
+X, y = make_classification(n_samples=500, n_features=6, n_informative=3,
+                           n_redundant=1, random_state=42)
+X.shape, np.bincount(y)            # (500, 6) and two roughly equal classes
+```
+
+---
+
+<a id="s10-feature-engineering"></a>
+
+## 10. Feature engineering
+
+_Transforming raw columns into features a model can use well: encoding categories, binning, scaling and reshaping distributions, then wrapping it all in a pipeline so it's repeatable and leak-free. Examples use the synthetic housing data from the feature engineering notebook._
+
+**In your capstone:** split into train and test first, then build every learned transformation (imputers, encoders, scalers) inside a `Pipeline` with a `ColumnTransformer`. Hand-made features that use only the row itself (ratios, ages, flags) are safe to create beforehand. Keep a short table of every feature you built and why. Copy-paste recipes: [Leak-free imputation and encoding in a pipeline](#leak-free-imputation-and-encoding-in-a-pipeline), [One-hot encoding done right](#one-hot-encoding-done-right), [Split and extract values from text](#split-and-extract-values-from-text), [Clean and validate dates and times](#clean-and-validate-dates-and-times).
+
+<a id="feature-engineering"></a>
+
+### Feature engineering
+
+_Concept_
+
+The process of transforming raw data into features that better represent the problem to a model, like chopping vegetables before they go in the soup. Often more impactful than switching to a "better" algorithm. Strategy from the slides: start simple, understand the data, apply domain knowledge, iterate, measure the impact, and document everything.
+
+<a id="creating-features-from-domain-knowledge"></a>
+
+### Creating features from domain knowledge
+
+_Concept, pandas_
+
+New columns built from existing ones because they make business sense: a house's age from its build year, price per piece, a decade from a year.
+
+```python
+housing["age"] = 2025 - housing["year_built"]
+lego["price_per_piece"] = lego["USD_MSRP"] / lego["Pieces"]
+```
+
+<a id="features-from-dates"></a>
+
+### Features from dates
+
+_pandas_
+
+A raw date is rarely a good feature, but the parts and gaps hidden in it often are:
+
+- **Parts:** year, month, weekday, hour, and is-weekend.
+- **Ages and durations:** house age = sale year − year built; lead time = appointment date − booking date.
+- **Elapsed time:** time since some reference date.
+
+The feature engineering notebook builds house age from `year_built`, and the Module 2.2 code-along derives a booking lead time. Only use dates that are known **at prediction time**.
+
+```python
+ufo["Time"] = pd.to_datetime(ufo["Time"], format="%m/%d/%Y %H:%M")
+dated = ufo.assign(year=ufo["Time"].dt.year,
+                   month=ufo["Time"].dt.month,
+                   weekday=ufo["Time"].dt.day_name(),
+                   is_weekend=ufo["Time"].dt.dayofweek >= 5,
+                   hour=ufo["Time"].dt.hour)
+housing["house_age"] = 2023 - housing["year_built"]
+dated[["Time", "month", "weekday", "is_weekend", "hour"]].head(3)
+```
+
+> **Watch out:** an age computed from today's date (`datetime.now().year - df["Year"]`) changes every year, so filters such as "sets less than 10 years old" return different rows each time the notebook runs. Fix the reference year (for example, the last year in the data) so results are reproducible, and say which year you used.
+
+See also: [.dt accessor](#dt-accessor), [Timestamp, Timedelta and date arithmetic](#timestamp-timedelta-and-date-arithmetic), [Leakage check: known at prediction time?](#leakage-check-known-at-prediction-time), [Cookbook: Clean and validate dates and times](#clean-and-validate-dates-and-times)
+
+<a id="encoding-categorical-data"></a>
+
+### Encoding categorical data
+
+_Concept_
+
+Most ML algorithms only understand numbers, so categories must be converted. How you convert matters: the two main approaches are **label encoding** (one number per category) and **one-hot encoding** (one 0/1 column per category).
+
+See also: [Cookbook: One-hot encoding done right](#one-hot-encoding-done-right)
+
+<a id="label-encoding"></a>
+
+### Label encoding
+
+_Concept, pandas, scikit-learn_
+
+Give each category a unique integer: Poor = 0, Fair = 1, Good = 2, Excellent = 3. Simple and memory-efficient, and right for **ordinal** data. On **nominal** data it invents an order that doesn't exist (is Suburb "greater than" Downtown?), which can mislead models.
+
+```python
+condition_map = {"Poor": 0, "Fair": 1, "Good": 2, "Excellent": 3}
+housing["condition_encoded"] = housing["condition"].map(condition_map)
+```
+
+> **Watch out:** scikit-learn's `LabelEncoder` assigns numbers alphabetically, not in your meaningful order, and is intended for target labels. For ordered features, a `.map()` dictionary (or `OrdinalEncoder` with `categories=`) is clearer.
+
+```python
+from sklearn.preprocessing import LabelEncoder
+le = LabelEncoder().fit(housing["condition"])
+dict(zip(le.classes_, le.transform(le.classes_)))   # {'Excellent': 0, 'Fair': 1, 'Good': 2, 'Poor': 3}
+```
+
+In this synthetic data `condition` has no real effect on price (the price formula doesn't use it), so the mean prices by condition show no trend. An encoding can't create a relationship that isn't there.
+
+<a id="ordinalencoder"></a>
+
+### OrdinalEncoder
+
+_scikit-learn_
+
+Turns categories into integers 0, 1, 2… for **feature columns**, and works inside a [Pipeline](#pipeline). Pass `categories=` to set the order yourself, which matters for **ordinal** data such as `condition` (Poor < Fair < Good < Excellent). Without it, the order is alphabetical. scikit-learn's `LabelEncoder` does the same for a single **target** column and has no way to set the order, so it isn't meant for features.
+
+```python
+from sklearn.preprocessing import OrdinalEncoder
+enc = OrdinalEncoder(categories=[["Poor", "Fair", "Good", "Excellent"]],
+                     handle_unknown="use_encoded_value", unknown_value=-1)
+housing["condition_code"] = enc.fit_transform(housing[["condition"]]).ravel()
+housing.groupby("condition")["condition_code"].first()    # Poor 0, Fair 1, Good 2, Excellent 3
+```
+
+> **Watch out:** encoding a **nominal** column (such as `neighborhood`) as 0, 1, 2, 3 tells a linear model that Waterfront is "more" than Downtown. Use [One-hot encoding](#one-hot-encoding) for categories without a natural order.
+
+See also: [Label encoding](#label-encoding), [Ordinal](#ordinal), [One-hot encoding](#one-hot-encoding)
+
+<a id="one-hot-encoding"></a>
+
+### One-hot encoding
+
+_Concept, scikit-learn, pandas_
+
+Create one binary (0/1) column per category, with a 1 marking the row's category. Red becomes [1, 0, 0], Blue [0, 1, 0], Green [0, 0, 1]. No false ordering and works with any algorithm, but it adds many columns (mostly zeros) when there are lots of categories. Best for nominal data with fewer than about 20 categories.
+
+```python
+from sklearn.preprocessing import OneHotEncoder
+ohe = OneHotEncoder(sparse_output=False, drop="first")
+encoded = ohe.fit_transform(housing[["neighborhood"]])
+pd.DataFrame(encoded, columns=ohe.get_feature_names_out(["neighborhood"]))
+```
+
+See also: [pd.get_dummies()](#pd-get-dummies), [Dummy variable trap](#dummy-variable-trap), [Cookbook: One-hot encoding done right](#one-hot-encoding-done-right)
+
+<a id="pd-get-dummies"></a>
+
+### pd.get_dummies()
+
+_pandas_
+
+pandas' quick one-hot encoder: it replaces the listed columns with 0/1 dummy columns in one step. Handy for exploration; for modeling, `OneHotEncoder` in a pipeline is safer because it remembers the categories seen in training.
+
+```python
+housing_dummies = pd.get_dummies(housing, columns=["neighborhood", "garage"], drop_first=True)
+```
+
+See also: [Cookbook: One-hot encoding done right](#one-hot-encoding-done-right)
+
+<a id="onehotencoder-options"></a>
+
+### OneHotEncoder options
+
+_scikit-learn_
+
+The settings of `OneHotEncoder` that matter in practice:
+
+| Option                              | What it does                                                                                                       |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `handle_unknown="ignore"`           | a category seen only in new data becomes all zeros instead of an error                                             |
+| `drop="first"`                      | drop one dummy per feature (avoids the [Dummy variable trap](#dummy-variable-trap) in unregularized linear models) |
+| `drop="if_binary"`                  | drop one column only for two-level features                                                                        |
+| `min_frequency=`, `max_categories=` | group rare levels into one "infrequent" column                                                                     |
+| `sparse_output=False`               | return a normal array instead of a sparse matrix                                                                   |
+
+After fitting, `.categories_` lists the levels it learned and `.get_feature_names_out()` names the new columns.
+
+```python
+from sklearn.preprocessing import OneHotEncoder
+ohe = OneHotEncoder(handle_unknown="ignore", min_frequency=0.1, sparse_output=False)
+ohe.fit(housing[["neighborhood"]])
+ohe.get_feature_names_out()      # Waterfront (about 5% of rows) is grouped as infrequent
+ohe.transform(pd.DataFrame({"neighborhood": ["Moon Base"]}))   # unseen: all zeros, no error
+```
+
+> **Watch out:** scikit-learn 1.2 renamed `sparse=` to `sparse_output=`, and 1.4 removed the old name, so `OneHotEncoder(sparse=False)` now raises a `TypeError`. Use `sparse_output=False`.
+
+See also: [One-hot encoding](#one-hot-encoding), [pd.get_dummies()](#pd-get-dummies), [High-cardinality strategies](#high-cardinality-strategies)
+
+<a id="target-encoding"></a>
+
+### Target encoding
+
+_Concept, scikit-learn_
+
+Replaces each category with the **average target value** for that category, for example each neighbourhood with its mean price. It turns a high-cardinality column into one informative number. The feature engineering deck warns it's also an easy way to **leak** the target: if a row's own price helps compute its neighbourhood's average, the model is partly being handed the answer. scikit-learn's `TargetEncoder` (version 1.3 and later) avoids this. Its `fit_transform` uses **cross-fitting**, so each row is encoded with averages computed from the other folds. Averages for rare categories are also shrunk towards the overall mean.
+
+```python
+from sklearn.model_selection import KFold, train_test_split
+from sklearn.preprocessing import TargetEncoder
+
+X_train, X_test, y_train, y_test = train_test_split(
+    housing[["neighborhood"]], housing["price"], test_size=0.2, random_state=42)
+te = TargetEncoder(target_type="continuous", cv=KFold(5, shuffle=True, random_state=0))
+X_train_te = te.fit_transform(X_train, y_train)   # cross-fitted: no row sees its own price
+X_test_te = te.transform(X_test)                  # test rows use averages learned from training
+dict(zip(te.categories_[0], te.encodings_[0].round(0)))
+```
+
+> **Watch out:** `te.fit(X_train, y_train).transform(X_train)` is **not** the same as `fit_transform`, and leaks the target on the training rows. Inside a [Pipeline](#pipeline), scikit-learn calls `fit_transform` for you. Never compute category means on the full dataset before splitting. To make the cross-fitting reproducible, pass a splitter such as `cv=KFold(5, shuffle=True, random_state=0)`. scikit-learn 1.9 deprecated the `shuffle=` and `random_state=` arguments of `TargetEncoder` (removal planned for 1.11).
+
+See also: [High-cardinality strategies](#high-cardinality-strategies), [Data leakage](#data-leakage), [Encoding categorical data](#encoding-categorical-data)
+
+<a id="dummy-variable-trap"></a>
+
+### Dummy variable trap
+
+_Concept_
+
+With one-hot encoding, the last column is always predictable from the others (if it's not Downtown, Suburb or Rural, it must be Waterfront). That perfect redundancy causes multicollinearity in linear models. Dropping one category with `drop="first"` or `drop_first=True` avoids it.
+
+<a id="curse-of-dimensionality"></a>
+
+### Curse of dimensionality
+
+_Concept_
+
+Too many features can hurt a model: data becomes sparse, training slows and models overfit. One-hot encoding a 1,000-city column adds 999 columns on its own. Remedies: feature selection, dimensionality reduction, or other encodings.
+
+<a id="high-cardinality-strategies"></a>
+
+### High-cardinality strategies
+
+_Concept_
+
+Ways to handle categories with many values: **group rare categories** into an "Other" bucket, **frequency encoding** (replace each category with how often it occurs), **target encoding** (replace it with a statistic of the target for that category, carefully, to avoid leakage) and **feature selection** (drop unimportant categories).
+
+```python
+counts = ufo["City"].value_counts()               # over 13,000 different cities
+rare = counts[counts < 10].index
+ufo["city_grouped"] = ufo["City"].where(~ufo["City"].isin(rare), "Other")   # group rare levels
+ufo["city_freq"] = ufo["City"].map(counts)                                  # frequency encoding
+ufo["city_grouped"].nunique()
+```
+
+See also: [Cookbook: Fix misspelled and inconsistent categories](#fix-misspelled-and-inconsistent-categories)
+
+<a id="binning-discretization"></a>
+
+### Binning (discretization)
+
+_Concept_
+
+Converting a continuous variable into categories (bins): age into age groups, income into brackets. It can capture non-linear relationships, reduce the influence of outliers and make models easier to explain, but too many bins add complexity and too few lose information. Natural breakpoints from domain knowledge often work best.
+
+<a id="equal-width-binning-pd-cut"></a>
+
+### Equal-width binning (pd.cut)
+
+_pandas, Concept_
+
+Bins of equal size across the range, or your own custom edges. Good for roughly normal data or when you know meaningful cut-offs. With skewed data some bins end up nearly empty.
+
+```python
+housing["age"] = 2023 - housing["year_built"]
+housing["age_category"] = pd.cut(
+    housing["age"],
+    bins=[0, 10, 20, 30, 50, 100],
+    labels=["Very New", "New", "Moderate", "Old", "Very Old"],
+    include_lowest=True)
+pd.cut(housing["sqft"], bins=5).value_counts().sort_index()   # 5 equal-width bins
+```
+
+> **Watch out:** `pd.cut()` leaves missing values as `NaN`, so add a "missing" category yourself if you need one. With `include_lowest=False` (the default), a value exactly equal to the lowest edge also becomes `NaN`, because bins don't include their left edge.
+
+<a id="equal-frequency-binning-pd-qcut"></a>
+
+### Equal-frequency binning (pd.qcut)
+
+_pandas, Concept_
+
+Bins containing roughly the **same number of observations**, cut at quantiles. Also called quantile-based binning. Good for skewed data and when you want balanced groups.
+
+```python
+housing["income_quartile"] = pd.qcut(housing["income_area"], q=4,
+                                     labels=["Q1", "Q2", "Q3", "Q4"])
+```
+
+`pd.cut()` makes **equal-width** bins and `pd.qcut()` makes **equal-frequency** bins. They're not interchangeable: on the synthetic housing `sqft`, 4 equal-width bins hold 60, 562, 357 and 21 houses, while 4 quantile bins hold 250 each.
+
+```python
+pd.cut(housing["sqft"], bins=4).value_counts(sort=False).tolist()    # [60, 562, 357, 21]
+pd.qcut(housing["sqft"], q=4).value_counts(sort=False).tolist()      # [250, 250, 250, 250]
+```
+
+<a id="kbinsdiscretizer"></a>
+
+### KBinsDiscretizer
+
+_scikit-learn_
+
+scikit-learn's binning transformer, usable inside a pipeline. `strategy="uniform"` (equal width), `"quantile"` (equal frequency) or `"kmeans"` (bins based on clusters, for multi-modal data). The learned cut points are stored in `bin_edges_`.
+
+```python
+from sklearn.preprocessing import KBinsDiscretizer
+binner = KBinsDiscretizer(n_bins=5, encode="ordinal", strategy="quantile",
+                          quantile_method="averaged_inverted_cdf")
+housing["sqft_binned"] = binner.fit_transform(housing[["sqft"]])
+binner.bin_edges_[0]          # the learned cut points
+```
+
+> **Watch out:** with `strategy="quantile"`, how the cut points are calculated changed between versions. scikit-learn 1.7 added the `quantile_method` option and warned that the default would change, and 1.9 made `"averaged_inverted_cdf"` the default. Setting it explicitly, as above, gives the same bins on every version from 1.7 onwards.
+
+<a id="transformer"></a>
+
+### Transformer
+
+_scikit-learn, Concept_
+
+A scikit-learn object that changes data: scalers, encoders, imputers, binners. All share three methods. `.fit(X)` learns what it needs from the data (means, categories, bin edges); `.transform(X)` applies it; `.fit_transform(X)` does both in one call on training data.
+
+```python
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+X_train, X_test = train_test_split(housing[["sqft"]], test_size=0.2, random_state=42)
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)   # learn mean and SD from training rows, then apply
+X_test_scaled = scaler.transform(X_test)          # apply only: reuse the training mean and SD
+```
+
+> **Watch out:** Use `fit_transform` on training data and only `transform` on test data. Fitting on test data is data leakage.
+
+<a id="get-feature-names-out-and-set-output"></a>
+
+### get_feature_names_out() and set_output()
+
+_scikit-learn_
+
+Transformers return NumPy arrays by default, which loses the column names. Two tools bring them back. `.get_feature_names_out()` lists the output column names after fitting: prefixed with the step name in a [ColumnTransformer](#columntransformer), such as `num__sqft` and `cat__neighborhood_Rural`. `.set_output(transform="pandas")` makes a transformer, pipeline or ColumnTransformer return a **DataFrame** with those names, so you can inspect the transformed data and read model coefficients by name.
+
+```python
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+pre = ColumnTransformer([("num", StandardScaler(), ["sqft", "bedrooms"]),
+                         ("cat", OneHotEncoder(sparse_output=False), ["neighborhood"])])
+pre.set_output(transform="pandas")
+out = pre.fit_transform(housing)
+out.columns.tolist()     # ['num__sqft', 'num__bedrooms', 'cat__neighborhood_Downtown', ...]
+```
+
+> **Watch out:** the old `get_feature_names()` was removed in scikit-learn 1.2. `set_output(transform="pandas")` needs dense output, so set `sparse_output=False` on any `OneHotEncoder` inside it.
+
+See also: [ColumnTransformer](#columntransformer), [Transformer](#transformer), [OneHotEncoder options](#onehotencoder-options)
+
+<a id="standardscaler-minmaxscaler-robustscaler"></a>
+
+### StandardScaler, MinMaxScaler, RobustScaler
+
+_scikit-learn_
+
+scikit-learn's three main scalers. **StandardScaler**: mean 0, SD 1; the most common choice for roughly normal data. **MinMaxScaler**: rescales to [0, 1] (or another `feature_range`); for data with hard bounds or when a fixed range is needed. **RobustScaler**: uses the median and IQR; for data with outliers.
+
+```python
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
+for scaler in [StandardScaler(), MinMaxScaler(), RobustScaler()]:
+    print(type(scaler).__name__, scaler.fit_transform(housing[["price"]])[:3].ravel())
+```
+
+See also: [Z-score standardization](#z-score-standardization), [Min-max scaling (normalisation)](#min-max-scaling-normalisation), [Robust scaling](#robust-scaling)
+
+<a id="distribution-transformation"></a>
+
+### Distribution transformation
+
+_Concept_
+
+Changing a variable's _shape_ rather than just its scale, usually to make skewed data more normal for models that assume normality. Options: **log**, **power** (Box-Cox, Yeo-Johnson) and **quantile** transforms.
+
+<a id="log-transformation"></a>
+
+### Log transformation
+
+_Concept, NumPy_
+
+Replace each value with its logarithm. It compresses large values and stretches small ones, often turning **right-skewed** data (income, prices) into something close to normal. Results are still interpretable (in percentage-change terms). Only works for **positive** values; use `np.log1p` (log of 1 + x) when there are zeros.
+
+```python
+housing["log_income"] = np.log(housing["income_area"])
+housing["income_area"].skew(), housing["log_income"].skew()   # skew drops
+```
+
+> **Watch out:** a transformation doesn't always help. In the EDA for modeling notebook, fitting the model to a log-transformed target and converting the predictions back with `np.exp()` gives a **lower** R² than the untransformed target. Back-transforming adds its own error. Compare both versions on the test set before you keep one.
+
+<a id="power-transformation-box-cox-yeo-johnson"></a>
+
+### Power transformation (Box-Cox, Yeo-Johnson)
+
+_scikit-learn_
+
+`PowerTransformer` automatically finds the power transform that makes data most normal-like, and standardizes the result by default. **Box-Cox** requires strictly positive data; **Yeo-Johnson** (the default) also handles zeros and negatives.
+
+```python
+from sklearn.preprocessing import PowerTransformer
+pt = PowerTransformer(method="yeo-johnson")
+housing["income_power"] = pt.fit_transform(housing[["income_area"]])
+```
+
+<a id="quantile-transformation"></a>
+
+### Quantile transformation
+
+_scikit-learn_
+
+`QuantileTransformer` maps values onto a chosen distribution, `"uniform"` or `"normal"`, using their ranks. Powerful at forcing a shape and taming outliers, but it distorts the original distances between values.
+
+```python
+from sklearn.preprocessing import QuantileTransformer
+qt = QuantileTransformer(output_distribution="normal", n_quantiles=500)
+housing["income_quantile"] = qt.fit_transform(housing[["income_area"]])
+```
+
+<a id="data-leakage"></a>
+
+### Data leakage
+
+_Concept_
+
+When information the model wouldn't have at prediction time sneaks into training, such as using test data to fit a scaler or using "future" information. It produces **overly optimistic** performance that collapses on real new data. Prevention: split first, fit transformers on training data only, and use pipelines.
+
+```python
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+X_train, X_test = train_test_split(housing[["sqft"]], test_size=0.2, random_state=42)
+
+# Leaky: the scaler learns its mean and SD from all rows, including the test set
+leaky = StandardScaler().fit(housing[["sqft"]])
+# Leak-free: learn from training rows only, then apply the same scaling to both
+scaler = StandardScaler().fit(X_train)
+X_train_scaled, X_test_scaled = scaler.transform(X_train), scaler.transform(X_test)
+leaky.mean_, scaler.mean_       # slightly different: the leaky one has seen the test rows
+```
+
+**In Unit 3:** [Data leakage in model evaluation](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#data-leakage-in-model-evaluation)
+
+<a id="pipeline"></a>
+
+### Pipeline
+
+_scikit-learn, Concept_
+
+A chain of transformation steps followed by a model, treated as one object. Calling `.fit()` runs every step in order on training data; `.predict()` applies the identical steps to new data. Benefits: prevents leakage, guarantees the same transformations every time, keeps code clean and makes deployment easy.
+
+```python
+from sklearn.compose import ColumnTransformer
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
+X = housing.drop(columns="price")
+y = housing["price"]
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+preprocessor = ColumnTransformer([
+    ("num", StandardScaler(), ["sqft", "bedrooms", "bathrooms", "income_area"]),
+    ("cat", OneHotEncoder(handle_unknown="ignore"), ["neighborhood", "garage", "condition"]),
+])
+pipeline = Pipeline([
+    ("preprocessor", preprocessor),       # step 1: transform the columns
+    ("regressor", LinearRegression()),    # step 2: fit the model
+])
+pipeline.fit(X_train, y_train)
+y_pred = pipeline.predict(X_test)
+pipeline.score(X_test, y_test)           # R² on the test set
+```
+
+**In Unit 3:** [Pipeline with ColumnTransformer](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#pipeline-with-columntransformer), [Pipeline + GridSearchCV](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#pipeline-gridsearchcv), [Pipelines in tuning](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#pipelines-in-tuning)
+
+See also: [Cookbook: Leak-free imputation and encoding in a pipeline](#leak-free-imputation-and-encoding-in-a-pipeline)
+
+<a id="columntransformer"></a>
+
+### ColumnTransformer
+
+_scikit-learn_
+
+Applies different preprocessing to different columns in one step, e.g. scale the numeric columns and one-hot encode the categorical ones, then combines the results. Each entry is `(name, transformer, list_of_columns)`.
+
+```python
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+numeric_features = ["sqft", "bedrooms", "bathrooms", "income_area"]
+categorical_features = ["neighborhood", "garage", "condition"]
+preprocessor = ColumnTransformer([
+    ("num", StandardScaler(), numeric_features),
+    ("cat", OneHotEncoder(drop="first", sparse_output=False), categorical_features),
+])
+preprocessor.fit_transform(housing).shape         # (1000, 12): 4 numeric + 8 dummy columns
+preprocessor.get_feature_names_out()[:6]
+```
+
+See also: [Cookbook: Leak-free imputation and encoding in a pipeline](#leak-free-imputation-and-encoding-in-a-pipeline)
+
+<a id="pipeline-with-imputation"></a>
+
+### Pipeline with imputation
+
+_scikit-learn_
+
+Pipelines can be nested: a small pipeline per column type (impute, then scale or encode) inside a ColumnTransformer, inside the full pipeline. Missing values are then handled automatically and consistently.
+
+```python
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+numeric_features = ["sqft", "bedrooms", "bathrooms", "income_area"]
+categorical_features = ["neighborhood", "garage", "condition"]
+
+numeric_pipe = Pipeline([("imputer", SimpleImputer(strategy="median")),
+                         ("scaler", StandardScaler())])
+categorical_pipe = Pipeline([("imputer", SimpleImputer(strategy="most_frequent")),
+                             ("onehot", OneHotEncoder(drop="first", sparse_output=False))])
+preprocessor = ColumnTransformer([("num", numeric_pipe, numeric_features),
+                                  ("cat", categorical_pipe, categorical_features)])
+preprocessor.fit_transform(housing).shape
+```
+
+See also: [Cookbook: Leak-free imputation and encoding in a pipeline](#leak-free-imputation-and-encoding-in-a-pipeline)
+
+<a id="custom-transformer"></a>
+
+### Custom transformer
+
+_scikit-learn, Python_
+
+Your own transformation, packaged so it can sit inside a pipeline. Write a class inheriting from `BaseEstimator` and `TransformerMixin` with `fit()` (which usually just `return self`) and `transform()` (which returns the changed data). `TransformerMixin` supplies `fit_transform()` automatically.
+
+```python
+from sklearn.base import BaseEstimator, TransformerMixin
+
+class AgeTransformer(BaseEstimator, TransformerMixin):
+    def __init__(self, current_year=2025):
+        self.current_year = current_year
+    def fit(self, X, y=None):
+        return self
+    def transform(self, X):
+        X = X.copy()
+        X["age"] = self.current_year - X["year_built"]
+        return X
+```
+
+<a id="functiontransformer"></a>
+
+### FunctionTransformer
+
+_scikit-learn_
+
+Wraps an ordinary function as a transformer, so a simple step such as a log can go inside a [Pipeline](#pipeline) without writing a class. `FunctionTransformer(np.log1p, inverse_func=np.expm1)` applies `log(1 + x)`, and `feature_names_out="one-to-one"` keeps the column names. Use a [Custom transformer](#custom-transformer) class instead when the step must **learn** something in `fit` (a threshold, a category list).
+
+```python
+from sklearn.preprocessing import FunctionTransformer
+log_tf = FunctionTransformer(np.log1p, inverse_func=np.expm1, feature_names_out="one-to-one")
+logged = log_tf.fit_transform(housing[["income_area"]])
+round(housing["income_area"].skew(), 2), round(logged["income_area"].skew(), 2)   # skew drops
+```
+
+See also: [Log transformation](#log-transformation), [Custom transformer](#custom-transformer), [Pipeline](#pipeline)
+
+<a id="cross-validation"></a>
+
+### Cross-validation
+
+_Concept_
+
+Splitting the training data into several folds and training and testing repeatedly, each time holding out a different fold, then averaging the scores. Gives a more honest performance estimate than a single train/test split. Listed in the slides as a pipeline best practice; covered in detail in the modeling units.
+
+**In Unit 3:** [k-fold cross-validation](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#k-fold-cross-validation), [cross_val_score](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#cross-val-score)
+
+<a id="saving-a-fitted-pipeline-joblib"></a>
+
+### Saving a fitted pipeline (joblib)
+
+_scikit-learn_
+
+The feature engineering deck's pipeline best practices include "save your pipelines". `joblib.dump()` writes the whole fitted pipeline (preprocessing **and** model) to a file, and `joblib.load()` brings it back, ready to `.predict()` on new data with exactly the same transformations. Load it with the same scikit-learn version you saved it with. With NumPy 2.5, joblib versions before 1.6 print a `DeprecationWarning` about setting an array's shape when saving; upgrading joblib removes it.
 
 ```python
 import joblib
-joblib.dump(best.best_estimator_, "capstone_model.joblib")     # saves preprocessing + model
-model = joblib.load("capstone_model.joblib")
-model.predict(new_data)                                          # same columns as training X
+from sklearn.linear_model import LinearRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
+pipe = make_pipeline(StandardScaler(), LinearRegression()).fit(housing[["sqft", "bedrooms"]],
+                                                                housing["price"])
+joblib.dump(pipe, "housing_pipeline.joblib")
+reloaded = joblib.load("housing_pipeline.joblib")
+np.allclose(pipe.predict(housing[["sqft", "bedrooms"]].head()),
+            reloaded.predict(housing[["sqft", "bedrooms"]].head()))     # True
 ```
 
-Read: [Refitting for production](#refitting-for-production), [Data science lifecycle](#data-science-lifecycle), [Pipeline memory and debugging](#pipeline-memory-and-debugging).
+See also: [Pipeline](#pipeline), [make_pipeline (Unit 3)](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#make-pipeline)
 
-> **Watch out:** A saved model should be reloaded with the same library versions it was trained with; record them (see [Reproducibility habits](#reproducibility-habits)).
+<a id="feature-engineering-pitfalls"></a>
 
-<a id="capstone-template-classification"></a>
-
-### Capstone template: classification
-
-_scikit-learn_
-
-A leak-free starting point for tabular classification (tested on the Titanic data: baseline F1 0.0; tuned random forest CV F1 0.741, test F1 0.71, ROC AUC 0.83). Replace the file name and target, and make sure `y` is 0/1 with 1 as the class you care about.
-
-```python
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.dummy import DummyClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, roc_auc_score, f1_score, ConfusionMatrixDisplay
-from sklearn.inspection import permutation_importance
-
-df = pd.read_csv("data/your_data.csv")
-target = "your_target"                               # 0/1, where 1 = the class you care about
-X, y = df.drop(columns=[target]), df[target]
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
-
-baseline = DummyClassifier(strategy="most_frequent").fit(X_train, y_train)
-print("baseline F1:", f1_score(y_test, baseline.predict(X_test)))
-
-num_cols = X.select_dtypes(include=["number", "bool"]).columns   # booleans count as numeric
-cat_cols = X.columns.difference(num_cols)
-prep = ColumnTransformer([
-    ("num", Pipeline([("impute", SimpleImputer(strategy="median")),
-                      ("scale", StandardScaler())]), num_cols),
-    ("cat", Pipeline([("impute", SimpleImputer(strategy="most_frequent")),
-                      ("onehot", OneHotEncoder(handle_unknown="ignore"))]), cat_cols),
-])
-candidates = {
-    "logistic regression": (LogisticRegression(max_iter=1000),
-                            {"model__C": np.logspace(-3, 2, 6)}),
-    "random forest": (RandomForestClassifier(random_state=42, n_jobs=-1),
-                      {"model__max_depth": [None, 5, 10], "model__min_samples_leaf": [1, 5]}),
-}
-searches = {}
-for name, (model, grid) in candidates.items():
-    pipe = Pipeline([("prep", prep), ("model", model)])
-    searches[name] = GridSearchCV(pipe, grid, cv=5, scoring="f1", n_jobs=-1).fit(X_train, y_train)
-    print(f"{name}: CV F1 {searches[name].best_score_:.3f} with {searches[name].best_params_}")
-
-best = max(searches.values(), key=lambda gs: gs.best_score_)      # choose on CV, not test
-y_pred = best.predict(X_test)                                      # the one final test check
-print(classification_report(y_test, y_pred))
-print("ROC AUC:", roc_auc_score(y_test, best.predict_proba(X_test)[:, 1]))
-ConfusionMatrixDisplay.from_estimator(best, X_test, y_test)
-
-imp = permutation_importance(best, X_test, y_test, scoring="f1", n_repeats=10, random_state=42)
-pd.Series(imp.importances_mean, index=X_test.columns).sort_values(ascending=False).head(10)
-```
-
-> **Watch out:** `select_dtypes("number")` excludes boolean columns; if they fall into the text group, the imputer can fail with "could not convert string to float". Including `"bool"` with the numbers avoids it. Change `scoring` (e.g. to `"recall"` or `"roc_auc"`) to match your headline metric, and add an `imblearn` sampler or `class_weight="balanced"` if the positive class is rare.
-
-<a id="capstone-template-regression"></a>
-
-### Capstone template: regression
-
-_scikit-learn_
-
-The same structure for a numeric target (tested on scikit-learn's diabetes data: baseline RMSE 73.2; tuned ridge test RMSE 53.5, MAE 43.0, R² 0.46). It continues from the classification template's imports; for mixed column types, reuse that template's `ColumnTransformer` as the first pipeline step.
-
-```python
-from sklearn.dummy import DummyRegressor
-from sklearn.linear_model import Ridge
-from sklearn.ensemble import RandomForestRegressor
-from sklearn import metrics
-
-X, y = df.drop(columns=[target]), df[target]
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-baseline = DummyRegressor(strategy="mean").fit(X_train, y_train)
-print("baseline RMSE:", metrics.root_mean_squared_error(y_test, baseline.predict(X_test)))
-
-candidates = {
-    "ridge": (Pipeline([("scale", StandardScaler()), ("model", Ridge())]),
-              {"model__alpha": np.logspace(-2, 3, 12)}),
-    "random forest": (Pipeline([("model", RandomForestRegressor(random_state=42, n_jobs=-1))]),
-                      {"model__max_depth": [None, 5, 10], "model__min_samples_leaf": [1, 5, 10]}),
-}
-searches = {name: GridSearchCV(pipe, grid, cv=5, scoring="neg_root_mean_squared_error",
-                               n_jobs=-1).fit(X_train, y_train)
-            for name, (pipe, grid) in candidates.items()}
-for name, gs in searches.items():
-    print(f"{name}: CV RMSE {-gs.best_score_:.1f} with {gs.best_params_}")   # flip the sign back
-
-best = max(searches.values(), key=lambda gs: gs.best_score_)
-y_pred = best.predict(X_test)
-print("RMSE", metrics.root_mean_squared_error(y_test, y_pred),
-      "MAE", metrics.mean_absolute_error(y_test, y_pred), "R²", metrics.r2_score(y_test, y_pred))
-plt.scatter(y_pred, y_test - y_pred, s=10); plt.axhline(0, color="orange")   # residual plot
-```
-
-> **Watch out:** If you log-transform the target, back-transform predictions with `np.exp` before computing RMSE or MAE, so every model is compared in the same units.
-
-<a id="capstone-template-time-series-forecasting"></a>
-
-### Capstone template: time series forecasting
-
-_statsmodels_
-
-For a regularly spaced series with a datetime index (tested on monthly CO₂ data: naive MAE 2.42, seasonal naive 1.88, SARIMA 0.33, Ljung–Box p = 0.97). Set `season` to your cycle length (12 for monthly data, 4 for quarterly, 7 for daily data with a weekly pattern). It uses NumPy and pandas from the classification template's imports.
-
-```python
-import itertools
-from statsmodels.tsa.arima.model import ARIMA
-from statsmodels.stats.diagnostic import acorr_ljungbox
-
-y = df.set_index(pd.to_datetime(df["date"]))["value"].resample("MS").mean()   # monthly, regular
-season, h = 12, 24                                       # cycle length; hold out the last 24 periods
-train, test = y.iloc[:-h], y.iloc[-h:]                   # chronological split: never shuffle
-
-mae = lambda forecast: np.mean(np.abs(test.values - np.asarray(forecast)))
-print("naive MAE:", mae(np.repeat(train.iloc[-1], h)))
-print("seasonal naive MAE:", mae(np.tile(train.iloc[-season:].values, h // season)))
-
-results = []
-for p, q in itertools.product(range(3), range(3)):       # choose orders by AIC on training data
-    fit = ARIMA(train, order=(p, 1, q), seasonal_order=(0, 1, 1, season)).fit()
-    results.append(((p, 1, q), fit.aic))
-order = min(results, key=lambda r: r[1])[0]
-fit = ARIMA(train, order=order, seasonal_order=(0, 1, 1, season)).fit()
-print("SARIMA MAE:", mae(fit.forecast(h)))
-print("Ljung–Box p:", acorr_ljungbox(fit.resid[season + 1:], lags=[season])["lb_pvalue"].iloc[0])
-
-final = ARIMA(y, order=order, seasonal_order=(0, 1, 1, season)).fit()   # refit on everything
-final.forecast(12)                                                         # the real forecast
-```
-
-> **Watch out:** Check stationarity and look at the ACF/PACF before trusting any order; take logs first if the swings grow with the level, and back-transform before computing MAE.
-
-<a id="capstone-template-clustering"></a>
-
-### Capstone template: clustering
-
-_scikit-learn_
-
-Segmentation without labels (tested on iris: silhouette prefers k = 2, the elbow suggests 3; three clusters of 53, 50 and 47 give interpretable profiles). The output that matters is the **profile table**, which turns cluster numbers into segments a stakeholder can act on. It reuses `StandardScaler` and pandas from the classification template's imports.
-
-```python
-from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score
-
-features = df.select_dtypes("number")
-X_sc = StandardScaler().fit_transform(features)
-
-scores = []
-for k in range(2, 9):
-    km = KMeans(n_clusters=k, n_init=10, random_state=42).fit(X_sc)
-    scores.append({"k": k, "inertia": km.inertia_, "silhouette": silhouette_score(X_sc, km.labels_)})
-pd.DataFrame(scores)                                   # look for an elbow and a good silhouette
-
-km = KMeans(n_clusters=3, n_init=10, random_state=42).fit(X_sc)
-segments = features.assign(cluster=km.labels_)
-segments["cluster"].value_counts()                     # cluster sizes
-segments.groupby("cluster").mean().round(2)            # the profiles: name each segment
-```
-
-> **Watch out:** Scores only guide the choice of k; combine them with plots and domain knowledge, and try DBSCAN or agglomerative clustering if the groups aren't round blobs.
-
-<a id="common-capstone-mistakes-checklist"></a>
-
-### Common capstone mistakes checklist
+### Feature engineering pitfalls
 
 _Concept_
 
-Before you submit, check each of these; they're the easiest mistakes to make and the first things a reviewer looks for:
+From the slides: data leakage (fitting transformers on test data), forgetting to scale features of different sizes, over-engineering with too many complex transformations, ignoring domain knowledge, and not validating that transformations actually worked (re-check distributions and relationships afterwards).
 
-1. **Leakage:** a feature that wouldn't be known at prediction time, or preprocessing fitted before the split. ([Data leakage (in model evaluation)](#data-leakage-in-model-evaluation))
-2. **Tuning on the test set:** choosing k, alpha or a model by test score instead of cross-validation. ([Three-way split (validation set)](#three-way-split-validation-set))
-3. **No baseline:** reporting a score without the null model next to it. ([Null accuracy](#null-accuracy), [Null model (baseline) for regression](#null-model-baseline-for-regression))
-4. **Accuracy on imbalanced data:** use recall, precision, F1, balanced accuracy or PR AUC. ([Imbalanced classes](#imbalanced-classes))
-5. **Shuffling time series:** split chronologically and compare with naive forecasts. ([Time series train/test split](#time-series-train-test-split))
-6. **Unscaled distance or penalty models:** kNN, SVM, k-means, PCA, ridge and lasso need scaling. ([Scaling for distance-based models](#scaling-for-distance-based-models))
-7. **Evaluating on the wrong data:** passing unscaled test data to a model trained on scaled data (pipelines prevent it).
-8. **Comparing metrics on different scales:** log-target vs raw-target R², or training vs test scores. ([Comparing models on the same scale](#comparing-models-on-the-same-scale))
-9. **Over-reading coefficients:** comparing unscaled coefficients, ignoring multicollinearity, or saying "times more likely" for odds ratios. ([Coefficients are not importance](#coefficients-are-not-importance), [Interpreting logistic regression coefficients](#interpreting-logistic-regression-coefficients))
-10. **Causal language for associations:** a model shows what predicts, not what causes. ([Correlation does not imply causation (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#correlation-does-not-imply-causation))
-11. **Ignoring the threshold:** 0.5 is a default, not a decision. ([Classification threshold](#classification-threshold))
-12. **Untested AI-generated code:** test it against inputs with known answers. ([Testing AI-generated code](#testing-ai-generated-code))
-13. **Results that can't be reproduced:** no random seeds, no recorded versions. ([Reproducibility habits](#reproducibility-habits))
+---
+
+<a id="s11-apis-and-web-data"></a>
+
+## 11. APIs and web data
+
+_Getting live, structured data from the web with Python: how a request works, how to read the JSON that comes back, and how to turn it into a DataFrame. Examples use the UK police data API, Open Notify and AlphaVantage._
+
+**In your capstone:** if your data comes from an API, write one function that fetches a page, checks the status code and returns JSON. Loop it with a pause, save the raw responses to disk once, and do all your analysis from the saved copy. Keep your key out of the notebook (environment variable or a git-ignored `.env` file) and cite the API and the date you pulled the data.
+
+<a id="api-application-programming-interface"></a>
+
+### API (Application Programming Interface)
+
+_Concept_
+
+Broadly, any defined way for one piece of software to use another. The pandas API and the matplotlib API are the sets of functions and methods those libraries offer you. In this course, API usually means a **web API**.
+
+<a id="web-api"></a>
+
+### Web API
+
+_Concept_
+
+A service that receives requests over the internet (usually via HTTP) and sends back **structured data**, usually JSON, rather than a web page. A safe, legal way to access large amounts of up-to-date data: share prices, crime records, maps, payments, social media.
+
+<a id="request-and-response"></a>
+
+### Request and response
+
+_Concept_
+
+The two halves of every API interaction. Your code sends a **request** (a URL plus a method, maybe some parameters and a key) to a **server**; the server sends back a **response** containing a status code and the data. This is called _calling an API_ or _making an API request_.
+
+<a id="http"></a>
+
+### HTTP
+
+_Concept_
+
+HyperText Transfer Protocol: the set of rules for passing data around the web. Your browser uses it every time you visit a website. Related protocols you may have heard of: IP (addresses and routing), FTP/SFTP (file transfer between a client and a server), SMTP (sending email) and POP3 (receiving email).
+
+<a id="url-anatomy"></a>
+
+### URL anatomy
+
+_Concept_
+
+An API request is a URL, broken into parts: `http://www.domain.com:1234/path/to/resource?a=b&x=y`. **Protocol** (`http`/`https`), **host** (`www.domain.com`), **port** (`1234`, usually left out), **resource path** (`/path/to/resource`), and the **query string** after the `?`, made of `name=value` **parameters** separated by `&`.
+
+<a id="query-parameters"></a>
+
+### Query parameters
+
+_Concept, requests_
+
+Options or filters added to the end of an API URL after `?`, as `key=value` pairs joined by `&`. They let you request just the subset of data you need. You can build the string yourself, or let `requests` do it with `params=`, which also handles special characters.
+
+```python
+# Needs internet
+import requests
+url = "https://data.police.uk/api/crimes-street/all-crime"
+response = requests.get(url, params={"lat": 52.629729, "lng": -1.131592, "date": "2024-03"},
+                        timeout=30)
+response.url    # the full URL that requests built: ...all-crime?lat=52.629729&lng=-1.131592&date=2024-03
+```
+
+<a id="endpoint"></a>
+
+### Endpoint
+
+_Concept_
+
+A specific URL path within an API that returns one kind of data, such as `/authors`, `/articles` or `/books`. The police API has endpoints like `crimes-street/all-crime`, `outcomes-at-location` and `crime-categories`.
+
+<a id="http-methods-get-post-put-delete"></a>
+
+### HTTP methods (GET, POST, PUT, DELETE)
+
+_Concept, requests_
+
+The type of action a request asks for. **GET** retrieves information (what your browser's address bar does, and what you'll use for data analysis). **POST** sends information (submitting a form). **PUT** updates information. **DELETE** deletes it. In `requests`: `requests.get()`, `requests.post()` and so on.
+
+<a id="status-code"></a>
+
+### Status code
+
+_Concept, requests_
+
+A three-digit number in every response saying how it went. **200** means OK. **404** means not found (e.g. no data for that month). **401/403** means not authorised (check your API key). **429** means too many requests (you hit a rate limit). **500** means a server error. Check it before using the data.
+
+```python
+# Needs internet
+import requests
+url = "https://data.police.uk/api/crime-categories"
+response = requests.get(url, params={"date": "2023-10"}, timeout=30)
+if response.status_code == 200:
+    data = response.json()
+else:
+    print("Request failed with status", response.status_code)
+```
+
+> **Watch out:** the UK police API answers **404** (rather than an empty list) when it has no data for a place and month. Its data is published a month or two late, and only a limited history is kept, so a fixed old month can stop working. A 404 page isn't JSON, so calling `.json()` on it crashes. Check `status_code` first, or leave out the `date` parameter to get the latest available month.
+
+<a id="common-http-status-codes"></a>
+
+### Common HTTP status codes
+
+_Concept_
+
+The number at the start of every HTTP response says how the request went. The first digit gives the family: **2xx** success, **3xx** redirect, **4xx** your request has a problem, **5xx** the server has a problem.
+
+| Code      | Meaning                    | What to do                                              |
+| --------- | -------------------------- | ------------------------------------------------------- |
+| 200       | OK                         | read `response.json()`                                  |
+| 400       | Bad request                | check parameter names and formats                       |
+| 401 / 403 | Unauthorized / forbidden   | check your API key and permissions                      |
+| 404       | Not found                  | check the endpoint URL and IDs                          |
+| 429       | Too many requests          | you hit the [Rate limit](#rate-limit): wait, then retry |
+| 500 / 503 | Server error / unavailable | not your fault: retry later                             |
+
+`response.ok` is `True` for any code below 400, and `response.raise_for_status()` raises an error for 4xx and 5xx codes.
+
+See also: [Status code](#status-code), [Timeouts and error handling](#timeouts-and-error-handling), [HTTP](#http)
+
+<a id="timeouts-and-error-handling"></a>
+
+### Timeouts and error handling
+
+_Python_
+
+Network calls fail in ways ordinary code doesn't: the server is slow, the connection drops, or you're rate-limited. Robust API code always does three things. It passes a `timeout=` so a stuck request can't freeze the notebook. It calls `raise_for_status()` to turn 4xx and 5xx codes into errors. And it wraps the call in `try / except` so one failure doesn't stop a long loop. The APIs deck's risks slide calls this building fallback handling into long-term projects.
+
+```python
+# Needs internet
+import requests
+
+def get_json(url, params=None, retries=3, wait=2):
+    """Fetch JSON with a timeout, a status check and a few retries."""
+    import time
+    for attempt in range(1, retries + 1):
+        try:
+            response = requests.get(url, params=params, timeout=30)
+            response.raise_for_status()
+            return response.json()
+        except requests.RequestException as err:
+            print(f"Attempt {attempt} failed: {err}")
+            time.sleep(wait * attempt)               # back off a little more each time
+    return None
+
+categories = get_json("https://data.police.uk/api/crime-categories", params={"date": "2023-10"})
+```
+
+See also: [try / except](#try-except), [Common HTTP status codes](#common-http-status-codes), [Looping over API requests](#looping-over-api-requests)
+
+<a id="json"></a>
+
+### JSON
+
+_Concept_
+
+JavaScript Object Notation: the text format most APIs return. It looks and behaves almost exactly like Python dictionaries and lists, with key-value pairs that often contain nested lists or dictionaries, so you already know how to navigate it.
+
+```python
+# Needs internet
+import requests
+police_url = "https://data.police.uk/api/crimes-street/all-crime"
+response = requests.get(police_url, params={"lat": 52.629729, "lng": -1.131592}, timeout=30)
+crime_json = response.json() if response.status_code == 200 else []   # latest month; a list of dicts
+first_crime = crime_json[0]
+first_crime["category"]
+first_crime["location"]["street"]["name"]            # dictionaries inside dictionaries
+```
+
+<a id="requests-library"></a>
+
+### requests library
+
+_requests_
+
+The standard Python library for sending HTTP requests. `requests.get(url)` returns a **Response** object; `.json()` parses the body into Python lists and dictionaries, `.status_code` gives the status, and `.text` gives the raw text.
+
+```python
+import requests
+response = requests.get("http://api.open-notify.org/astros.json")
+response.status_code      # 200
+data = response.json()
+data["number"]            # how many people are in space right now
+```
+
+<a id="turning-json-into-a-dataframe"></a>
+
+### Turning JSON into a DataFrame
+
+_pandas, requests_
+
+A list of dictionaries goes straight into `pd.DataFrame()`, one row per dictionary. A dictionary of dictionaries (like AlphaVantage's time series, keyed by timestamp) comes out sideways, so `.transpose()` it.
+
+```python
+# Needs internet
+import requests
+response = requests.get("https://data.police.uk/api/crimes-street/all-crime",
+                        params={"lat": 52.629729, "lng": -1.131592}, timeout=30)   # latest month
+response.raise_for_status()                  # stop here on a 404 instead of failing in .json()
+police_json = response.json()
+crimes = pd.DataFrame(police_json)        # one row per dictionary in the list
+crimes[["category", "month", "location"]].head(3)
+```
+
+<a id="pd-json-normalize"></a>
+
+### pd.json_normalize()
+
+_pandas_
+
+Flattens nested JSON into flat columns, naming them with dots (`street.name`, `street.id`). Use it on a column of dictionaries and join the result back with `pd.concat(axis=1)`.
+
+```python
+# Needs internet
+import requests
+response = requests.get("https://data.police.uk/api/crimes-street/all-crime",
+                        params={"lat": 52.629729, "lng": -1.131592}, timeout=30)   # latest month
+response.raise_for_status()                  # stop here on a 404 instead of failing in .json()
+police_json = response.json()
+crimes = pd.DataFrame(police_json)
+location = pd.json_normalize(crimes["location"].tolist())   # nested dicts -> columns
+crimes = pd.concat([crimes.drop(columns=["location"]), location], axis=1)
+crimes[["category", "latitude", "longitude", "street.name"]].head(3)
+```
+
+<a id="looping-over-api-requests"></a>
+
+### Looping over API requests
+
+_Python, requests_
+
+Many APIs return one slice of data per request (one month, one stock). To build a bigger dataset, loop over the slices, request each, skip failures, and collect the results in a list before turning them into a DataFrame.
+
+```python
+# Needs internet
+import time
+import requests
+url = "https://data.police.uk/api/crimes-street/all-crime"
+lat, lng = 52.629729, -1.131592
+all_months = []
+for date in ["2024-01", "2024-02", "2024-03"]:
+    response = requests.get(url, params={"date": date, "lat": lat, "lng": lng}, timeout=30)
+    if response.status_code != 200:
+        print("Skipping", date, "status", response.status_code)
+        continue
+    all_months.append({"month": date, "n_crimes": len(response.json())})
+    time.sleep(1)                      # be polite: pause between requests
+summary = pd.DataFrame(all_months)
+```
+
+> **Watch out:** Many APIs limit how fast you can call them. Add `time.sleep(1)` inside long loops to stay under the rate limit.
+
+<a id="pagination"></a>
+
+### Pagination
+
+_Concept_
+
+Many APIs return large results in **pages**: the first 100 records, then the next 100, and so on. The response says how to get the next page, with a page number, an offset, a "next" URL or a cursor token. Loop until there's no next page, pausing between requests to respect the [Rate limit](#rate-limit). Each API documents its own scheme, so [read the docs](#api-documentation).
+
+```python
+# Needs internet
+import time
+import requests
+
+def fetch_all(url, page_size=100, max_pages=50):
+    """Collect every page from an API that uses ?page=&per_page= parameters."""
+    rows, page = [], 1
+    while page <= max_pages:
+        batch = requests.get(url, params={"page": page, "per_page": page_size}, timeout=30).json()
+        if not batch:                 # an empty page means we've reached the end
+            break
+        rows.extend(batch)
+        page += 1
+        time.sleep(1)
+    return pd.DataFrame(rows)
+```
+
+See also: [Looping over API requests](#looping-over-api-requests), [Rate limit](#rate-limit), [Caching API responses](#caching-api-responses)
+
+<a id="caching-api-responses"></a>
+
+### Caching API responses
+
+_Concept, Python_
+
+Save every raw API response to disk the first time you fetch it, and read from the saved copy afterwards. This makes your analysis **reproducible**, because the data can't change under you. It's also faster, avoids hitting rate limits or paid quotas again, and survives the API changing or shutting down, one of the risks the APIs deck lists. Record the date you pulled the data.
+
+```python
+import json
+from pathlib import Path
+
+def cached_json(name, fetch):
+    """Return JSON from cache/<name>.json, calling fetch() only if it isn't saved yet."""
+    path = Path("cache") / f"{name}.json"
+    if path.exists():
+        return json.loads(path.read_text())
+    data = fetch()
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(json.dumps(data))
+    return data
+
+demo = cached_json("demo_payload", lambda: [{"category": "burglary", "month": "2024-01"}])
+pd.DataFrame(demo)
+```
+
+See also: [JSON](#json), [API risks: cost and maintenance](#api-risks-cost-and-maintenance), [pathlib.Path](#pathlib-path)
+
+<a id="api-key"></a>
+
+### API key
+
+_Concept_
+
+A unique code, like a password, that identifies you to an API. It prevents misuse and tracks your usage for rate limits and charges. You usually get one by registering on the API's website, and most APIs have a free tier.
+
+```python
+# Needs an API key
+import os
+import requests
+api_key = os.getenv("ALPHAVANTAGE_API_KEY", "demo")   # read the key from an environment variable
+url = "https://www.alphavantage.co/query"
+params = {"function": "TIME_SERIES_INTRADAY", "symbol": "IBM", "interval": "5min", "apikey": api_key}
+ibm_json = requests.get(url, params=params, timeout=30).json()
+```
+
+> **Watch out:** a free key has limits. According to the course notes, Alpha Vantage allows 25 requests per day and 5 per minute. When you exceed them, or use an invalid key, it returns JSON with a message instead of data, so code that goes straight to `data["Time Series (5min)"]` fails with a `KeyError`. Check for the key before using it, and only use the documented `interval` values (`1min`, `5min`, `15min`, `30min`, `60min`). Whether prices are real-time, delayed or end-of-day depends on the plan, so check the documentation before calling them "real-time".
+
+```python
+def time_series_or_none(payload, key="Time Series (5min)"):
+    """Return the time-series dict, or None with the API's message if it isn't there."""
+    if key not in payload:
+        print("No data:", payload.get("Note") or payload.get("Information") or payload.get("Error Message"))
+        return None
+    return payload[key]
+
+time_series_or_none({"Information": "API rate limit reached."})     # prints the message, returns None
+```
+
+<a id="keeping-api-keys-secret"></a>
+
+### Keeping API keys secret
+
+_Concept, Python_
+
+**Never publish your API key**, including on GitHub, even in a private repository. Keep it outside your code, for example in an environment variable or a separate file that you never share or commit.
+
+```python
+import os
+api_key = os.environ.get("ALPHAVANTAGE_KEY")   # set outside the notebook
+```
+
+<a id="environment-variables-and-env-files"></a>
+
+### Environment variables and .env files
+
+_Python_
+
+The safe place to keep an API key: **outside** your code. An environment variable is a named value set in your operating system or terminal, and `os.getenv("NAME")` reads it. A `.env` file is a small text file of `NAME=value` lines. The `python-dotenv` package's `load_dotenv()` loads it into environment variables, and adding `.env` to `.gitignore` stops git from ever committing it. This is the setup the APIs deck recommends, because bots scan public repositories for leaked keys.
+
+```python
+import os
+os.environ["ALPHAVANTAGE_API_KEY"] = "demo"        # for this example only: normally set outside Python
+api_key = os.getenv("ALPHAVANTAGE_API_KEY")         # None if it isn't set
+if api_key is None:
+    raise RuntimeError("Set ALPHAVANTAGE_API_KEY before running this notebook")
+
+# With a .env file (pip install python-dotenv), containing a line ALPHAVANTAGE_API_KEY=your_key:
+# from dotenv import load_dotenv
+# load_dotenv()
+```
+
+```bash
+echo ".env" >> .gitignore      # never commit the file that holds your keys
+```
+
+> **Watch out:** deleting a key from a notebook doesn't remove it from git history or from saved cell outputs. If a key was ever pushed, revoke it with the provider and create a new one.
+
+See also: [API key](#api-key), [Keeping API keys secret](#keeping-api-keys-secret)
+
+<a id="rate-limit"></a>
+
+### Rate limit
+
+_Concept_
+
+A cap on how many requests you can make per minute or per day. Going over usually returns a 429 status or an error message in place of data. Free tiers have tight limits; heavier use may cost money.
+
+<a id="api-documentation"></a>
+
+### API documentation
+
+_Concept_
+
+Every API is different, so read its docs. Check: Do I need a key, and how do I include it? Are there rate limits or charges? What endpoints exist? How do I build a URL for exactly the data I want? What will the response look like?
+
+<a id="api-risks-cost-and-maintenance"></a>
+
+### API risks: cost and maintenance
+
+_Concept_
+
+Before relying on an API for a long-term or scalable project, ask: will usage outgrow the free tier, and can we afford it then? Will the API still exist and be maintained? What happens to our work if it disappears?
+
+A real example: the Open Notify "people in space" endpoint (`http://api.open-notify.org/astros.json`) used in the APIs lesson still answers, but the course notes found it hadn't been updated in a long time. In October 2026 it still listed astronauts who had returned to Earth in 2024 and 2025. An API that responds isn't necessarily current, so check dates in the data you get back.
+
+<a id="api-wrapper"></a>
+
+### API wrapper
+
+_Concept, Python_
+
+A Python library that handles the HTTP requests to a particular API for you, so you call friendly functions instead of building URLs by hand. Many popular APIs have one.
+
+<a id="curl"></a>
+
+### curl
+
+_Concept_
+
+A command-line tool for making HTTP requests: `curl www.example.com` prints the raw response (here, HTML). It shows that a response is just text.
+
+> **Watch out:** in older Windows PowerShell, `curl` is a shortcut for `Invoke-WebRequest`, which prints a different-looking result. Type `curl.exe www.example.com` to run the real curl.
+
+<a id="html"></a>
+
+### HTML
+
+_Concept_
+
+HyperText Markup Language, the code that web pages are written in. A normal website request returns HTML, CSS and JavaScript for a browser to display, whereas an API returns structured data.
+
+<a id="web-scraping"></a>
+
+### Web scraping
+
+_Concept_
+
+Extracting data embedded in web pages by downloading and parsing their HTML, for example with the **BeautifulSoup** library. Useful when no API exists, but pages can be hard to scrape, and you must scrape ethically and within the site's terms.
+
+<a id="data-source-comparison"></a>
+
+### Data source comparison
+
+_Concept_
+
+**Spreadsheets** (XLS/CSV): familiar, but often messy and limited in size. **SQL databases**: handle millions of rows, the industry standard for company data. **APIs** (JSON): structured, clean and real-time, but not every dataset has one and some cost money. **Web scraping** (HTML): saves copy-pasting from websites, but comes with ethical caveats and fragile pages.
+
+<a id="finding-map-coordinates"></a>
+
+### Map Coordinates using the geopy Library
+
+_Python_
+
+**Geocoding** turns an address or place name into latitude and longitude coordinates. The `geopy` library does this through OpenStreetMap's free **Nominatim** service, so you don't need an API key. You do need to send a `user_agent` string that names your app. Google Maps can geocode too, but it needs an API key and billing set up.
+
+Coordinates are what location-based APIs (like the UK police API in this unit) expect as query parameters, and they let you plot points on a map.
+
+```python
+# Needs internet
+# pip install geopy
+from geopy.geocoders import Nominatim
+
+geolocator = Nominatim(user_agent="dsb_unit2_glossary_example")   # name your app
+location = geolocator.geocode("Buckingham Palace, London, UK", timeout=10)
+
+if location is not None:
+    print(f"Latitude: {location.latitude:.5f}, Longitude: {location.longitude:.5f}")
+else:
+    print("Location not found.")
+```
+
+> **Watch out:** `geocode()` returns `None` when it can't find the place, so check for `None` before reading `.latitude`. Nominatim's usage policy allows about one request per second. When geocoding a whole column, pause between calls (geopy's `RateLimiter` does this for you) and save the results so you only look each address up once.
+
+See also: [Query parameters](#query-parameters), [Rate limit](#rate-limit), [API wrapper](#api-wrapper)
+
+---
+
+<a id="s00-capstone-playbook-the-data-stage"></a>
+
+## 00. Capstone playbook: the data stage
+
+_The data stage of a capstone, from question to a clean, model-ready table, in the order you'll do it. Each step links back to the entries that explain the methods. Section 00 is placed after section 11 because it uses all of them. Unit 3's [Capstone playbook](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#s38-capstone-playbook) takes over at modelling._
+
+**In your capstone:** work through these steps in order, keep the checklist answers in your notebook as markdown, and start from the [EDA template notebook](#eda-template-notebook). The decisions you write down here (what you dropped, imputed, capped or engineered, and why) become the methods section of your write-up. For the code itself, use the [Capstone code cookbook](#s00b-capstone-code-cookbook), starting with a [cleaning log](#keep-a-cleaning-log) and [validation rules](#define-validation-rules-and-check-your-data).
+
+<a id="frame-the-question-and-the-target"></a>
+
+### Frame the question and the target
+
+_Concept_
+
+Before touching the data, write three sentences. **Who** will use the result, and what **decision** will it change? **What exactly** will you predict or explain: the target column, for one row of what (the [grain](#grain-of-a-table))? **When** will the prediction be made, and what will be known at that moment?
+
+From the target, decide the task. A numeric target (price, wait time) is **regression**. A category (survived or not, churned or not) is **classification**: check the **class balance** straight away. If the question is "does X cause Y?", you need an experiment or a careful observational design, not just a predictive model.
+
+```python
+TARGET = "Survived"
+titanic[TARGET].value_counts(normalize=True).round(3)    # 0.616 / 0.384: imbalanced but workable
+task = "classification" if titanic[TARGET].nunique() <= 10 else "regression"
+task
+```
+
+See also: [EDA for modeling](#eda-for-modeling), [Target (dependent variable)](#target-dependent-variable), [Four purposes of experiments](#four-purposes-of-experiments), [Problem framing (Unit 3)](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#problem-framing)
+
+<a id="data-understanding-checklist"></a>
+
+### Data-understanding checklist
+
+_Concept_
+
+Answer these before you change anything, and keep the answers in markdown cells.
+
+1. **Source and provenance:** where the data came from, when you pulled it, and the licence or terms.
+2. **Grain:** what one row is. Check that the ID column is unique.
+3. **Size:** rows and columns (`.shape`).
+4. **Meaning:** a [Data dictionary](#data-dictionary) with every column's meaning, type and unit.
+5. **Types:** do the dtypes match the meaning? Look for numbers stored as text and dates stored as text.
+6. **Missing data:** a [Missingness table](#missingness-table), plus any [placeholder values](#placeholder-values-for-missing-data) such as `"?"`, `-999` or `0`.
+7. **Ranges:** are the minimum and maximum plausible? Look for [Capped values](#capped-values) and impossible values (negative ages, `inf`).
+8. **Duplicates:** exact duplicate rows, and repeated IDs.
+9. **Collection artefacts:** caps, gaps or sudden changes over time (such as the 500-sets-per-year cap in the LEGO data).
+10. **Target:** its distribution, balance and any leakage-prone neighbours.
+
+See also: [EDA for exploration](#eda-for-exploration), [Data quality assessment](#data-quality-assessment), [.info()](#info), [.describe()](#describe), [Cookbook: Profile a dataset quickly](#profile-a-dataset-quickly), [Cookbook: Build a data dictionary from your data](#build-a-data-dictionary-from-your-data)
+
+<a id="cleaning-workflow"></a>
+
+### Cleaning workflow
+
+_Concept_
+
+Clean in a fixed, re-runnable order. Keep the raw file untouched, write each step as a small function, and chain them with [.pipe()](#pipe), so you can rerun everything on a fresh download.
+
+1. Standardise column names.
+2. Convert placeholders to `NaN`.
+3. Fix types (numbers, dates, categories).
+4. Clean text categories.
+5. Remove confirmed exact duplicates.
+6. Validate with [assert](#assert) statements.
+7. Save the cleaned table and log row counts at every step.
+
+Do **not** impute, scale or encode here. Those steps learn from the data, so they belong in a pipeline after the train/test split.
+
+```python
+def standardise_columns(df):
+    return df.rename(columns=lambda c: c.strip().lower().replace(" ", "_"))
+
+def fix_types(df):
+    return df.assign(pclass=df["pclass"].astype("category"))
+
+def drop_exact_duplicates(df):
+    return df.drop_duplicates()
+
+clean = (titanic
+         .pipe(standardise_columns)
+         .pipe(fix_types)
+         .pipe(drop_exact_duplicates))
+assert clean["passengerid"].is_unique
+assert clean["age"].dropna().between(0, 100).all()
+len(titanic), len(clean)
+```
+
+See also: [Cleaning text categories](#cleaning-text-categories), [.drop_duplicates()](#drop-duplicates), [Method chaining](#method-chaining), [Cookbook: Keep a cleaning log](#keep-a-cleaning-log)
+
+<a id="missing-data-decisions"></a>
+
+### Missing-data decisions
+
+_Concept_
+
+For every column with gaps, record four things: **how much** is missing, **why** (MCAR, MAR or MNAR, from EDA and domain knowledge), **what you'll do**, and **why that's acceptable**. Follow the [Missing data decision order](#missing-data-decision-order): recover the data, then impute, then delete as a last resort.
+
+| Column     | % missing | Likely mechanism                                  | Decision                                                                    |
+| ---------- | --------- | ------------------------------------------------- | --------------------------------------------------------------------------- |
+| `Cabin`    | 77.1      | recorded mainly for first class (MAR on `Pclass`) | drop the column, keep a `has_cabin` [Missing indicator](#missing-indicator) |
+| `Age`      | 19.9      | differs by class (MAR)                            | median imputation inside the pipeline, plus a missing flag                  |
+| `Embarked` | 0.2       | 2 rows, no pattern                                | most-frequent imputation inside the pipeline                                |
+
+```python
+titanic["has_cabin"] = titanic["Cabin"].notna()           # keep the information, drop the sparse column
+titanic.groupby("Pclass")["Age"].apply(lambda s: s.isna().mean()).round(3)   # is Age missing more in some classes?
+```
+
+> **Watch out:** never call `dropna()` on the whole table without checking what it removes. On Titanic it keeps 183 of 891 rows, and the survivors of that filter are mostly first-class passengers.
+
+See also: [MCAR (Missing Completely At Random)](#mcar-missing-completely-at-random), [MAR (Missing At Random)](#mar-missing-at-random), [KNNImputer and IterativeImputer](#knnimputer-and-iterativeimputer), [Pipeline with imputation](#pipeline-with-imputation)
+
+<a id="outlier-decisions"></a>
+
+### Outlier decisions
+
+_Concept_
+
+An outlier is a question, not an error. For each flagged value, decide which of these it is:
+
+1. A **data error**, such as an age of 899: fix it if you can, otherwise set it to `NaN`.
+2. A **real but extreme** value, such as the 11,695-piece World Map: keep it.
+3. A **different population**, such as minifigure boxes with 0 pieces: filter it out, and say so.
+
+For real extremes, choose a method that's robust to them: medians, a log transform, [Robust scaling](#robust-scaling), or tree-based models. Avoid deleting rows only because they're inconvenient. Flag outliers with the [IQR outlier fences](#iqr-outlier-fences) or z-scores, then look at them.
+
+```python
+price = lego["USD_MSRP"]
+q1, q3 = price.quantile([0.25, 0.75])
+upper = q3 + 1.5 * (q3 - q1)
+lego.loc[price > upper, ["Name", "Theme", "USD_MSRP"]].nlargest(5, "USD_MSRP")   # look before deciding
+lego["log_price"] = np.log1p(price)                    # one option: reduce the skew instead of deleting
+```
+
+See also: [Outlier](#outlier), [Worked example: mean vs median with an outlier](#worked-example-mean-vs-median-with-an-outlier), [Log transformation](#log-transformation), [Capped values](#capped-values), [Cookbook: Detect and treat outliers](#detect-and-treat-outliers)
+
+<a id="leakage-check-known-at-prediction-time"></a>
+
+### Leakage check: known at prediction time?
+
+_Concept_
+
+For every feature, ask: **would I know this value at the moment I make the prediction?** If not, it's leakage, and the model will look far better in testing than it ever will in use. Common cases:
+
+- **Outcome columns** recorded after the event (a `boat` or `body` number on Titanic, a refund date for a churn model).
+- **Aggregates that include the row itself or the future**, such as an average over all of a customer's visits. Use `shift(1)` before `cumsum()`.
+- **Statistics fitted on all rows** before splitting: imputers, scalers, encoders and target encodings.
+- **Duplicates or the same person on both sides** of the split.
+
+Two quick screens help. A feature with near-perfect correlation with the target deserves suspicion. And dropping a feature should hurt a little, not destroy the model.
+
+```python
+corr = titanic.select_dtypes("number").corr()["Survived"].drop("Survived").abs().sort_values(ascending=False)
+corr.head(3)                                   # nothing near 1.0 here; anything that is gets investigated
+leak_suspects = corr[corr > 0.9].index.tolist()
+leak_suspects                                  # []
+```
+
+See also: [Data leakage](#data-leakage), [.shift(), .diff() and cumulative sums](#shift-diff-and-cumulative-sums), [Target encoding](#target-encoding), [Duplicate rows and leakage](#duplicate-rows-and-leakage), [Data leakage in model evaluation (Unit 3)](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#data-leakage-in-model-evaluation)
+
+<a id="feature-engineering-inside-pipelines"></a>
+
+### Feature engineering inside pipelines
+
+_Concept, scikit-learn_
+
+There are two kinds of feature work, and the line between them is whether a step **learns from the data**.
+
+- **Row-wise features** use only the row itself, so they're safe to create before splitting: ratios, ages from a fixed year, flags, date parts.
+- **Learned transformations** fit something on the data, so they go inside a `Pipeline` and `ColumnTransformer` fitted on the training set only. That covers imputers, scalers, encoders, binning with learned edges, and target encoding.
+
+Then cross-validation and the final test score are honest.
+
+```python
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.pipeline import Pipeline, make_pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
+df = titanic.assign(family_size=titanic["SibSp"] + titanic["Parch"] + 1,   # row-wise: safe before the split
+                    has_cabin=titanic["Cabin"].notna())
+num, cat = ["Age", "Fare", "family_size"], ["Sex", "Embarked", "Pclass"]
+X_train, X_test, y_train, y_test = train_test_split(df[num + cat + ["has_cabin"]], df["Survived"],
+                                                    test_size=0.2, random_state=42, stratify=df["Survived"])
+pre = ColumnTransformer([
+    ("num", make_pipeline(SimpleImputer(strategy="median", add_indicator=True), StandardScaler()), num),
+    ("cat", make_pipeline(SimpleImputer(strategy="most_frequent"), OneHotEncoder(handle_unknown="ignore")), cat),
+], remainder="passthrough")
+model = Pipeline([("pre", pre), ("clf", LogisticRegression(max_iter=1000))])
+cross_val_score(model, X_train, y_train, cv=5).mean().round(3)      # every fold re-fits the preprocessing
+```
+
+See also: [Pipeline](#pipeline), [ColumnTransformer](#columntransformer), [Pipeline with imputation](#pipeline-with-imputation), [Features from dates](#features-from-dates), [Pipeline with ColumnTransformer (Unit 3)](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#pipeline-with-columntransformer)
+
+<a id="eda-findings-that-shape-model-choice"></a>
+
+### EDA findings that shape model choice
+
+_Concept_
+
+Let what you found decide the next step:
+
+| EDA finding                                                           | What it suggests                                                                                                                              |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Target is numeric and right-skewed (prices)                           | try a log-transformed target and compare on the test set; report errors in original units                                                     |
+| Classes are imbalanced                                                | stratified split; judge by precision, recall or F1 rather than accuracy; a [Baseline model](#baseline-model) that predicts the majority class |
+| Relationships are curved or have thresholds                           | tree-based models, or add transformed or binned features                                                                                      |
+| Strong multicollinearity (high [VIF](#variance-inflation-factor-vif)) | regularized linear models, or drop or combine features, if you need interpretable coefficients                                                |
+| Many outliers or heavy tails                                          | robust scaling, median-based summaries, tree-based models                                                                                     |
+| High-cardinality categories                                           | grouping rare levels, frequency encoding or [Target encoding](#target-encoding)                                                               |
+| Few rows                                                              | simple models, cross-validation, fewer features                                                                                               |
+| Values capped or censored                                             | say so; expect biased errors near the cap                                                                                                     |
+
+See also: [EDA for modeling](#eda-for-modeling), [Tree-based models](#tree-based-models), [Linear model assumptions](#linear-model-assumptions), [Comparing models on the same scale (Unit 3)](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#comparing-models-on-the-same-scale), [Choosing a classification metric (Unit 3)](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#choosing-a-classification-metric)
+
+<a id="eda-template-notebook"></a>
+
+### EDA template notebook
+
+_Python_
+
+A skeleton to copy into your capstone notebook, one block per cell. It runs end to end as written, using the Titanic data as a stand-in: change `DATA_URL`, `TARGET` and `ID_COL`, then fill in the markdown answers as you go. The same cells are in [`assets/capstone-eda-template.ipynb`](assets/capstone-eda-template.ipynb).
+
+```python
+# Step 1: setup (imports, settings, seed, paths)
+from pathlib import Path
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+SEED = 42
+rng = np.random.default_rng(SEED)
+DATA_URL = "https://raw.githubusercontent.com/CharleyHananiaGA/DSB-Unit-02/main/data/titanic-adj.csv"
+TARGET, ID_COL = "Survived", "PassengerId"
+FIG_DIR = Path("figures"); FIG_DIR.mkdir(exist_ok=True)
+print("pandas", pd.__version__, "| numpy", np.__version__)
+```
+
+```python
+# Step 2: load and first look
+raw = pd.read_csv(DATA_URL)
+df = raw.copy()                       # keep raw untouched
+print(df.shape)
+df.info()
+df.sample(5, random_state=SEED)
+```
+
+```python
+# Step 3: data dictionary and missingness table
+dictionary = pd.DataFrame({"dtype": df.dtypes.astype(str), "n_unique": df.nunique(),
+                           "n_missing": df.isna().sum(), "pct_missing": (df.isna().mean() * 100).round(1)})
+dictionary["meaning"] = ""            # fill in by hand
+assert df[ID_COL].is_unique, "ID column should identify one row each"
+dictionary.sort_values("pct_missing", ascending=False)
+```
+
+```python
+# Step 4: clean (re-runnable functions, raw stays untouched)
+def clean_data(d):
+    d = d.drop_duplicates()
+    d = d.assign(has_cabin=d["Cabin"].notna(),
+                 family_size=d["SibSp"] + d["Parch"] + 1)
+    return d.drop(columns=["Cabin", "Ticket", "Name"])
+
+df = clean_data(raw)
+print(len(raw), "->", len(df), "rows")
+```
+
+```python
+# Step 5: univariate EDA (every modelled column)
+num_cols = df.select_dtypes("number").columns.drop([ID_COL, TARGET]).tolist()
+cat_cols = df.select_dtypes(exclude="number").columns.tolist()
+df[num_cols].hist(bins=30, figsize=(10, 6))
+plt.tight_layout(); plt.savefig(FIG_DIR / "numeric_distributions.png", dpi=120)
+for col in cat_cols:
+    print(df[col].value_counts(dropna=False).head(10), "\n")
+```
+
+```python
+# Step 6: the target and its relationships
+print(df[TARGET].value_counts(normalize=True).round(3))
+fig, axes = plt.subplots(1, len(cat_cols), figsize=(4 * len(cat_cols), 3))
+for ax, col in zip(np.atleast_1d(axes), cat_cols):
+    sns.barplot(data=df, x=col, y=TARGET, errorbar=None, ax=ax)
+fig.tight_layout()
+df[num_cols + [TARGET]].corr()[TARGET].drop(TARGET).sort_values(key=abs, ascending=False)
+```
+
+```python
+# Step 7: correlation, redundancy and a leakage screen
+corr = df[num_cols].corr()
+mask = np.triu(np.ones_like(corr, dtype=bool))
+sns.heatmap(corr, mask=mask, annot=True, fmt=".2f", cmap="coolwarm", center=0)
+suspects = [c for c in num_cols if abs(df[c].corr(df[TARGET])) > 0.9]
+print("Possible leakage (|r| > 0.9 with the target):", suspects)
+```
+
+```python
+# Step 8: split, preprocessing pipeline and a baseline
+from sklearn.compose import ColumnTransformer
+from sklearn.dummy import DummyClassifier
+from sklearn.impute import SimpleImputer
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.pipeline import Pipeline, make_pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
+features = [c for c in num_cols + cat_cols]
+X_train, X_test, y_train, y_test = train_test_split(df[features], df[TARGET], test_size=0.2,
+                                                    random_state=SEED, stratify=df[TARGET])
+pre = ColumnTransformer([
+    ("num", make_pipeline(SimpleImputer(strategy="median", add_indicator=True), StandardScaler()), num_cols),
+    ("cat", make_pipeline(SimpleImputer(strategy="most_frequent"), OneHotEncoder(handle_unknown="ignore")), cat_cols),
+])
+baseline = cross_val_score(DummyClassifier(strategy="most_frequent"), X_train, y_train, cv=5).mean()
+model = Pipeline([("pre", pre), ("clf", LogisticRegression(max_iter=1000))])
+simple = cross_val_score(model, X_train, y_train, cv=5).mean()
+print(f"baseline accuracy {baseline:.3f} | logistic regression {simple:.3f}")
+```
+
+```python
+# Step 9: save outputs and record decisions
+Path("outputs").mkdir(exist_ok=True)
+df.to_csv("outputs/clean.csv", index=False)
+decisions = pd.DataFrame([
+    {"step": "drop Cabin", "reason": "77% missing; kept has_cabin flag"},
+    {"step": "impute Age (median, in pipeline)", "reason": "20% missing, differs by class (MAR)"},
+])
+decisions.to_csv("outputs/decisions.csv", index=False)
+decisions
+```
+
+See also: [Capstone common-mistakes checklist](#capstone-common-mistakes-checklist), [Reproducibility habits](#reproducibility-habits), [Capstone playbook (Unit 3)](https://github.com/CharleyHananiaGA/DSB-Unit-03/blob/main/Readme.MD#s38-capstone-playbook)
+
+<a id="capstone-common-mistakes-checklist"></a>
+
+### Capstone common-mistakes checklist
+
+_Concept_
+
+Before you hand in, check each of these:
+
+- [ ] Row counts were checked after every filter and merge, and the grain is unchanged.
+- [ ] No `dropna()` on the whole table without looking at what it removed and who is left.
+- [ ] Placeholders (`"?"`, `-999`, `0`) were converted to `NaN` before computing any statistics.
+- [ ] No `inf` values from dividing by zero.
+- [ ] Imputers, scalers and encoders were fitted on training data only, inside a pipeline.
+- [ ] Every feature passes the "known at prediction time?" test.
+- [ ] Skewed columns are summarised with the median and IQR, and the statistic is always named.
+- [ ] Every chart has a finding as its title, labelled axes with units, and bars starting at zero.
+- [ ] Correlations are described as associations, not causes (unless the data is from an experiment).
+- [ ] Every p-value has an effect size next to it, and the test matches the design (independent or paired).
+- [ ] Results were compared with a simple baseline.
+- [ ] No API keys in the notebook or in git history. Raw API responses are saved and cited with the date pulled.
+- [ ] The notebook runs top to bottom on a restarted kernel.
+- [ ] Code uses current syntax (see [Library version changes to know](#library-version-changes-to-know)).
+
+See also: [Leakage check: known at prediction time?](#leakage-check-known-at-prediction-time), [Misleading charts](#misleading-charts), [Environment variables and .env files](#environment-variables-and-env-files)
 
 <a id="library-version-changes-to-know"></a>
 
 ### Library version changes to know
 
-_Concept, Python_
+_Concept_
 
-Libraries evolve: parameters are renamed, defaults change and old functions are removed, and tutorials online often use older syntax. When code from a tutorial or older notebook fails, check the documentation for the version you have installed. The changes you're most likely to meet in this unit:
+Changes you'll meet when older notebooks, tutorials or answers online don't match what your installed libraries do. Every row was checked by running it on Python 3.12.3, pandas 3.0.6, NumPy 2.5.4, matplotlib 3.11.2, seaborn 0.13.2, scikit-learn 1.9.1, SciPy 1.18.1, statsmodels 0.15.0, plotly 7.1.0, joblib 1.6.0. Libraries keep changing, so check the documentation for the version you have installed (`pd.__version__`, `sklearn.__version__`).
 
-| Library      | Older code                                      | Current code                                                                | When it changed                       |
-| ------------ | ----------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------- |
-| scikit-learn | `LogisticRegression(penalty='none')`            | `penalty=None`; from 1.8, `C=np.inf`                                        | 1.2; `penalty` deprecated in 1.8      |
-| scikit-learn | `penalty='l1'` / `'l2'`                         | `l1_ratio=1` / `l1_ratio=0`                                                 | Deprecated 1.8 (removal planned 1.10) |
-| scikit-learn | `LogisticRegression(multi_class=...)`           | Default multinomial, or `OneVsRestClassifier`                               | Deprecated 1.5, since removed         |
-| scikit-learn | `mean_squared_error(..., squared=False)`        | `root_mean_squared_error(...)`                                              | Added 1.4; `squared` since removed    |
-| scikit-learn | `plot_roc_curve`, `plot_confusion_matrix`       | `RocCurveDisplay.from_estimator`, `ConfusionMatrixDisplay.from_estimator`   | Removed 1.2                           |
-| scikit-learn | `base_estimator=` (bagging, AdaBoost)           | `estimator=`                                                                | Renamed 1.2, old name removed 1.4     |
-| scikit-learn | `AdaBoostClassifier(algorithm="SAMME.R")`       | Omit `algorithm` (SAMME is used)                                            | Deprecated 1.4, since removed         |
-| scikit-learn | `KMeans(n_init=10)` was the default             | `n_init="auto"` (one run with k-means++)                                    | 1.4: set `n_init=10` for stability    |
-| scikit-learn | Random forest `n_estimators=10` default         | 100                                                                         | 0.22                                  |
-| scikit-learn | (not available)                                 | `HDBSCAN` in `sklearn.cluster`                                              | Added 1.3                             |
-| pandas       | `resample("M")`, `"Q"`, `"Y"`, `freq="Q-DEC"`   | `"ME"`, `"QE"`, `"YE"`, `"QE-DEC"`                                          | Deprecated 2.2, errors in 3.0         |
-| pandas       | `series[0]` on a labelled index                 | `series.iloc[0]`                                                            | Deprecated 2.1, `KeyError` in 3.0     |
-| pandas       | `get_dummies` gave 0/1 integers                 | Gives `True`/`False`; pass `dtype=int`                                      | 2.0                                   |
-| pandas       | `str.replace(".", "_")` treated "." as a regex  | Literal by default (`regex=False`)                                          | 2.0                                   |
-| pandas       | Text columns stored as `object`                 | Dedicated `str` dtype by default                                            | 3.0                                   |
-| statsmodels  | `from statsmodels.tsa.arima_model import ARIMA` | `from statsmodels.tsa.arima.model import ARIMA`                             | Old class now only raises an error    |
-| statsmodels  | `adfuller(...)` returns a tuple                 | Warns that its return format will change; p-value is still the second value | 0.15                                  |
-| PyMC         | `import pymc3 as pm`                            | `import pymc as pm`                                                         | Renamed at version 4                  |
-| Google GenAI | `google-generativeai` package                   | `google-genai` (`from google import genai`)                                 | 2025                                  |
+| Library and version              | What changed                                                                                                                                                        | What to write now                                                                 |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| pandas 3.0                       | Text columns have a new `str` dtype; `dtype == "object"` is `False` for them <!-- check:pd3-str-dtype -->                                                           | `pd.api.types.is_string_dtype(s)`                                                 |
+| pandas 3.0                       | A `str` column rejects numbers: `df.loc[mask, "col"] = 0` raises `TypeError` <!-- check:pd3-str-rejects-int -->                                                     | convert first (`pd.to_numeric`) or assign text                                    |
+| pandas 3.0                       | `select_dtypes(include="object")` warns (`Pandas4Warning`) for text <!-- check:pd3-select-dtypes-object -->                                                         | `select_dtypes(include="str")`                                                    |
+| pandas 3.0                       | Copy-on-Write: chained assignment and column-level `inplace=True` change nothing <!-- check:pd3-cow-chained-assignment --> <!-- check:pd3-cow-inplace-on-column --> | `df.loc[rows, "col"] = value`; `df["col"] = df["col"].fillna(0)`                  |
+| pandas 3.0                       | `SettingWithCopyWarning` no longer exists; filtered results act as copies <!-- check:pd3-settingwithcopy-removed --> <!-- check:pd3-filtered-is-copy -->            | `.copy()` is optional but still clear                                             |
+| pandas 3.0                       | `fillna(method=...)` removed <!-- check:pd3-fillna-method-removed -->                                                                                               | `.ffill()`, `.bfill()`                                                            |
+| pandas 3.0                       | `DataFrame.applymap()` removed <!-- check:pd3-applymap-removed -->                                                                                                  | `DataFrame.map()`                                                                 |
+| pandas 3.0                       | `read_csv(delim_whitespace=True)` removed <!-- check:pd-delim-whitespace-removed -->                                                                                | `sep=r"\s+"`                                                                      |
+| pandas 2.2 → 3.0                 | Frequency codes `"M"`, `"Y"`, `"Q"`, `"H"` removed <!-- check:pd-freq-ME -->                                                                                        | `"ME"`, `"YE"`, `"QE"`, `"h"` (`"MS"`, `"YS"` unchanged)                          |
+| pandas 3.0                       | `groupby(...).apply()` never passes the grouping columns; `include_groups=True` raises <!-- check:pd3-groupby-apply-include-groups -->                              | select the columns you need, or use `.agg()` / `.transform()`                     |
+| pandas 3.0                       | `groupby` on a categorical column defaults to `observed=True` <!-- check:pd3-observed-default -->                                                                   | pass `observed=False` to keep empty categories                                    |
+| pandas 2.0+                      | Mixed date formats raise instead of being guessed row by row <!-- check:pd-to-datetime-format-mixed -->                                                             | `format=...`, or `format="mixed"`                                                 |
+| NumPy 2.0                        | `np.NaN`, `np.float_` and other aliases removed <!-- check:np2-NaN-removed --> <!-- check:np2-float_-removed -->                                                    | `np.nan`, `np.float64`                                                            |
+| Python 3.12                      | Unrecognised escapes such as `"\d"` give a `SyntaxWarning` <!-- check:py312-invalid-escape -->                                                                      | raw strings `r"\d"`                                                               |
+| matplotlib 3.9 → 3.11            | `boxplot(labels=...)` renamed, then removed: `TypeError` <!-- check:mpl-boxplot-tick-labels -->                                                                     | `tick_labels=`                                                                    |
+| matplotlib 3.10 → 3.11           | `vert=` deprecated (removal planned for 3.13), also via pandas `.boxplot()` <!-- check:mpl-boxplot-orientation --> <!-- check:pd-boxplot-vert-passthrough -->       | `orientation="horizontal"`                                                        |
+| matplotlib 3.6                   | Built-in seaborn style names changed <!-- check:mpl-style-seaborn-renamed -->                                                                                       | `"seaborn-v0_8-darkgrid"` or `sns.set_theme()`                                    |
+| seaborn 0.13.2 + matplotlib 3.11 | `sns.boxplot()` shows a `vert` deprecation warning from inside seaborn <!-- check:sns-boxplot-internal-vert -->                                                     | harmless; ignore it                                                               |
+| seaborn 0.13.2 + matplotlib 3.11 | `sns.heatmap(center=...)` shows a `set_bad` warning from inside seaborn <!-- check:sns-heatmap-internal-set-bad -->                                                 | harmless; ignore it                                                               |
+| seaborn 0.12                     | `ci=` replaced by `errorbar=` in aggregating plots <!-- check:sns-ci-errorbar -->                                                                                   | `errorbar=None`, `errorbar=("ci", 95)`                                            |
+| seaborn 0.11                     | `distplot()` deprecated, to be removed <!-- check:sns-distplot-deprecated -->                                                                                       | `histplot()`, `kdeplot()`, `displot()`                                            |
+| scikit-learn 1.2 → 1.4           | `OneHotEncoder(sparse=...)` renamed, then removed <!-- check:skl-ohe-sparse-output -->                                                                              | `sparse_output=False`                                                             |
+| scikit-learn 1.2                 | `get_feature_names()` removed; DataFrame output added <!-- check:skl-get-feature-names-out --> <!-- check:skl-set-output-pandas -->                                 | `get_feature_names_out()`, `set_output(transform="pandas")`                       |
+| scikit-learn 1.3 → 1.9           | `TargetEncoder` added (cross-fitted); 1.9 deprecates its `shuffle=` and `random_state=` <!-- check:skl-target-encoder -->                                           | `fit_transform` on training data with `cv=KFold(5, shuffle=True, random_state=0)` |
+| scikit-learn 1.7 → 1.9           | `KBinsDiscretizer` quantile default changed to `"averaged_inverted_cdf"` <!-- check:skl-kbins-quantile-method -->                                                   | set `quantile_method=` explicitly                                                 |
+| SciPy                            | `stats.shapiro()` warns that p-values may be inaccurate above 5,000 rows <!-- check:scipy-shapiro-large-n -->                                                       | test a sample, and always plot                                                    |
+| pandas (all versions)            | `value_counts()` drops missing values by default <!-- check:pd-value-counts-dropna -->                                                                              | `dropna=False`                                                                    |
 
-```python
-import sklearn, pandas, statsmodels
-print(sklearn.__version__, pandas.__version__, statsmodels.__version__)   # what you're running
-```
-
-> **Watch out:** Deprecation warnings are an early warning that code will break in a future version. Read them, and update the code rather than silencing them.
+See also: [String dtype (str) in pandas 3](#string-dtype-str-in-pandas-3), [SettingWithCopyWarning and Copy-on-Write](#settingwithcopywarning), [Box plot](#box-plot), [KBinsDiscretizer](#kbinsdiscretizer)
 
 <a id="reproducibility-habits"></a>
 
 ### Reproducibility habits
 
-_Python_
+_Concept_
 
-Make your capstone rerunnable by someone else (or you, in three months): set `random_state` on splits, models and searches; restart the kernel and run the notebook top to bottom before submitting; keep data loading, cleaning, modelling and evaluation in clear sections; record library versions; and save the fitted pipeline, not just the model.
+Someone else, or you in a month, should get the same numbers from your notebook:
+
+- **Seed every random step** (`random_state=42`, `np.random.default_rng(42)`).
+- **Fix reference dates**, such as "age as of 2023" rather than `datetime.now()`.
+- **Never edit the raw file.** Keep the raw data read-only and clean in code.
+- **Save API responses** and record the date you pulled them.
+- **Record library versions**, and pin them in a `requirements.txt`.
+- **Use relative paths** (`pathlib.Path`), not paths on your own machine.
+- **Restart the kernel and run all** before you submit.
+- **Keep keys out of the notebook.**
 
 ```python
-# pip freeze > requirements.txt     (in a terminal: records exact versions)
-import sklearn, pandas, numpy
-print({"sklearn": sklearn.__version__, "pandas": pandas.__version__, "numpy": numpy.__version__})
+import sys
+from pathlib import Path
+import sklearn
+versions = {"python": sys.version.split()[0], "pandas": pd.__version__, "numpy": np.__version__,
+            "scikit-learn": sklearn.__version__}
+Path("requirements.txt").write_text("\n".join(f"{k}=={v}" for k, v in versions.items() if k != "python") + "\n")
+versions
 ```
 
-See also: [Random seed (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02/blob/main/Readme.MD#random-seed), [Library version changes to know](#library-version-changes-to-know)
+See also: [Random seed](#random-seed), [random_state](#random-state), [Caching API responses](#caching-api-responses), [pathlib.Path](#pathlib-path), [Environment variables and .env files](#environment-variables-and-env-files)
+
+---
+
+<a id="s00b-capstone-code-cookbook"></a>
+
+## 00b. Capstone code cookbook
+
+_Complete, copy-paste recipes for the data stage of a capstone, named by the job you're trying to do rather than by the function that does it. They run in the order you'll need them: set up the notebook and a cleaning log; import the data (CSV, TSV, Parquet, Excel with every sheet, large files); see and profile what you've loaded; standardise text and fix misspelled categories; extract values from text; clean dates; check the data against validation rules; handle outliers; filter, reshape and join; find duplicates; audit and fill missing values; apply functions; encode categories; summarise by group; and chart everything. Every block runs as written after the [setup block](#how-to-read-the-examples); the entries in sections 3–10 explain the methods behind each line._
+
+**In your capstone:** start from the [code finder](#find-the-code-you-need) below, copy the recipe that matches your task, then change the file names and column names to your own. Keep the helper functions (the Excel importer, the reports and the chart helpers) in one cell near the top of your notebook, or in a `helpers.py` file you import.
+
+<a id="find-the-code-you-need"></a>
+
+### Find the code you need
+
+_Concept_
+
+| I want to… | Recipe | Background entries |
+| --- | --- | --- |
+| Set up a capstone notebook (imports, display options, folders, seed) | [Capstone notebook setup](#capstone-notebook-setup) | [Jupyter notebook](#jupyter-notebook), [Random seed](#random-seed) |
+| Record every cleaning step and how many rows it removed | [Keep a cleaning log](#keep-a-cleaning-log) | [Cleaning workflow](#cleaning-workflow), [Method chaining](#method-chaining) |
+| Load a CSV or TSV file, or a whole folder of them | [Import CSV and TSV files](#import-csv-and-tsv-files) | [pd.read_csv()](#pd-read-csv), [read_csv() options for messy files](#read-csv-options-for-messy-files) |
+| Load Parquet, JSON, SQL or a web table | [Import Parquet, JSON and other formats](#import-parquet-json-and-other-formats) | [pd.read_json()](#pd-read-json), [pd.json_normalize()](#pd-json-normalize) |
+| Load a file that's too big, or make a table use less memory | [Work with large files and reduce memory](#work-with-large-files-and-reduce-memory) | [.info()](#info), [.sample()](#sample) |
+| Load **every sheet** of an Excel workbook into its own DataFrame | [Import every sheet from an Excel workbook](#import-every-sheet-from-an-excel-workbook) | [Excel files](#excel-files-read-excel-and-to-excel) |
+| Make sheet and column names Python-style (no spaces) | [Python-style names for sheets and columns](#python-style-names-for-sheets-and-columns) | [.rename()](#rename), [.columns](#columns) |
+| Fix "everything is text" columns: numbers, dates, yes/no, categories | [Better-than-default data types](#better-than-default-data-types) | [.astype()](#astype), [dtype](#dtype) |
+| See every DataFrame I've created and the columns in each | [List the DataFrames you've created and their columns](#list-the-dataframes-you-ve-created-and-their-columns) | [.info()](#info), [.describe()](#describe) |
+| Get a quick list of likely problems in every column | [Profile a dataset quickly](#profile-a-dataset-quickly) | [.describe()](#describe), [sweetviz](#sweetviz-eda-visualisation-library) |
+| Write a data dictionary for my dataset | [Build a data dictionary from your data](#build-a-data-dictionary-from-your-data) | [Data dictionary](#data-dictionary) |
+| Fix spacing, capitalisation and odd characters in text | [Standardise text: spacing, case and punctuation](#standardise-text-spacing-case-and-punctuation) | [String methods](#string-methods), [.str accessor](#str-accessor) |
+| Fix misspelled categories, abbreviations and rare labels | [Fix misspelled and inconsistent categories](#fix-misspelled-and-inconsistent-categories) | [Cleaning text categories](#cleaning-text-categories), [Cardinality](#cardinality) |
+| Split combined columns; pull codes, numbers and units out of text | [Split and extract values from text](#split-and-extract-values-from-text) | [re (regular expressions)](#re-regular-expressions) |
+| Parse messy dates, find impossible ones, and get date parts | [Clean and validate dates and times](#clean-and-validate-dates-and-times) | [pd.to_datetime()](#pd-to-datetime), [.dt accessor](#dt-accessor) |
+| Set boundaries and rules for columns, and find rows that break them | [Define validation rules and check your data](#define-validation-rules-and-check-your-data) | [assert](#assert), [Data quality assessment](#data-quality-assessment) |
+| Find outliers and decide what to do with them | [Detect and treat outliers](#detect-and-treat-outliers) | [Outlier](#outlier), [IQR outlier fences](#iqr-outlier-fences) |
+| Keep only the rows I want (conditions, lists, ranges, text, dates) | [Filter rows: a cheat sheet](#filter-rows-a-cheat-sheet) | [Boolean mask (filtering)](#boolean-mask-filtering), [.isin()](#isin), [.loc[]](#loc) |
+| Pick, drop or reorder columns | [Select, drop and reorder columns](#select-drop-and-reorder-columns) | [Selecting columns](#selecting-columns), [.select_dtypes()](#select-dtypes) |
+| Turn columns into rows (wide → long) or back again | [Reshape between wide and long formats](#reshape-between-wide-and-long-formats) | [.melt()](#melt), [Wide vs long (tidy) format](#wide-vs-long-tidy-format) |
+| Join two tables without losing or duplicating rows | [Join DataFrames safely](#join-dataframes-safely) | [.merge()](#merge), [Validating a merge](#validating-a-merge) |
+| Find and deal with duplicate rows or keys | [Find and handle duplicates](#find-and-handle-duplicates) | [.duplicated()](#duplicated), [.drop_duplicates()](#drop-duplicates) |
+| See how much is missing, by column and by type, including "N/A" text | [Audit missing values by field type](#audit-missing-values-by-field-type) | [Missingness table](#missingness-table), [Placeholder values](#placeholder-values-for-missing-data) |
+| Draw missing-data charts | [Visualise missing data with missingno](#visualise-missing-data-with-missingno) | [missingno](#missingno), [Patterns of missingness](#patterns-of-missingness) |
+| Fill gaps sensibly (median, group median, mode, flags, time series) | [Fill gaps by field type](#fill-gaps-by-field-type) | [.fillna()](#fillna), [Missing indicator](#missing-indicator) |
+| Fill gaps with a model (KNN, iterative, random forest) | [Fill gaps with models](#fill-gaps-with-models) | [KNNImputer and IterativeImputer](#knnimputer-and-iterativeimputer) |
+| Impute and encode without leakage, ready for modelling | [Leak-free imputation and encoding in a pipeline](#leak-free-imputation-and-encoding-in-a-pipeline) | [Pipeline](#pipeline), [ColumnTransformer](#columntransformer), [Data leakage](#data-leakage) |
+| Create or transform columns with functions | [Apply functions to columns, rows and groups](#apply-functions-to-columns-rows-and-groups) | [.apply()](#apply), [.map()](#map), [Split-apply-combine](#split-apply-combine) |
+| Turn categories into numbers (one-hot, ordinal) | [One-hot encoding done right](#one-hot-encoding-done-right) | [One-hot encoding](#one-hot-encoding), [pd.get_dummies()](#pd-get-dummies) |
+| Compare groups in a summary table | [Summarise by group](#summarise-by-group) | [groupby()](#groupby), [Named aggregation](#named-aggregation) |
+| Plot distributions of every column | [EDA charts: distributions](#eda-charts-distributions) | [Histogram](#histogram), [Box plot](#box-plot) |
+| Plot categories and how the target varies | [EDA charts: categories and the target](#eda-charts-categories-and-the-target) | [Bar chart](#bar-chart), [pd.crosstab()](#pd-crosstab) |
+| Plot relationships, correlations and trends over time | [EDA charts: relationships, correlation and time](#eda-charts-relationships-correlation-and-time) | [Scatter plot](#scatter-plot), [Heatmap](#heatmap) |
+| Make every chart in one go with reusable functions | [Reusable EDA plotting helpers](#reusable-eda-plotting-helpers) | [plt.subplots()](#plt-subplots) |
+| Save clean data and figures | [Export clean data and figures](#export-clean-data-and-figures) | [.to_csv()](#to-csv) |
+
+<a id="capstone-notebook-setup"></a>
+
+### Capstone notebook setup
+
+_Python, pandas_
+
+One cell at the top of the notebook that every later cell relies on: imports, readable display settings, a fixed random seed and folders for raw data and outputs. Keep raw files untouched in `data/` and write everything you create to `outputs/`, so you can always rerun from scratch.
+
+```python
+from pathlib import Path
+import re
+import keyword
+import math
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+pd.set_option("display.max_columns", 50)        # show every column, not "..."
+pd.set_option("display.width", 120)
+sns.set_theme(style="whitegrid")                # cleaner chart defaults
+
+RANDOM_STATE = 42                               # use everywhere you sample, split or model
+np.random.seed(RANDOM_STATE)
+
+DATA_DIR = Path("data")                         # raw inputs: never edit these files
+OUT_DIR = Path("outputs")                       # everything you create goes here
+OUT_DIR.mkdir(exist_ok=True)
+```
+
+> **Watch out:** restart the kernel and run the notebook top to bottom before you share it. Cells run out of order are the most common reason a capstone notebook "worked yesterday".
+
+See also: [Reproducibility habits](#reproducibility-habits), [Random seed](#random-seed)
+
+<a id="keep-a-cleaning-log"></a>
+
+### Keep a cleaning log
+
+_pandas_
+
+Every cleaning step changes the data, and your write-up has to say what you did and what it cost. A cleaning log records the table's size after each step, so you can see exactly where rows went and report it. `log_step()` returns the DataFrame unchanged, so it slots into a method chain with `.pipe()`.
+
+```python
+cleaning_log = []
+
+
+def log_step(df, step, note=""):
+    """Record rows, columns and missing cells after a cleaning step; return df unchanged."""
+    cleaning_log.append({"step": step, "rows": len(df), "columns": df.shape[1],
+                         "missing_cells": int(df.isna().sum().sum()), "note": note})
+    return df
+
+
+titanic_clean = (
+    titanic
+    .pipe(log_step, "loaded", "titanic-adj.csv from the course repository")
+    .drop_duplicates()
+    .pipe(log_step, "dropped exact duplicate rows")
+    .dropna(subset=["Embarked"])
+    .pipe(log_step, "dropped rows with no port", "2 passengers")
+    .drop(columns=["Cabin"])
+    .pipe(log_step, "dropped Cabin", "77% missing")
+)
+
+log = pd.DataFrame(cleaning_log)
+log["rows_removed"] = (-log["rows"].diff()).fillna(0).astype(int)
+log
+```
+
+The log table goes straight into your methods section (or an appendix), and comparing first and last rows shows at a glance how much data the cleaning cost.
+
+> **Watch out:** reset `cleaning_log = []` when you rerun the notebook from the top, or steps are logged twice. Log the **reason** for each decision in `note`, not just the action: "dropped Cabin" is a fact, "77% missing; kept a was-missing flag instead" is a justification.
+
+See also: [Cleaning workflow](#cleaning-workflow), [Method chaining](#method-chaining), [Reproducibility habits](#reproducibility-habits)
+
+<a id="import-csv-and-tsv-files"></a>
+
+### Import CSV and TSV files
+
+_pandas_
+
+`pd.read_csv()` reads comma-separated files, and with `sep="\t"` it reads tab-separated (TSV) files. Spend a minute on the options: telling pandas the separator, the missing-value markers, the date columns and the ID columns up front saves an hour of cleaning later.
+
+```python
+df = pd.read_csv(
+    DATA_DIR / "your_file.csv",
+    sep=",",                                   # "\t" for TSV, ";" for many European CSVs
+    encoding="utf-8",                          # try "latin-1" if you get UnicodeDecodeError
+    na_values=["", "NA", "N/A", "n/a", "-", "?", "missing"],   # extra markers to treat as missing
+    thousands=",",                             # "1,234" -> 1234
+    parse_dates=["order_date"],                # parse date columns while loading
+    dtype={"zip_code": "string"},              # keep codes with leading zeros as text
+)
+
+bonds_raw = pd.read_csv(JOIN + "eu-govt-bonds.tsv", sep="\t")   # a TSV from the course
+loans = pd.read_csv(JOIN + "rejections.csv.gz")                 # .gz and .zip are read directly
+```
+
+To load a **folder** of files with the same columns (one per month, say) into one table, keep track of which file each row came from:
+
+```python
+files = sorted((DATA_DIR / "monthly").glob("*.csv"))
+sales = pd.concat(
+    [pd.read_csv(f).assign(source_file=f.name) for f in files],
+    ignore_index=True,
+)
+sales["source_file"].value_counts()            # rows per file: spot a missing or empty month
+```
+
+For a **large** file, load only the columns you need and check the size before loading everything:
+
+```python
+pd.read_csv(DATA_DIR / "your_file.csv", nrows=1000)                         # peek first
+pd.read_csv(DATA_DIR / "your_file.csv", usecols=["order_id", "order_date", "amount"])
+```
+
+> **Watch out:** if every column arrives as one long text column, the separator is wrong (`sep="\t"` or `sep=";"`). If codes such as ZIP codes or IDs lose their leading zeros, read them with `dtype={"col": "string"}`. Check `df.shape` and `df.head()` straight after loading.
+
+See also: [pd.read_csv()](#pd-read-csv), [read_csv() options for messy files](#read-csv-options-for-messy-files), [pd.to_datetime()](#pd-to-datetime)
+
+<a id="import-parquet-json-and-other-formats"></a>
+
+### Import Parquet, JSON and other formats
+
+_pandas_
+
+**Parquet** is a compressed, column-based file format: it's much smaller and faster than CSV and, unlike CSV, it remembers each column's data type (dates stay dates, categories stay categories). It's the best format for saving your cleaned data between notebooks. pandas needs the `pyarrow` package for it (`%pip install pyarrow`).
+
+```python
+lego.to_parquet(OUT_DIR / "lego.parquet", index=False)
+lego_pq = pd.read_parquet(OUT_DIR / "lego.parquet")
+lego_pq.dtypes.equals(lego.dtypes)                                      # True: types survive
+pd.read_parquet(OUT_DIR / "lego.parquet", columns=["Set_ID", "Theme", "USD_MSRP"])   # only some columns
+```
+
+Other sources you're likely to meet:
+
+```python
+cpi = pd.read_json(DATA + "cpi.json")                         # JSON array of records
+# pd.read_json("events.jsonl", lines=True)                     # JSON Lines: one record per line
+# pd.json_normalize(api_response["results"])                   # nested JSON from an API
+
+import sqlite3                                                # SQL databases
+with sqlite3.connect(OUT_DIR / "capstone.db") as con:
+    lego.to_sql("lego", con, if_exists="replace", index=False)
+    star_wars = pd.read_sql("SELECT Name, Year, Pieces FROM lego WHERE Theme = 'Star Wars'", con)
+
+# tables = pd.read_html("https://en.wikipedia.org/wiki/...")  # every <table> on a web page (needs lxml)
+```
+
+> **Watch out:** a file saved with `to_parquet` reloads exactly as it was saved, so use it (not CSV) to pass clean data from your cleaning notebook to your modelling notebook. CSV loses data types, and you'd have to parse dates and categories again.
+
+See also: [pd.read_json()](#pd-read-json), [pd.json_normalize()](#pd-json-normalize), [Export clean data and figures](#export-clean-data-and-figures)
+
+<a id="work-with-large-files-and-reduce-memory"></a>
+
+### Work with large files and reduce memory
+
+_pandas_
+
+When a file is big enough to make your laptop struggle, load less, store it more compactly, or process it in pieces. Converting repetitive text to `category` and downcasting numbers often cuts memory by more than half.
+
+```python
+def memory_mb(df):
+    """Memory used by a DataFrame, in megabytes (deep=True counts the text too)."""
+    return round(df.memory_usage(deep=True).sum() / 1e6, 1)
+
+
+def shrink(df, max_category_ratio=0.5):
+    """Smaller dtypes: downcast whole numbers, repetitive text -> category."""
+    out = df.copy()
+    for col in out.select_dtypes("integer").columns:
+        out[col] = pd.to_numeric(out[col], downcast="integer")
+    for col in out.select_dtypes(include=["object", "string"]).columns:
+        if out[col].nunique() / max(len(out), 1) <= max_category_ratio:
+            out[col] = out[col].astype("category")
+    return out
+
+
+ufo_small = shrink(ufo)
+memory_mb(ufo), memory_mb(ufo_small)                  # about 5.9 MB -> 2.5 MB
+
+# process a file in chunks: aggregate each chunk, then combine the results
+per_state = []
+for chunk in pd.read_csv(VIZ + "ufo.csv", chunksize=20_000, usecols=["State"]):
+    per_state.append(chunk["State"].value_counts())
+sightings_by_state = pd.concat(per_state).groupby(level=0).sum().sort_values(ascending=False)
+
+# explore on a random sample, then run the final analysis on everything
+ufo_sample = ufo.sample(frac=0.1, random_state=RANDOM_STATE)
+```
+
+Other levers: `usecols=` and `dtype=` in `read_csv` (load only what you need, with compact types from the start), and saving to Parquet, which loads far faster than CSV.
+
+> **Watch out:** downcasting floats to `float32` loses precision, so only do it when you're sure it doesn't matter (this helper leaves floats alone). Results from a sample are estimates: say so, and confirm key numbers on the full data.
+
+See also: [.info()](#info), [.sample()](#sample), [Import Parquet, JSON and other formats](#import-parquet-json-and-other-formats), [Better-than-default data types](#better-than-default-data-types)
+
+<a id="python-style-names-for-sheets-and-columns"></a>
+
+### Python-style names for sheets and columns
+
+_Python, pandas_
+
+Labels from spreadsheets ("Unit Price ($)", "Order ID", "1st Quarter") are awkward in code: you can't use dot access, they break `.query()`, and a stray trailing space makes `df["Region"]` fail. These two helpers turn any label into a **snake_case** name: lowercase, words joined by underscores, no punctuation, never starting with a digit and never a Python keyword. The second one also makes names unique, which matters when a sheet has two columns with the same header. The Excel importer below uses both.
+
+```python
+def to_snake_case(label, prefix="col"):
+    """'Unit Price ($)' -> 'unit_price', 'OrderID' -> 'order_id', '1st Quarter' -> 'col_1st_quarter'."""
+    text = str(label).strip()
+    text = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", text)    # split camelCase: OrderID -> Order_ID
+    text = re.sub(r"[^0-9a-zA-Z]+", "_", text)              # spaces and punctuation -> _
+    text = re.sub(r"_+", "_", text).strip("_").lower()
+    if not text:
+        text = prefix
+    if text[0].isdigit():
+        text = f"{prefix}_{text}"                           # names can't start with a digit
+    if keyword.iskeyword(text):
+        text = f"{text}_"                                   # 'class' -> 'class_'
+    return text
+
+
+def unique_snake_names(labels, prefix="col"):
+    """Snake-case a list of labels and de-duplicate them: ['Qty', 'qty '] -> ['qty', 'qty_2']."""
+    used, names = set(), []
+    for label in labels:
+        base = name = to_snake_case(label, prefix)
+        n = 2
+        while name in used:
+            name = f"{base}_{n}"
+            n += 1
+        used.add(name)
+        names.append(name)
+    return names
+
+
+unique_snake_names(["Order ID", "Unit Price ($)", "Qty", "qty ", "1st Quarter", "class"])
+# ['order_id', 'unit_price', 'qty', 'qty_2', 'col_1st_quarter', 'class_']
+
+lego_snake = lego.copy()                                # the rest of this cookbook keeps lego's original names
+lego_snake.columns = unique_snake_names(lego_snake.columns)
+lego_snake.columns[:5].tolist()                         # ['set_id', 'name', 'year', 'theme', 'theme_group']
+```
+
+> **Watch out:** rename columns once, straight after loading, and use the new names everywhere after that. Renaming halfway through a notebook breaks every earlier cell when you rerun it.
+
+See also: [.rename()](#rename), [.columns](#columns), [re (regular expressions)](#re-regular-expressions)
+
+<a id="better-than-default-data-types"></a>
+
+### Better-than-default data types
+
+_pandas_
+
+Files often arrive with everything as text: prices like "$1,234.50", flags like "Yes"/"No", dates as strings, and repetitive labels stored as long text. This helper converts each text column to the most useful type it can **without losing any values**:
+
+- **yes/no, true/false** → `boolean`;
+- **numbers stored as text** (commas, currency symbols, % signs) → numbers;
+- **dates stored as text** → `datetime64`;
+- **repetitive labels** (few distinct values) → `category`, which is smaller and faster and sorts in a fixed order;
+- everything else → pandas' **nullable** types (`Int64`, `Float64`, `string`, `boolean`), which keep missing values without turning whole-number columns into floats.
+
+A column is only converted if **every** non-missing value converts; otherwise it's left as text for you to inspect. Codes with leading zeros ("02134") are deliberately left as text.
+
+```python
+BOOL_MAP = {"yes": True, "no": False, "y": True, "n": False, "true": True, "false": False}
+
+
+def better_dtypes(df, max_category_levels=50, max_category_ratio=0.5):
+    """Convert text columns to boolean, numeric, datetime or category where every value fits."""
+    df = df.copy()
+    for col in df.columns:
+        s = df[col]
+        if not (pd.api.types.is_object_dtype(s) or pd.api.types.is_string_dtype(s)):
+            continue                                           # already numeric, date or bool
+        text = s.dropna().astype(str).str.strip()
+        if text.empty:
+            continue
+        if text.str.lower().isin(list(BOOL_MAP)).all():        # 1. yes/no flags
+            df[col] = s.astype("string").str.strip().str.lower().map(BOOL_MAP).astype("boolean")
+            continue
+        leading_zero = text.str.match(r"^0\d").any()           # IDs like '02134' stay as text
+        number_text = text.str.replace(r"[,$£€%\s]", "", regex=True)
+        if not leading_zero and pd.to_numeric(number_text, errors="coerce").notna().all():
+            df[col] = pd.to_numeric(                           # 2. numbers stored as text
+                s.astype("string").str.replace(r"[,$£€%\s]", "", regex=True), errors="coerce")
+            continue
+        looks_like_date = text.str.contains(r"\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}").all()
+        if looks_like_date and pd.to_datetime(text, errors="coerce", format="mixed").notna().all():
+            df[col] = pd.to_datetime(s, errors="coerce", format="mixed")   # 3. dates stored as text
+            continue
+        n_unique = text.nunique()                              # 4. repetitive text -> category
+        if n_unique <= max_category_levels and n_unique / len(text) <= max_category_ratio:
+            df[col] = s.astype("string").str.strip().astype("category")
+    return df.convert_dtypes()                                 # 5. nullable Int64, Float64, string, boolean
+
+
+titanic_typed = better_dtypes(titanic)
+pd.DataFrame({"before": titanic.dtypes, "after": titanic_typed.dtypes})
+```
+
+On the Titanic data, `Sex` and `Embarked` become categories, the whole-number columns become `Int64`, and `Age` and `Fare` become `Float64`.
+
+> **Watch out:** "12%" becomes 12, not 0.12, so divide by 100 yourself if a column holds percentages. Dates written day-first ("03/04/2024" meaning 3 April) need `pd.to_datetime(..., dayfirst=True)` or an explicit `format=`; always spot-check converted dates. Nullable types use `pd.NA` for missing values; a few older libraries prefer plain floats, so if one complains, use `.astype(float)` on that column.
+
+See also: [.astype()](#astype), [dtype](#dtype), [String dtype (str) in pandas 3](#string-dtype-str-in-pandas-3), [Encoding categorical data](#encoding-categorical-data)
+
+<a id="import-every-sheet-from-an-excel-workbook"></a>
+
+### Import every sheet from an Excel workbook
+
+_pandas_
+
+Capstone data often arrives as one workbook with several sheets. This function reads **every sheet** in one call and, for each one: gives it a Python-style name (`"Sales 2023"` → `df_sales_2023`); cleans the column headers to snake_case and makes them unique; drops completely empty rows and columns (common in spreadsheets); treats placeholder text such as "N/A", "-" and "?" as missing; and applies [better-than-default data types](#better-than-default-data-types). It reads each cell exactly as stored in Excel (`dtype=object`), so codes such as postcode "02134" keep their leading zero; by default `read_excel` would quietly turn them into the number 2134. It returns a dictionary of DataFrames and, if you pass `namespace=globals()`, also creates **one variable per sheet** so you can use `df_sales_2023` directly. The original sheet name and column headers are kept in each DataFrame's `.attrs`, so you can always trace a column back to the spreadsheet.
+
+It uses `to_snake_case`, `unique_snake_names` and `better_dtypes` from the two entries above, so run those cells first. pandas needs `openpyxl` to read `.xlsx` files (`%pip install openpyxl`).
+
+```python
+MISSING_MARKERS = ["", "N/A", "NA", "n/a", "#N/A", "-", "?", "missing", "null"]
+
+
+def load_excel_workbook(path, prefix="df", header=0, na_values=MISSING_MARKERS,
+                        namespace=None, verbose=True):
+    """Read every sheet of an Excel workbook into its own cleaned DataFrame.
+
+    Sheet 'Sales 2023' becomes 'df_sales_2023'; headers become unique snake_case names;
+    empty rows/columns are dropped; placeholder text becomes missing; columns get better dtypes.
+    Returns {name: DataFrame}. Pass namespace=globals() to also create one variable per sheet.
+    """
+    sheets = pd.read_excel(path, sheet_name=None, header=header,     # {sheet name: DataFrame}
+                           dtype=object,                             # keep each cell as stored
+                           na_values=na_values)                      # 'N/A', '-' ... -> missing
+    names = [f"{prefix}_{n}" for n in unique_snake_names(sheets, prefix="sheet")]
+    frames = {}
+    for name, (sheet_name, raw) in zip(names, sheets.items()):
+        df = raw.dropna(how="all").dropna(axis=1, how="all")           # blank rows and columns
+        original_columns = [str(c) for c in df.columns]
+        df.columns = unique_snake_names(df.columns)
+        df = better_dtypes(df).reset_index(drop=True)
+        df.attrs["sheet_name"] = sheet_name                            # where it came from
+        df.attrs["original_columns"] = dict(zip(df.columns, original_columns))
+        frames[name] = df
+        if verbose:
+            print(f"{sheet_name!r:>20} -> {name:<28} {df.shape[0]:>6} rows x {df.shape[1]:>3} columns")
+    if namespace is not None:
+        namespace.update(frames)                                       # creates the variables
+    return frames
+```
+
+**Try it** on a deliberately messy practice workbook (or point it at your own file):
+
+```python
+with pd.ExcelWriter(DATA_DIR / "your_workbook.xlsx") as writer:      # build a messy example
+    pd.DataFrame({
+        "Order ID": [1001, 1002, 1003, 1004],
+        "Order Date": ["2024-01-05", "2024-01-06", "2024-02-11", None],
+        "Unit Price ($)": ["$1,234.50", "$99.00", "$45.10", "$12.00"],
+        "Qty": [2, 1, "N/A", 5],
+        "Region ": ["North", "South", "North", "North"],
+        "Is Member?": ["Yes", "No", "yes", "No"],
+    }).to_excel(writer, sheet_name="Sales 2023", index=False)
+    pd.DataFrame({
+        "CustomerID": [1, 2, 3],
+        "Post Code": ["02134", "10001", "94105"],
+        "Sign-up Date": ["2023-11-01", "2023-12-15", "2024-01-20"],
+    }).to_excel(writer, sheet_name="Customer List", index=False)
+    pd.DataFrame({"Month": ["Jan", "Feb", "Mar"], "Target": [100, 120, 150]}).to_excel(
+        writer, sheet_name="1st Quarter", index=False)
+
+workbook = load_excel_workbook(DATA_DIR / "your_workbook.xlsx", namespace=globals())
+#         'Sales 2023' -> df_sales_2023                     4 rows x   6 columns
+#      'Customer List' -> df_customer_list                  3 rows x   3 columns
+#        '1st Quarter' -> df_sheet_1st_quarter              3 rows x   2 columns
+
+df_sales_2023.dtypes
+# order_id: Int64 | order_date: datetime64 | unit_price: Float64 | qty: Int64 ("N/A" -> <NA>)
+# region: category | is_member: boolean
+df_customer_list["post_code"].tolist()                     # ['02134', '10001', '94105']: zeros kept
+df_sales_2023.attrs["original_columns"]["unit_price"]      # 'Unit Price ($)'
+```
+
+Then use [List the DataFrames you've created and their columns](#list-the-dataframes-you-ve-created-and-their-columns) to see everything that was loaded.
+
+> **Watch out:** if a sheet has a title or notes above the real header row, pass `header=` (e.g. `header=2` for headers in row 3), or read that sheet on its own with `skiprows=`. Merged cells in Excel come through as one value followed by blanks; fill them with `.ffill()` after loading. Creating variables with `globals()` is convenient in a notebook, but the returned dictionary (`workbook["df_sales_2023"]`) is easier to loop over and safer in reusable code. Excel stores dates as numbers internally, so a column that mixes dates and text may arrive as text; check it with the column report.
+
+See also: [Excel files: read_excel() and to_excel()](#excel-files-read-excel-and-to-excel), [Python-style names for sheets and columns](#python-style-names-for-sheets-and-columns), [Better-than-default data types](#better-than-default-data-types)
+
+<a id="list-the-dataframes-you-ve-created-and-their-columns"></a>
+
+### List the DataFrames you've created and their columns
+
+_pandas_
+
+After importing several files or sheets, it's easy to lose track of what exists. `list_dataframes()` lists every DataFrame in your notebook (or in a dictionary such as the one the Excel importer returns) with its size, missing cells and memory. `column_report()` gives one row per column: type, non-missing count, % missing, number of distinct values and an example value. Together they're your inventory of "what have I imported, and what's in it?"
+
+```python
+def list_dataframes(namespace):
+    """Every DataFrame in a namespace (globals() or a dict): rows, columns, missing cells, memory."""
+    rows = [
+        {"name": name, "rows": obj.shape[0], "columns": obj.shape[1],
+         "missing_cells": int(obj.isna().sum().sum()),
+         "memory_mb": round(obj.memory_usage(deep=True).sum() / 1e6, 2)}
+        for name, obj in dict(namespace).items()
+        if isinstance(obj, pd.DataFrame) and not name.startswith("_")   # skip Jupyter's _ variables
+    ]
+    return pd.DataFrame(rows).sort_values("name", ignore_index=True)
+
+
+def column_report(df):
+    """One row per column: dtype, non-missing count, % missing, distinct values and an example."""
+    return pd.DataFrame({
+        "dtype": df.dtypes.astype(str),
+        "non_missing": df.notna().sum(),
+        "missing_pct": (df.isna().mean() * 100).round(1),
+        "n_unique": df.nunique(),
+        "example": [df[c].dropna().iloc[0] if df[c].notna().any() else None for c in df.columns],
+    })
+
+
+list_dataframes(globals())              # every DataFrame in the notebook
+list_dataframes(workbook)               # just the sheets from the Excel import
+
+for name, frame in workbook.items():    # the columns inside each one
+    print(f"\n{name}  ({frame.attrs.get('sheet_name', '')}): {frame.shape[0]} rows x {frame.shape[1]} columns")
+    display(column_report(frame))
+```
+
+> **Watch out:** `display()` shows a formatted table inside a loop in Jupyter (a bare expression only shows the last result of a cell). In a plain Python script, use `print(column_report(frame).to_string())` instead.
+
+See also: [.info()](#info), [.describe()](#describe), [Data dictionary](#data-dictionary), [Missingness table](#missingness-table)
+
+<a id="profile-a-dataset-quickly"></a>
+
+### Profile a dataset quickly
+
+_pandas, sweetviz_
+
+A profile is a fast first pass over every column that flags the problems worth investigating: constant columns, ID-like columns, high missingness, high cardinality, hidden leading or trailing spaces, inconsistent case, and numbers stored as text. Use `describe(include="all")` for the numbers, `quick_profile()` for the flags, and an automated report such as sweetviz for an interactive overview.
+
+```python
+titanic.describe(include="all").T          # every column: count, unique, top, mean, quartiles
+
+
+def quick_profile(df, high_cardinality=50, id_ratio=0.95):
+    """One row per column with a list of likely data-quality issues."""
+    rows, n = [], len(df)
+    for col in df.columns:
+        s = df[col]
+        n_unique = s.nunique(dropna=True)
+        issues = []
+        if n_unique <= 1:
+            issues.append("constant")
+        if s.isna().mean() > 0.3:
+            issues.append(f"{s.isna().mean():.0%} missing")
+        if n_unique > 1 and n_unique / n >= id_ratio:
+            issues.append("looks like an ID")
+        if pd.api.types.is_object_dtype(s) or pd.api.types.is_string_dtype(s):
+            text = s.dropna().astype(str)
+            if n_unique > high_cardinality:
+                issues.append("high cardinality")
+            if (text != text.str.strip()).any():
+                issues.append("leading/trailing spaces")
+            if text.str.strip().str.lower().nunique() < text.nunique():
+                issues.append("case or spacing variants")
+            numbers = pd.to_numeric(text.str.replace(r"[,$£€%\s]", "", regex=True), errors="coerce")
+            if len(text) and numbers.notna().mean() > 0.9:
+                issues.append("numbers stored as text")
+        top_share = s.value_counts(normalize=True, dropna=False).iloc[0] if n else 0
+        if 0.95 <= top_share < 1:
+            issues.append(f"one value is {top_share:.0%} of rows")
+        rows.append({"column": col, "dtype": str(s.dtype), "n_unique": n_unique,
+                     "missing_pct": round(s.isna().mean() * 100, 1), "issues": ", ".join(issues)})
+    return pd.DataFrame(rows)
+
+
+quick_profile(titanic)       # PassengerId and Name look like IDs; 2 names have stray spaces; Cabin 77% missing
+quick_profile(bonds_raw)     # every value column: spaces and numbers stored as text
+[c for c in bonds_raw.columns if c != c.strip()]   # column NAMES with stray spaces, too
+```
+
+For an interactive HTML report of every column and its relationship with a target, see [sweetviz](#sweetviz-eda-visualisation-library):
+
+```python
+# report = sv.analyze(titanic, target_feat="Survived")
+# report.show_html(str(OUT_DIR / "titanic_sweetviz.html"))
+```
+
+> **Watch out:** a profile tells you **where to look**, not what to do. A column flagged "looks like an ID" might be a genuine ID (drop it from modelling) or a precise measurement that happens to be unique; a column flagged "constant" might be constant only in this extract. Check each flag against what the column means.
+
+See also: [.describe()](#describe), [.unique() and .nunique()](#unique-and-nunique), [Cardinality](#cardinality), [Data quality assessment](#data-quality-assessment), [EDA for exploration](#eda-for-exploration)
+
+<a id="build-a-data-dictionary-from-your-data"></a>
+
+### Build a data dictionary from your data
+
+_pandas_
+
+A data dictionary describes every column: what it means, its units, its type, its range or allowed values, and how much is missing. Most of it can be generated from the data; you add the meanings and units. It uses `column_report()` from [List the DataFrames you've created and their columns](#list-the-dataframes-you-ve-created-and-their-columns).
+
+```python
+def data_dictionary(df, descriptions=None, units=None, max_listed=8):
+    """A data dictionary skeleton: generated facts plus your descriptions and units."""
+    descriptions, units = descriptions or {}, units or {}
+    dd = column_report(df).rename_axis("column").reset_index()
+    numeric = df.select_dtypes("number")
+    dd["description"] = dd["column"].map(descriptions).fillna("TODO: describe")
+    dd["units"] = dd["column"].map(units).fillna("")
+    dd["range"] = dd["column"].map(
+        lambda c: f"{numeric[c].min():g} to {numeric[c].max():g}" if c in numeric else "")
+    dd["allowed_values"] = dd["column"].map(
+        lambda c: ", ".join(map(str, sorted(df[c].dropna().unique(), key=str)))
+        if df[c].nunique() <= max_listed else "")
+    return dd[["column", "description", "units", "dtype", "range", "allowed_values",
+               "missing_pct", "n_unique", "example"]]
+
+
+titanic_dd = data_dictionary(
+    titanic,
+    descriptions={"Survived": "1 if the passenger survived", "Pclass": "Ticket class (1 = first)",
+                  "SibSp": "Siblings and spouses aboard", "Parch": "Parents and children aboard",
+                  "Fare": "Ticket price", "Embarked": "Port: C = Cherbourg, Q = Queenstown, S = Southampton"},
+    units={"Age": "years", "Fare": "pounds (1912)"},
+)
+titanic_dd.to_csv(OUT_DIR / "titanic_data_dictionary.csv", index=False)
+```
+
+> **Watch out:** write the descriptions **before** you clean or engineer anything, from the data source's documentation or the stakeholder, not from guesses based on the values. Keep the dictionary updated as you add features: it's the first thing a reader of your capstone needs.
+
+See also: [Data dictionary](#data-dictionary), [Data-understanding checklist](#data-understanding-checklist)
+
+<a id="standardise-text-spacing-case-and-punctuation"></a>
+
+### Standardise text: spacing, case and punctuation
+
+_pandas_
+
+The same value typed differently ("New York", "new york ", "NEW  YORK") counts as different categories, breaks joins and splits your group summaries. Standardising text means trimming the ends, collapsing repeated inner spaces, choosing one case, and normalising unusual characters (non-breaking spaces, full-width characters). Do it before counting categories, de-duplicating or joining.
+
+```python
+def clean_text(s, case="title", strip_punctuation=False):
+    """Trim, collapse inner spaces, normalise unicode and apply one case. Empty strings -> missing."""
+    out = s.astype("string").str.normalize("NFKC").str.strip()      # NFKC: odd spaces/characters -> standard
+    out = out.str.replace(r"\s+", " ", regex=True)                     # 'NEW  YORK' -> 'NEW YORK'
+    if strip_punctuation:
+        out = out.str.replace(r"[^\w\s]", "", regex=True)              # 'N.Y.' -> 'NY'
+    if case == "title":
+        out = out.str.title()
+    elif case == "lower":
+        out = out.str.lower()
+    elif case == "upper":
+        out = out.str.upper()
+    return out.replace("", pd.NA)
+
+
+cities = pd.Series(["  New York", "new york ", "NEW  YORK", "Los Angeles", "los angeles", "San Francisco\u00a0"])
+cities.nunique(), clean_text(cities).nunique()            # 6 -> 3
+
+# a real messy export: spaces in column names and values, ': z' meaning "not available"
+bonds_raw.columns = bonds_raw.columns.str.strip()
+value_cols = bonds_raw.columns[1:]
+bonds_raw[value_cols] = bonds_raw[value_cols].apply(lambda col: col.str.strip())
+bonds_raw[value_cols] = bonds_raw[value_cols].replace({": z": pd.NA, ":": pd.NA})
+bonds_raw[value_cols] = bonds_raw[value_cols].apply(pd.to_numeric)
+bonds_raw.dtypes.value_counts()                           # all value columns now numeric
+```
+
+For **matching keys** across tables (not for display), go further: lowercase, remove punctuation and accents, so "São Paulo" and "Sao Paulo" match:
+
+```python
+def match_key(s):
+    """An aggressive normalised key for joining or de-duplicating (not for display)."""
+    return (s.astype("string").str.normalize("NFKD")
+             .str.encode("ascii", errors="ignore").str.decode("ascii")    # drop accents
+             .str.lower().str.replace(r"[^a-z0-9]+", " ", regex=True).str.strip())
+
+
+match_key(pd.Series(["São Paulo", "Sao  Paulo", "SAO-PAULO"])).unique()   # ['sao paulo']
+```
+
+> **Watch out:** `.str.title()` mangles some names ("McDonald" → "Mcdonald", "USA" → "Usa"), so use it for display only on columns where that's acceptable, or keep the original and add a cleaned copy. Check `value_counts()` before and after cleaning: the number of distinct values should fall, and nothing you care about should merge by accident.
+
+See also: [String methods](#string-methods), [.str accessor](#str-accessor), [Cleaning text categories](#cleaning-text-categories), [.replace()](#replace)
+
+<a id="fix-misspelled-and-inconsistent-categories"></a>
+
+### Fix misspelled and inconsistent categories
+
+_Python, pandas_
+
+After standardising spaces and case, the remaining variants are misspellings ("Los Angles"), joined words ("Newyork") and abbreviations ("LA"). The safe approach is **suggest, review, then apply**: build a mapping from every distinct value to its closest allowed spelling, look at the mapping table yourself, fix anything wrong, and only then apply it. Python's built-in `difflib` scores how similar two strings are (0 to 1).
+
+```python
+import difflib
+
+
+def build_category_map(values, canonical, overrides=None, cutoff=0.8):
+    """Suggest the closest allowed spelling for each distinct value, as a table to review."""
+    overrides = overrides or {}
+    lookup = {c.lower().replace(" ", ""): c for c in canonical}          # 'newyork' -> 'New York'
+    rows = []
+    for value in pd.Series(values).dropna().unique():
+        key = str(value).strip().lower().replace(" ", "")
+        if value in overrides:
+            match, method = overrides[value], "override"
+        elif key in lookup:
+            match, method = lookup[key], "exact after cleaning"
+        else:
+            close = difflib.get_close_matches(key, list(lookup), n=1, cutoff=cutoff)
+            match, method = (lookup[close[0]], "fuzzy") if close else (None, "NO MATCH: review")
+        similarity = (difflib.SequenceMatcher(None, key, match.lower().replace(" ", "")).ratio()
+                      if match else None)
+        rows.append({"value": value, "suggested": match, "method": method,
+                     "similarity": round(similarity, 2) if similarity else None})
+    return pd.DataFrame(rows).sort_values(["method", "value"], ignore_index=True)
+
+
+responses = pd.Series(["New York", "new york", "Newyork", "New Yrok", "NY", "Los Angeles", "Los Angles",
+                       "LA", "San Francisco", "San Fransisco", "SF", "Chicago", "Chicgo", "Bostn", "Paris", None])
+canonical = ["New York", "Los Angeles", "San Francisco", "Chicago", "Boston"]     # the allowed spellings
+abbreviations = {"NY": "New York", "LA": "Los Angeles", "SF": "San Francisco"}   # rules fuzzy matching can't guess
+
+review = build_category_map(responses, canonical, overrides=abbreviations)
+review                               # READ THIS: 'Paris' has no match; fuzzy rows need a sanity check
+
+mapping = dict(zip(review["value"], review["suggested"]))
+cleaned = responses.map(mapping)
+cleaned.value_counts(dropna=False)   # 5 clean categories, plus NaN for 'Paris' and the missing value
+```
+
+No list of allowed values? Treat the **frequent** spellings as canonical, and map rare variants onto them. Rare categories that are genuinely different are often better grouped into "Other":
+
+```python
+counts = ufo["Shape Reported"].value_counts()
+rare = counts[counts < 50].index                      # DELTA, ROUND, CRESCENT, DOME, PYRAMID, FLARE, HEXAGON
+ufo["shape_grouped"] = ufo["Shape Reported"].where(~ufo["Shape Reported"].isin(rare), "OTHER")
+ufo["shape_grouped"].nunique()                        # 27 shapes -> 20 (rare shapes join OTHER)
+```
+
+> **Watch out:** never apply fuzzy matches unreviewed: "austria" and "australia" score 0.875, so even the default cutoff of 0.8 would silently merge two different countries. Raise `cutoff` (0.85–0.9) for short words, keep the review table in your notebook as evidence, and store the final mapping as a dictionary you can reuse on new data. For thousands of distinct values, the `rapidfuzz` package does the same job much faster.
+
+See also: [Cleaning text categories](#cleaning-text-categories), [.map()](#map), [Cardinality](#cardinality), [High-cardinality strategies](#high-cardinality-strategies)
+
+<a id="split-and-extract-values-from-text"></a>
+
+### Split and extract values from text
+
+_pandas_
+
+Text columns often pack several facts into one cell: a code and a country ("MCBY,AT"), a surname and a title ("Braund, Mr. Owen Harris"), a deck and a cabin number ("C85"), several labels ("RED GREEN BLUE") or a number with its unit ("3.5kg"). Pull each fact into its own column with `.str.split()`, `.str.extract()` (regular expressions) or `.str.get_dummies()`.
+
+```python
+# one column holding two values -> two columns
+bonds_raw = bonds_raw.rename(columns={bonds_raw.columns[0]: "key"})          # was 'int_rt,geo\time'
+bonds_raw[["indicator", "country_code"]] = bonds_raw["key"].str.split(",", expand=True)
+
+# parts of a string with regular expressions
+text = titanic[["Name", "Ticket", "Cabin"]].copy()
+text["surname"] = text["Name"].str.split(",").str[0].str.strip()                    # 'Braund'
+text["title"] = text["Name"].str.extract(r",\s*([^\.]+)\.", expand=False)          # 'Mr'
+text["ticket_prefix"] = text["Ticket"].str.extract(r"^(.*\D)\s", expand=False)     # 'A/5', 'PC', ...
+text["ticket_number"] = pd.to_numeric(text["Ticket"].str.extract(r"(\d+)$", expand=False))
+text["deck"] = text["Cabin"].str[0]                                                # 'C85' -> 'C'
+text["n_cabins"] = text["Cabin"].str.split().str.len()                             # 'C23 C25 C27' -> 3
+
+# several labels in one cell -> one 0/1 column per label
+colours = ufo["Colors Reported"].str.get_dummies(sep=" ")                          # 'RED GREEN' -> RED=1, GREEN=1
+colours.sum().sort_values(ascending=False)
+
+# numbers with units -> one consistent unit
+weights = pd.Series(["12 kg", "3.5kg", "8 lb", "450 g", "unknown", None])
+parts = weights.str.extract(r"(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>kg|lb|g)\b", flags=re.IGNORECASE)
+to_kg = {"kg": 1.0, "g": 0.001, "lb": 0.453592}
+weights_kg = pd.to_numeric(parts["value"]) * parts["unit"].str.lower().map(to_kg)  # 12.0, 3.5, 3.63, 0.45, NaN, NaN
+```
+
+> **Watch out:** check what **didn't** match: rows where `.str.extract()` returns `NaN` but the original wasn't missing are values your pattern doesn't cover (`weights[parts["value"].isna() & weights.notna()]`). `str.split(expand=True)` creates as many columns as the longest split, so check the maximum number of parts before assigning to a fixed list of names.
+
+See also: [re (regular expressions)](#re-regular-expressions), [.str accessor](#str-accessor), [String methods](#string-methods), [One-hot encoding done right](#one-hot-encoding-done-right)
+
+<a id="clean-and-validate-dates-and-times"></a>
+
+### Clean and validate dates and times
+
+_pandas_
+
+Dates cause more silent errors than any other type: mixed formats, day/month ambiguity, text that won't parse, typos that put events in the future, and end dates before start dates. Parse with **explicit formats**, look at what failed, check the range is plausible, then derive the parts you'll analyse (year, month, weekday, hour, durations).
+
+```python
+def parse_dates(s, formats=("%Y-%m-%d", "%d/%m/%Y", "%b %d %Y")):
+    """Try each known format in turn; values that match none stay missing for you to review."""
+    s = s.astype("string").str.strip()
+    out = pd.Series(pd.NaT, index=s.index, dtype="datetime64[ns]")
+    for fmt in formats:
+        todo = out.isna()
+        out[todo] = pd.to_datetime(s[todo], format=fmt, errors="coerce")
+    return out
+
+
+raw_dates = pd.Series(["2024-01-15", "15/01/2024", "Jan 15 2024", "2024/13/01",
+                       "not recorded", "2031-06-01", None])
+dates = parse_dates(raw_dates)
+raw_dates[dates.isna() & raw_dates.notna()]            # '2024/13/01', 'not recorded': fix or leave missing
+dates[dates > pd.Timestamp.today()]                    # 2031: a typo, or a planned date?
+dates[dates < "1900-01-01"]                            # implausibly old
+
+# date parts for EDA and features
+ufo["Time"] = pd.to_datetime(ufo["Time"], format="%m/%d/%Y %H:%M")
+ufo["Time"].agg(["min", "max"])                        # 1930 to 2014: is that the range you expected?
+ufo["year"] = ufo["Time"].dt.year
+ufo["month"] = ufo["Time"].dt.month
+ufo["weekday"] = ufo["Time"].dt.day_name()
+ufo["hour"] = ufo["Time"].dt.hour
+ufo["is_weekend"] = ufo["Time"].dt.dayofweek >= 5      # Monday = 0
+ufo["year"].value_counts().sort_index().tail(10)       # coverage: gaps or a partial last year?
+
+# durations, and checking their logic
+shipments = pd.DataFrame({
+    "ordered": pd.to_datetime(["2024-01-02", "2024-01-05", "2024-01-09"]),
+    "delivered": pd.to_datetime(["2024-01-06", "2024-01-04", "2024-01-12"]),
+})
+shipments["days_to_deliver"] = (shipments["delivered"] - shipments["ordered"]).dt.days
+shipments[shipments["days_to_deliver"] < 0]            # delivered before ordered: a data error
+```
+
+> **Watch out:** "03/04/2024" is 3 April in the UK and 4 March in the US; pandas assumes month first unless you pass `dayfirst=True` or an explicit `format=`. Letting pandas guess (`format="mixed"`) can parse the same file both ways. Check the **last** period in time-based counts: a partial final month or year looks like a sudden drop. If times come from several time zones, convert them to one (`.dt.tz_convert("UTC")`) before comparing.
+
+See also: [pd.to_datetime()](#pd-to-datetime), [.dt accessor](#dt-accessor), [Timestamp, Timedelta and date arithmetic](#timestamp-timedelta-and-date-arithmetic), [Features from dates](#features-from-dates)
+
+<a id="define-validation-rules-and-check-your-data"></a>
+
+### Define validation rules and check your data
+
+_pandas_
+
+Validation turns what you know about the data into **rules** and counts the rows that break them: values within boundaries (age 0–100), values from an allowed list (port is S, C or Q), text in the right format (cabin codes), unique keys, required fields, logic across columns (boys titled "Master" are under 18), and keys that exist in a lookup table. Write the rules once, run them after every cleaning step, and keep the report as evidence.
+
+```python
+def in_range(col, low=-np.inf, high=np.inf):
+    """Rule: values between low and high. Missing values pass (check them with not_missing)."""
+    return lambda d: d[col].isna() | d[col].between(low, high)
+
+
+def in_set(col, allowed):
+    """Rule: values from an allowed list."""
+    return lambda d: d[col].isna() | d[col].isin(allowed)
+
+
+def matches(col, pattern):
+    """Rule: the whole text matches a regular expression."""
+    return lambda d: d[col].isna() | d[col].astype("string").str.fullmatch(pattern).fillna(False)
+
+
+def not_missing(col):
+    return lambda d: d[col].notna()
+
+
+def unique(col):
+    return lambda d: ~d[col].duplicated(keep=False)
+
+
+def check_rules(df, rules, show=3):
+    """How many rows break each rule, with example row labels."""
+    rows = []
+    for name, rule in rules.items():
+        ok = pd.Series(rule(df), index=df.index).astype(bool)
+        bad = df.index[~ok]
+        rows.append({"rule": name, "failures": len(bad),
+                     "failure_pct": round(len(bad) / len(df) * 100, 2), "examples": list(bad[:show])})
+    return pd.DataFrame(rows).sort_values("failures", ascending=False, ignore_index=True)
+
+
+def failing_rows(df, rules):
+    """The rows that break at least one rule, with the names of the rules they break."""
+    failed = pd.DataFrame({name: ~pd.Series(rule(df), index=df.index).astype(bool)
+                           for name, rule in rules.items()})
+    bad = failed.any(axis=1)
+    return df[bad].assign(failed_rules=failed[bad].apply(lambda r: "; ".join(r.index[r]), axis=1))
+
+
+titanic_rules = {
+    "PassengerId is unique": unique("PassengerId"),
+    "Survived is 0 or 1": in_set("Survived", {0, 1}),
+    "Pclass is 1, 2 or 3": in_set("Pclass", {1, 2, 3}),
+    "Sex is male or female": in_set("Sex", {"male", "female"}),
+    "Age between 0 and 100": in_range("Age", 0, 100),
+    "Fare is not negative": in_range("Fare", 0),
+    "Embarked is S, C or Q": in_set("Embarked", {"S", "C", "Q"}),
+    "Embarked is recorded": not_missing("Embarked"),
+    "Cabin looks like a cabin code": matches("Cabin", r"(?:[A-G]\d*\s?)+|T"),
+    "Masters (boys) are under 18": lambda d: ~(d["Name"].str.contains(r"\bMaster\b", na=False) & (d["Age"] >= 18)),
+}
+report = check_rules(titanic, titanic_rules)
+report                                          # 'Embarked is recorded' fails for 2 rows; the rest pass
+failing_rows(titanic, titanic_rules)[["Name", "Embarked", "failed_rules"]]
+
+# referential integrity: every key must exist in the lookup table
+check_rules(bonds, {"country code is a known ISO code": in_set("country_code", set(codes["Alpha-2 code"]))})
+
+# stop the notebook if a critical rule breaks
+critical = ["PassengerId is unique", "Survived is 0 or 1"]
+assert report.set_index("rule").loc[critical, "failures"].eq(0).all(), "a critical rule failed"
+```
+
+Where do rules come from? The data dictionary and source documentation (allowed codes, units), physical and business limits (ages, prices, dates within the study period), logic between columns, and anything surprising you found in EDA. A rule that fails isn't automatically an error to delete: investigate, then fix, set to missing, flag or drop, and record the decision in your [cleaning log](#keep-a-cleaning-log).
+
+> **Watch out:** comparisons with missing values return `False`, so a naive range rule such as `d["Age"].between(0, 100)` counts every missing age as a failure. The helpers above let missing values pass and check them separately with `not_missing`, so each report line means one thing. Libraries such as `pandera` formalise the same idea for production pipelines.
+
+See also: [assert](#assert), [Data quality assessment](#data-quality-assessment), [Validating a merge](#validating-a-merge), [Data dictionary](#data-dictionary)
+
+<a id="detect-and-treat-outliers"></a>
+
+### Detect and treat outliers
+
+_pandas, seaborn_
+
+An outlier is a value far from the rest. It might be an **error** (a typo, a unit mix-up), a **genuine extreme** (a very expensive set), or a sign that one group behaves differently. Detect candidates with a rule, **look at them**, then choose a treatment for a reason, never automatically.
+
+```python
+def outlier_report(df, cols=None, k=1.5):
+    """Values outside the IQR fences (Q1 - k*IQR, Q3 + k*IQR), per numeric column."""
+    cols = cols if cols is not None else df.select_dtypes("number").columns
+    rows = []
+    for col in cols:
+        s = df[col].dropna()
+        q1, q3 = s.quantile([0.25, 0.75])
+        low, high = q1 - k * (q3 - q1), q3 + k * (q3 - q1)
+        n_out = int(((s < low) | (s > high)).sum())
+        rows.append({"column": col, "low_fence": low, "high_fence": high, "min": s.min(), "max": s.max(),
+                     "n_outliers": n_out, "pct_outliers": round(n_out / len(s) * 100, 1)})
+    return pd.DataFrame(rows).round(2)
+
+
+outlier_report(titanic, ["Age", "Fare", "SibSp", "Parch"])   # Fare: 116 flagged (13%); Parch fences 0 to 0!
+outlier_report(lego, ["Pieces", "USD_MSRP", "Minifigures"])
+
+# z-score for roughly symmetric columns; robust z (median and MAD), which the outliers can't distort
+age_z = (titanic["Age"] - titanic["Age"].mean()) / titanic["Age"].std()
+fare = titanic["Fare"]
+mad = (fare - fare.median()).abs().median()
+fare_robust_z = 0.6745 * (fare - fare.median()) / mad
+(age_z.abs() > 3).sum(), (fare_robust_z.abs() > 3.5).sum()             # 2 ages; 160 fares
+
+# LOOK at them before deciding anything
+titanic.loc[fare_robust_z > 3.5, ["Name", "Pclass", "Fare"]].sort_values("Fare", ascending=False).head()
+
+fig, ax = plt.subplots(figsize=(7, 3))
+sns.boxplot(x=titanic["Fare"], color="lightgrey", fliersize=0, ax=ax)
+sns.stripplot(x=titanic["Fare"], size=2, alpha=0.4, ax=ax)
+ax.set_title("Fare: most tickets were cheap; a few first-class fares exceed £200")
+
+# treatments: flag, cap, transform, or (for proven errors only) remove
+treated = lego[["Name", "USD_MSRP"]].copy()
+p01, p99 = treated["USD_MSRP"].quantile([0.01, 0.99])
+treated["price_is_extreme"] = (treated["USD_MSRP"] > p99).astype(int)     # flag: keep the information
+treated["price_capped"] = treated["USD_MSRP"].clip(p01, p99)              # cap (winsorise)
+treated["log_price"] = np.log1p(treated["USD_MSRP"])                      # transform: pull in the tail
+```
+
+| Situation | Treatment |
+| --- | --- |
+| Proven error (age 250, price in pence among pounds) | Correct it if you can, otherwise set to missing |
+| Genuine but extreme value | Keep it; consider a log transform or a robust model |
+| Extremes that dominate a linear model | Cap at a percentile, and add a flag column |
+| A separate group (business accounts among consumers) | Analyse or model the group separately |
+
+> **Watch out:** every rule flags many values in naturally skewed columns, where extremes are normal rather than errors: 13% of fares by the IQR rule and even more (160) by robust z-scores. Judge skewed columns on a log scale and with domain knowledge instead. The IQR rule also breaks down for count columns where most values are the same: three-quarters of passengers have `Parch` = 0, so the fences are 0 to 0 and every parent or child aboard (24%) is "an outlier". For modelling, learn capping limits from the **training** data only. If the MAD is 0 (more than half the values identical), robust z-scores divide by zero, so use the IQR rule for that column instead.
+
+See also: [Outlier](#outlier), [IQR outlier fences](#iqr-outlier-fences), [Interquartile range (IQR)](#interquartile-range-iqr), [Outlier decisions](#outlier-decisions), [Capped values](#capped-values), [Log transformation](#log-transformation), [np.maximum() and np.clip()](#np-maximum-and-np-clip)
+
+<a id="filter-rows-a-cheat-sheet"></a>
+
+### Filter rows: a cheat sheet
+
+_pandas_
+
+Filtering means keeping the rows where a condition is `True`. Every filter is a **boolean mask**: a column of True/False values the same length as the DataFrame, placed inside `df[...]` or `df.loc[...]`. Naming your masks makes complex filters readable and lets you count how many rows each one keeps before you apply it.
+
+```python
+# one condition
+lego[lego["Year"] >= 2015]
+
+# several conditions: & (and), | (or), ~ (not); wrap EACH condition in brackets
+lego[(lego["Year"] >= 2015) & (lego["Theme"] == "Star Wars")]
+lego[(lego["Theme"] == "Star Wars") | (lego["Theme"] == "Harry Potter")]
+lego[~(lego["Theme"] == "Duplo")]
+
+# named masks: readable, reusable and countable
+recent = lego["Year"] >= 2015
+big = lego["Pieces"] > 1000
+star_wars = lego["Theme"].eq("Star Wars")
+(recent & big & star_wars).sum()                      # how many rows the filter keeps
+lego[recent & big & star_wars]
+
+# lists, ranges and text
+lego[lego["Theme"].isin(["Star Wars", "Harry Potter", "Technic"])]
+lego[~lego["Theme"].isin(["Duplo", "Gear"])]          # NOT in a list
+lego[lego["Pieces"].between(500, 1000)]               # inclusive at both ends
+lego[lego["Name"].str.contains("castle", case=False, na=False)]   # 121 sets
+lego[lego["Name"].str.startswith("Millennium", na=False)]
+
+# missing values
+titanic[titanic["Age"].isna()]                        # rows where Age is missing (177)
+titanic[titanic["Cabin"].notna()]                     # rows where Cabin is known
+titanic.dropna(subset=["Age", "Embarked"])            # rows complete in these columns
+
+# dates (convert the column to datetime first)
+ufo["Time"] = pd.to_datetime(ufo["Time"], format="%m/%d/%Y %H:%M")
+ufo[ufo["Time"].between("1990-01-01", "1999-12-31")]
+ufo[(ufo["Time"].dt.year == 1995) & (ufo["State"] == "CA")]
+ufo[ufo["Time"].dt.dayofweek >= 5]                    # weekends (Monday = 0)
+
+# .query(): the same filters as readable text; @ refers to a Python variable
+min_pieces = 1000
+themes = ["Star Wars", "Technic"]
+lego.query("Year >= 2015 and Pieces > @min_pieces and Theme in @themes")
+
+# filter rows AND choose columns in one step, or change values in matching rows
+lego.loc[recent & star_wars, ["Name", "Year", "Pieces", "USD_MSRP"]]
+lego_fixed = lego.copy()
+lego_fixed.loc[lego_fixed["Pieces"] == 0, "Pieces"] = np.nan    # 0 pieces is a placeholder
+
+# top and bottom rows by a column
+lego.nlargest(10, "Pieces")
+lego.nsmallest(5, "USD_MSRP")
+
+# keep whole groups that meet a condition (themes with at least 100 sets)
+theme_size = lego.groupby("Theme")["Set_ID"].transform("size")
+lego[theme_size >= 100]
+```
+
+When you filter to make a **new working table** that you'll change later, add `.copy()`:
+
+```python
+recent_sets = lego[lego["Year"] >= 2015].copy()
+recent_sets["price_per_piece"] = recent_sets["USD_MSRP"] / recent_sets["Pieces"]
+```
+
+> **Watch out:** using `and`, `or` or `not` instead of `&`, `|` and `~` raises "The truth value of a Series is ambiguous", and leaving out the brackets around each condition gives wrong results or errors, because `&` binds before `>=`. Text filters with `.str.contains()` need `na=False` if the column has missing values. Never change values with chained indexing such as `lego[lego["Year"] > 2015]["Pieces"] = 0`: under pandas 3's copy-on-write rules it changes nothing. Use `.loc[mask, "col"] = value` on the table you mean to change.
+
+See also: [Boolean mask (filtering)](#boolean-mask-filtering), [Combining conditions (& | ~)](#combining-conditions), [Comparison methods and .between()](#comparison-methods-and-between), [.isin()](#isin), [.loc[]](#loc), [pd.to_datetime()](#pd-to-datetime)
+
+<a id="select-drop-and-reorder-columns"></a>
+
+### Select, drop and reorder columns
+
+_pandas_
+
+Choose columns by name, by type or by a pattern in the name. Selecting by type is the quickest way to split a table into numeric and categorical parts for EDA and preprocessing.
+
+```python
+lego[["Name", "Theme", "Pieces", "USD_MSRP"]]                  # a list of names (double brackets)
+lego.drop(columns=["Packaging", "Availability"])               # everything except these
+lego.select_dtypes(include="number").columns.tolist()          # numeric columns
+lego.select_dtypes(exclude="number").columns.tolist()          # text, category, date, bool columns
+lego.filter(like="Price")                                      # names containing 'Price'
+lego.filter(regex=r"^(Theme|Sub)")                             # names matching a pattern
+lego.loc[:, lego.columns.str.endswith("_MSRP")]
+
+first = ["Set_ID", "Name", "Theme", "Year"]                    # reorder: key columns first
+lego = lego[first + [c for c in lego.columns if c not in first]]
+
+num_cols = titanic.select_dtypes(include=["number", "bool"]).columns.tolist()
+cat_cols = titanic.columns.difference(num_cols).tolist()       # everything else
+```
+
+> **Watch out:** `select_dtypes(include="number")` leaves out boolean columns, so a True/False flag can silently fall into your "categorical" list. Include `"bool"` explicitly when you split columns by type.
+
+See also: [Selecting columns](#selecting-columns), [.select_dtypes()](#select-dtypes), [.loc[]](#loc)
+
+<a id="reshape-between-wide-and-long-formats"></a>
+
+### Reshape between wide and long formats
+
+_pandas_
+
+**Wide** data has one column per period or category (the bond yields have one column per month); **long** data has one row per observation, with the period in its own column. Long format is what `groupby`, seaborn and most joins expect; wide format is easier to read in a report. `melt()` goes wide → long; `pivot()` and `pivot_table()` go long → wide.
+
+```python
+month_cols = [c for c in bonds_raw.columns if re.fullmatch(r"\d{4}M\d{2}", c)]   # '2019M02', ...
+bonds_long = bonds_raw.melt(id_vars=["country_code"], value_vars=month_cols,
+                            var_name="month", value_name="yield_pct")
+bonds_long["month"] = pd.to_datetime(bonds_long["month"], format="%YM%m")         # '2019M02' -> 2019-02-01
+bonds_long = bonds_long.sort_values(["country_code", "month"], ignore_index=True)
+bonds_long.head()                     # one row per country per month (31 x 12 = 372 rows)
+
+# plot long data directly: one line per country
+fig, ax = plt.subplots(figsize=(8, 4))
+sns.lineplot(data=bonds_long[bonds_long["country_code"].isin(["DE", "IT", "EL", "FR"])],
+             x="month", y="yield_pct", hue="country_code", ax=ax)
+ax.set(title="10-year bond yields fell through 2019", ylabel="Yield (%)", xlabel="")
+
+# long -> wide again (one value per cell)
+bonds_wide = bonds_long.pivot(index="country_code", columns="month", values="yield_pct")
+
+# pivot_table aggregates when several rows share a cell
+lego.pivot_table(index="Year", columns="Theme_Group", values="Set_ID",
+                 aggfunc="count", fill_value=0).tail()
+```
+
+> **Watch out:** `pivot()` raises "Index contains duplicate entries" if any index/column pair appears twice; use `pivot_table()` with an `aggfunc`, or find the duplicates first. After `melt`, period labels are text, so convert them to dates (as above) before sorting or plotting, or "2019M10" sorts before "2019M2"-style labels.
+
+See also: [Wide vs long (tidy) format](#wide-vs-long-tidy-format), [.melt()](#melt), [.pivot_table() and .pivot()](#pivot-table-and-pivot), [.stack() and .unstack()](#stack-and-unstack)
+
+<a id="join-dataframes-safely"></a>
+
+### Join DataFrames safely
+
+_pandas_
+
+Joining is where rows silently disappear or multiply. A safe join has four steps: **clean the keys** so they can match, **check the lookup side is unique**, **merge with `validate=` and `indicator=True`**, and **check row counts and unmatched keys** afterwards. The course's bond yields (`bonds`, keyed by `country_code`) and country codes (`codes`, keyed by `"Alpha-2 code"`) show why.
+
+```python
+# 1. clean the keys: same type, no stray spaces, same case
+bonds["country_code"] = bonds["country_code"].astype("string").str.strip().str.upper()
+codes["Alpha-2 code"] = codes["Alpha-2 code"].astype("string").str.strip().str.upper()
+
+# 2. the lookup table should have one row per key
+codes["Alpha-2 code"].is_unique                     # True
+codes["Alpha-2 code"].duplicated().sum()            # 0
+
+# 3. merge with checks: validate raises an error if the keys aren't as expected
+merged = bonds.merge(
+    codes, left_on="country_code", right_on="Alpha-2 code",
+    how="left",                                     # keep every bond row
+    validate="many_to_one",                         # many bonds rows to one code row
+    indicator=True,                                 # adds _merge: both / left_only / right_only
+    suffixes=("", "_iso"),                          # both tables have 'Country'
+)
+
+# 4. check: same number of rows as the left table, and which keys didn't match
+assert len(merged) == len(bonds)
+merged["_merge"].value_counts()                     # both 25, left_only 5
+merged.loc[merged["_merge"] == "left_only", "country_code"].tolist()
+# ['EA', 'EL', '19', '28', 'UK']: EU aggregates, plus EU codes for Greece and the UK
+```
+
+The unmatched keys tell you what to fix. Here Eurostat uses `EL` for Greece and `UK` for the United Kingdom, while ISO uses `GR` and `GB`; `EA`, `19` and `28` are EU aggregates rather than countries. Map the codes, decide what to do with the aggregates, and merge again:
+
+```python
+bonds["iso_code"] = bonds["country_code"].replace({"EL": "GR", "UK": "GB"})
+merged = bonds.merge(codes, left_on="iso_code", right_on="Alpha-2 code", how="left",
+                     validate="many_to_one", indicator=True, suffixes=("", "_iso"))
+merged["_merge"].value_counts()                     # both 27, left_only 3 (the aggregates)
+```
+
+Other joins you'll need:
+
+```python
+# rows in the left table with NO match (an anti-join): customers who never ordered, say
+no_match = merged.loc[merged["_merge"] == "left_only"]
+
+# join on several key columns at once
+# sales.merge(targets, on=["store_id", "month"], how="left", validate="many_to_one")
+
+# stack tables with the same columns on top of each other (e.g. one file per year)
+both_years = pd.concat([lego.query("Year == 2022"), lego.query("Year == 2023")],
+                       ignore_index=True)
+```
+
+| `how=` | Keeps | Use when |
+| --- | --- | --- |
+| `"left"` | Every row of the left table | Adding information to your main table (most common) |
+| `"inner"` | Only rows with a match in both | You only want complete matches; check what you lose |
+| `"outer"` | Every row from both | Auditing two sources against each other |
+| `"right"` | Every row of the right table | Rarely; swap the tables and use `"left"` instead |
+
+> **Watch out:** if the lookup table has duplicate keys, a left join quietly **adds** rows (one per match); `validate="many_to_one"` turns that into an error you can't miss. Keys that look identical can still fail to match because of trailing spaces, different case, or one side being a number (`1001`) and the other text (`"1001"`), so clean both sides the same way first. After every join, compare `len()` before and after.
+
+See also: [.merge()](#merge), [Validating a merge](#validating-a-merge), [Checking join keys](#checking-join-keys), [Left / right join](#left-right-join), [pd.concat()](#pd-concat)
+
+<a id="find-and-handle-duplicates"></a>
+
+### Find and handle duplicates
+
+_pandas_
+
+There are three kinds of duplicate to look for: **exact duplicate rows** (often from a file loaded twice or a bad join), **duplicate keys** (two rows for what should be one customer or one order), and **near-duplicates** that differ only in case or spacing. Look at the copies before deciding what to do: drop them, keep the most recent, or combine them.
+
+```python
+orders = pd.DataFrame({                                         # a small table with duplicates
+    "order_id": [1, 2, 2, 3, 4, 4],
+    "customer": ["Ann Lee", "bob ray", "Bob Ray ", "Cy Fox", "Di Moss", "Di Moss"],
+    "amount": [20.0, 35.0, 35.0, 12.5, 40.0, 42.0],
+    "updated": pd.to_datetime(["2024-01-01", "2024-01-02", "2024-01-03",
+                               "2024-01-03", "2024-01-04", "2024-01-05"]),
+})
+
+orders.duplicated().sum()                                       # exact duplicate rows: 0
+orders.duplicated(subset=["order_id"]).sum()                    # duplicate keys: 2
+orders[orders.duplicated(subset=["order_id"], keep=False)]      # see EVERY copy, side by side
+orders["order_id"].is_unique                                    # False: a quick assertion
+
+# near-duplicates: normalise text before comparing
+name_key = orders["customer"].str.lower().str.strip().str.replace(r"\s+", " ", regex=True)
+orders[name_key.duplicated(keep=False)]                         # 'bob ray' = 'Bob Ray ', plus both Di Moss rows
+
+# decide what to keep
+latest = (orders.sort_values("updated")
+                .drop_duplicates(subset=["order_id"], keep="last"))   # most recent version of each order
+per_order = orders.groupby("order_id", as_index=False).agg(             # or combine the copies
+    amount=("amount", "max"), versions=("amount", "size"))
+
+assert latest["order_id"].is_unique                             # stop the notebook if it's still wrong
+```
+
+| Situation | Usual action |
+| --- | --- |
+| Identical rows from a repeated load or bad join | `drop_duplicates()`, then fix the cause |
+| Several versions of one record over time | Keep the latest: sort by date, `keep="last"` |
+| Genuine repeated events (two orders on one day) | Keep them all: they're not duplicates; check your key |
+| Same entity spelled differently | Normalise the text, then de-duplicate or map to one ID |
+
+> **Watch out:** `drop_duplicates()` with no `subset` only removes rows identical in **every** column, so two versions of the same order with different amounts both survive. Decide which columns define "the same thing" (the key) and pass them as `subset`. Check duplicates again after every join.
+
+See also: [.duplicated()](#duplicated), [.drop_duplicates()](#drop-duplicates), [Cleaning text categories](#cleaning-text-categories), [Grain of a table](#grain-of-a-table)
+
+<a id="audit-missing-values-by-field-type"></a>
+
+### Audit missing values by field type
+
+_pandas_
+
+`df.isna().sum()` only counts values pandas already recognises as missing. Real files also hide gaps as **placeholder text** ("N/A", "-", "?", empty strings) and as **impossible numbers** (0 or -999 where a value can't be zero or negative). This report counts both, groups columns by kind (numeric, categorical/text, datetime, boolean), because each kind is filled differently, and sorts the worst columns to the top. It uses `MISSING_MARKERS` from the [Excel importer](#import-every-sheet-from-an-excel-workbook).
+
+```python
+def missing_report(df, markers=MISSING_MARKERS):
+    """Missing values per column, including placeholder text that pandas doesn't count."""
+    marker_set = {m.strip().lower() for m in markers}
+    rows = []
+    for col in df.columns:
+        s = df[col]
+        is_text = pd.api.types.is_object_dtype(s) or pd.api.types.is_string_dtype(s)
+        if pd.api.types.is_bool_dtype(s):
+            kind = "boolean"
+        elif pd.api.types.is_numeric_dtype(s):
+            kind = "numeric"
+        elif pd.api.types.is_datetime64_any_dtype(s):
+            kind = "datetime"
+        else:
+            kind = "categorical/text"
+        placeholders = s.dropna().astype(str).str.strip().str.lower().isin(marker_set).sum() if is_text else 0
+        rows.append({"column": col, "kind": kind, "dtype": str(s.dtype),
+                     "missing": int(s.isna().sum()), "placeholders": int(placeholders)})
+    report = pd.DataFrame(rows)
+    report["missing_pct"] = ((report["missing"] + report["placeholders"]) / len(df) * 100).round(1)
+    return report.sort_values("missing_pct", ascending=False, ignore_index=True)
+
+
+def placeholders_to_nan(df, markers=MISSING_MARKERS):
+    """Turn whole-cell placeholder text ('N/A', '-', '?', '') into real missing values."""
+    pattern = r"(?i)^\s*(?:" + "|".join(re.escape(m) for m in markers if m) + r")?\s*$"
+    text_cols = df.select_dtypes(include=["object", "string"]).columns
+    out = df.copy()
+    out[text_cols] = out[text_cols].replace(pattern, np.nan, regex=True)
+    return out
+
+
+missing_report(titanic)              # Cabin 77.1%, Age 19.9%, Embarked 0.2%, everything else 0
+titanic = placeholders_to_nan(titanic)
+```
+
+Then look for **impossible values** in numeric columns (these need your judgement about what the column means), and check whether missingness is **related to other columns or to the target**:
+
+```python
+numeric = titanic.select_dtypes("number")
+(numeric < 0).sum()                                     # negatives where impossible: none here
+titanic["Fare"].eq(0).sum()                             # 15 free tickets: genuine, or unknown fare?
+
+titanic.groupby("Pclass")["Age"].apply(lambda s: s.isna().mean()).round(2)
+# Pclass 1: 0.14, 2: 0.06, 3: 0.28  -> Age is missing more often in 3rd class (MAR, not MCAR)
+titanic.groupby(titanic["Cabin"].isna())["Survived"].mean().round(2)
+# Cabin known: 0.67 survived, Cabin missing: 0.30 -> the gap itself carries information
+```
+
+> **Watch out:** a column that's 77% missing (like `Cabin`) usually can't be filled reliably, but the fact that it's missing may still be useful (as here), so turn it into a flag or a "Unknown" category before you consider dropping it. Run `missing_report` again after every cleaning step, and after joins, which create new gaps.
+
+See also: [Missingness table](#missingness-table), [Placeholder values for missing data](#placeholder-values-for-missing-data), [MAR (Missing At Random)](#mar-missing-at-random), [Patterns of missingness](#patterns-of-missingness)
+
+<a id="visualise-missing-data-with-missingno"></a>
+
+### Visualise missing data with missingno
+
+_missingno, matplotlib, seaborn_
+
+Missing-data charts answer three questions: **how much** is missing per column (bar), **where** the gaps are and whether they line up across columns (matrix), and **which columns go missing together** (heatmap and dendrogram). Convert placeholders to real `NaN` first, or missingno will show them as present. Install with `%pip install missingno`.
+
+```python
+import missingno as msno
+
+ax = msno.bar(titanic, figsize=(10, 4), fontsize=10)               # 1. how much: completeness per column
+ax.set_title("Completeness by column")
+
+msno.matrix(titanic.sort_values("Pclass"), figsize=(10, 5), fontsize=10)   # 2. where: sort to reveal patterns
+msno.heatmap(titanic, figsize=(6, 4), fontsize=10)                 # 3. co-occurring gaps (-1 to 1)
+msno.dendrogram(titanic, figsize=(8, 4), fontsize=10)              # 4. columns that go missing together
+
+msno.matrix(lego.sample(1000, random_state=RANDOM_STATE), fontsize=8)  # big tables: plot a sample
+plt.savefig(OUT_DIR / "missingness_matrix.png", dpi=150, bbox_inches="tight")
+```
+
+The same views without missingno, using pandas and seaborn:
+
+```python
+(titanic.isna().mean().mul(100).sort_values()
+        .plot(kind="barh", title="% missing by column", figsize=(6, 4)))
+
+fig, ax = plt.subplots(figsize=(8, 4))
+sns.heatmap(titanic.isna(), cbar=False, yticklabels=False, ax=ax)   # light cells = missing
+ax.set_title("Missing values by row (light = missing)")
+```
+
+> **Watch out:** read the matrix **sorted by a related column** (class, date, region). Unsorted, random-looking gaps can hide a pattern that sorting reveals, such as ages missing mostly for third-class passengers. `msno.heatmap` only includes columns that are partly missing, so a column with no gaps (or only gaps) won't appear.
+
+See also: [missingno](#missingno), [Missingness heatmap](#missingness-heatmap), [Patterns of missingness](#patterns-of-missingness)
+
+<a id="fill-gaps-by-field-type"></a>
+
+### Fill gaps by field type
+
+_pandas_
+
+The right fill depends on **what kind of field** it is and **why** it's missing. Decide column by column, write the reason down, and keep a flag so the model still knows the value was missing.
+
+| Field type | Typical approach | Better when it matters | Avoid |
+| --- | --- | --- | --- |
+| Numeric, skewed (price, income, fare) | Median | Median within similar groups; a model-based fill | The mean (pulled by outliers) |
+| Numeric, roughly symmetric (age, temperature) | Mean or median | Group median; KNN or iterative imputer | Filling with 0 |
+| Count where missing means "none" | 0, if you've confirmed that meaning | — | 0 when it really means unknown |
+| Categorical, few gaps | Most frequent value (mode) | Mode within group | Dropping rows unnecessarily |
+| Categorical, many gaps | Its own category: "Unknown" | Derive a useful feature (e.g. cabin deck) | Mode (invents a false majority) |
+| Boolean flag | "Unknown" category or mode, plus a flag | — | Silently filling with False |
+| Time series (daily sales, sensor) | Carry forward within each entity (`ffill`) | Interpolation over time | Filling across different entities |
+| Free text | Empty string or "unknown" | Features such as "has comment" | — |
+| IDs, keys and the **target** | Don't impute: recover the value or drop the row | — | Any fill |
+
+```python
+titanic_filled = titanic.copy()
+
+# 1. keep the fact that a value was missing
+titanic_filled["age_missing"] = titanic_filled["Age"].isna().astype(int)
+
+# 2. categorical with 2 gaps: the most frequent value ('S')
+titanic_filled["Embarked"] = titanic_filled["Embarked"].fillna(titanic_filled["Embarked"].mode()[0])
+
+# 3. categorical with 77% gaps: its own category (and a useful feature: the cabin's deck letter)
+titanic_filled["deck"] = titanic_filled["Cabin"].str[0].fillna("Unknown")
+
+# 4. numeric: the median age of similar passengers (same class and sex)
+age_by_group = titanic_filled.groupby(["Pclass", "Sex"])["Age"].transform("median")
+titanic_filled["Age"] = titanic_filled["Age"].fillna(age_by_group)
+
+titanic_filled[["Age", "Embarked", "deck"]].isna().sum()        # check: 0, 0, 0
+```
+
+For **time series**, fill within each entity (store, sensor, customer), never across them:
+
+```python
+daily = pd.DataFrame({
+    "store": ["A"] * 6 + ["B"] * 6,
+    "date": list(pd.date_range("2024-01-01", periods=6)) * 2,
+    "sales": [10, np.nan, 12, np.nan, np.nan, 15, 7, 8, np.nan, 9, np.nan, 11],
+})
+daily["sales_ffill"] = daily.groupby("store")["sales"].ffill()       # last known value, per store
+daily["sales_interp"] = daily.groupby("store")["sales"].transform(
+    lambda s: s.interpolate(limit_direction="both"))                  # straight line between known values
+```
+
+Check that the fill hasn't distorted the distribution:
+
+```python
+fig, ax = plt.subplots(figsize=(7, 4))
+sns.kdeplot(titanic["Age"].dropna(), label="observed ages", ax=ax)
+sns.kdeplot(titanic_filled["Age"], label="after group-median fill", ax=ax)
+ax.set_title("A good fill keeps the shape of the distribution")
+ax.legend()
+```
+
+> **Watch out:** these fills look at the **whole** dataset, which is fine for EDA but leaks test-set information into training when you build a model. For modelling, learn fill values from the training rows only, inside a pipeline: see [Leak-free imputation and encoding in a pipeline](#leak-free-imputation-and-encoding-in-a-pipeline). A single median fill for many values creates a tall spike in the histogram and shrinks the spread; group medians and model-based fills spike less.
+
+See also: [.fillna()](#fillna), [Group-based imputation](#group-based-imputation), [Mean / median / mode imputation](#mean-median-mode-imputation), [Missing indicator](#missing-indicator), [Last Observation Carried Forward (LOCF)](#last-observation-carried-forward-locf), [Missing-data decisions](#missing-data-decisions)
+
+<a id="fill-gaps-with-models"></a>
+
+### Fill gaps with models
+
+_scikit-learn_
+
+When a column matters and other columns predict it, a model can fill the gaps better than one constant. Three options, from simplest to most flexible: **KNNImputer** (copy from the most similar rows), **IterativeImputer** (predict each column from the others, round and round until stable) and a **custom model** (train any regressor or classifier on the rows where the value is known). Fit every one on the **training** rows only.
+
+The best way to choose is to **test** them: hide some values you do know, fill them, and measure the error against the truth.
+
+```python
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.impute import KNNImputer
+from sklearn.experimental import enable_iterative_imputer  # noqa: F401 (switches IterativeImputer on)
+from sklearn.impute import IterativeImputer
+from sklearn.ensemble import RandomForestRegressor
+
+data = titanic.assign(is_female=(titanic["Sex"] == "female").astype(int))
+features = ["Pclass", "is_female", "SibSp", "Parch", "Fare", "Age"]
+train, test = train_test_split(data[features], test_size=0.25, random_state=RANDOM_STATE)
+
+# hide 30% of the KNOWN ages in the test rows, so we can score each method against the truth
+known = test[test["Age"].notna()]
+hidden = known.sample(frac=0.3, random_state=RANDOM_STATE).index
+truth = test.loc[hidden, "Age"]
+test_masked = test.copy()
+test_masked.loc[hidden, "Age"] = np.nan
+
+results = {}
+results["overall median"] = pd.Series(train["Age"].median(), index=hidden)
+
+group_median = train.groupby(["Pclass", "is_female"])["Age"].median()
+results["group median"] = test_masked.loc[hidden].apply(
+    lambda row: group_median[(row["Pclass"], row["is_female"])], axis=1)
+
+scaler = StandardScaler().fit(train)                      # KNN uses distances: scale first
+knn = KNNImputer(n_neighbors=5).fit(scaler.transform(train))
+knn_filled = scaler.inverse_transform(knn.transform(scaler.transform(test_masked)))
+results["KNN (k=5)"] = pd.Series(knn_filled[:, features.index("Age")], index=test.index)[hidden]
+
+iterative = IterativeImputer(max_iter=10, random_state=RANDOM_STATE).fit(train)
+iter_filled = iterative.transform(test_masked)
+results["iterative"] = pd.Series(iter_filled[:, features.index("Age")], index=test.index)[hidden]
+
+predictors = [c for c in features if c != "Age"]          # custom model: predict Age from the rest
+rf = RandomForestRegressor(n_estimators=300, min_samples_leaf=5, random_state=RANDOM_STATE)
+rf.fit(train.dropna(subset=["Age"])[predictors], train["Age"].dropna())
+results["random forest"] = pd.Series(rf.predict(test_masked.loc[hidden, predictors]), index=hidden)
+
+pd.Series({name: (pred - truth).abs().mean() for name, pred in results.items()},
+          name="MAE in years").round(2).sort_values()
+```
+
+On this data the result is instructive: the iterative imputer and the random forest do best (MAE about 10.2 years), the group median is close behind (10.6), the single overall median is worse (11.3), and KNN is **worst** (12.1). More complex isn't automatically better, which is why you test. None of the methods recovers age precisely, because the other columns only partly predict it; that's normal and worth reporting honestly. The hidden sample is small (53 ages), so rerun with a few `random_state` values before trusting small differences. To use the winner for real, fit it on the training data and fill both sets:
+
+```python
+def fill_with_model(train, test, target_col, predictor_cols, model):
+    """Fill gaps in target_col by predicting them from predictor_cols, learning from training rows only."""
+    train, test = train.copy(), test.copy()
+    known = train[target_col].notna()
+    model.fit(train.loc[known, predictor_cols], train.loc[known, target_col])
+    for part in (train, test):
+        gaps = part[target_col].isna()
+        if gaps.any():
+            part.loc[gaps, target_col] = model.predict(part.loc[gaps, predictor_cols])
+    return train, test
+
+
+train_filled, test_filled = fill_with_model(train, test, "Age", predictors, rf)
+train_filled["Age"].isna().sum(), test_filled["Age"].isna().sum()   # (0, 0)
+```
+
+> **Watch out:** the predictor columns must themselves be complete and numeric (encode categories first), and the column you're filling must never be the **target** you'll later predict. Model-based fills make values look more certain than they are, so add a [missing indicator](#missing-indicator) as well. `IterativeImputer` is still marked experimental in scikit-learn, which is why it needs the extra `enable_iterative_imputer` import; check the documentation for your version.
+
+See also: [KNNImputer and IterativeImputer](#knnimputer-and-iterativeimputer), [Fill gaps by field type](#fill-gaps-by-field-type)
+
+<a id="leak-free-imputation-and-encoding-in-a-pipeline"></a>
+
+### Leak-free imputation and encoding in a pipeline
+
+_scikit-learn_
+
+For modelling, every value learned from data (medians, most frequent categories, the list of categories for one-hot encoding, scaling means) must come from the **training** rows only. A `ColumnTransformer` inside a `Pipeline` does this automatically: different steps for numeric and categorical columns, fitted on `X_train` and simply applied to `X_test`. This is the version of imputation and encoding to use in your capstone model.
+
+```python
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.linear_model import LogisticRegression
+
+X = titanic.drop(columns=["Survived", "PassengerId", "Name", "Ticket", "Cabin"])
+y = titanic["Survived"]
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=RANDOM_STATE, stratify=y)      # 1. split FIRST
+
+num_cols = X.select_dtypes(include=["number", "bool"]).columns.tolist()
+cat_cols = X.columns.difference(num_cols).tolist()
+
+preprocess = ColumnTransformer([                                      # 2. one recipe per column type
+    ("num", Pipeline([
+        ("impute", SimpleImputer(strategy="median", add_indicator=True)),   # median + missing flags
+        ("scale", StandardScaler()),
+    ]), num_cols),
+    ("cat", Pipeline([
+        ("impute", SimpleImputer(strategy="most_frequent")),
+        ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
+    ]), cat_cols),
+])
+
+model = Pipeline([("prep", preprocess), ("clf", LogisticRegression(max_iter=1000))])
+model.fit(X_train, y_train)                                           # 3. learns from training rows only
+model.score(X_test, y_test)                                           # 4. applied unchanged to test rows
+
+# see the table the model actually receives
+prep_out = model.named_steps["prep"].set_output(transform="pandas")
+prep_out.transform(X_train).head()
+```
+
+Swap in a different imputer without changing anything else, for example `KNNImputer(n_neighbors=5)` in place of `SimpleImputer` in the numeric branch, or `SimpleImputer(strategy="constant", fill_value="Unknown")` for categories.
+
+> **Watch out:** calling `fillna()`, `get_dummies()` or a scaler on the whole dataset before splitting is the most common source of leakage in capstones: the test set has then influenced the training data. Inside the pipeline it can't happen, and `cross_val_score(model, X_train, y_train, cv=5)` refits every step within each fold.
+
+See also: [Pipeline](#pipeline), [ColumnTransformer](#columntransformer), [SimpleImputer](#simpleimputer), [Pipeline with imputation](#pipeline-with-imputation), [Data leakage](#data-leakage), [Feature engineering inside pipelines](#feature-engineering-inside-pipelines)
+
+<a id="apply-functions-to-columns-rows-and-groups"></a>
+
+### Apply functions to columns, rows and groups
+
+_pandas, NumPy_
+
+Choose the fastest tool that does the job. **Vectorised** operations (arithmetic on whole columns, `np.where`, `np.select`, `.str` and `.dt` methods) are fastest and should be your default. `.map()` applies a dictionary or function to one column. `.apply(axis=1)` runs a function on every row: flexible, but slow on big tables. `groupby().transform()` computes a value per group and lines it back up with every row.
+
+```python
+sets = lego.copy()
+
+# vectorised: whole columns at once (fast)
+sets["price_per_piece"] = sets["USD_MSRP"] / sets["Pieces"].replace(0, np.nan)   # avoid dividing by 0
+sets["era"] = np.where(sets["Year"] < 2000, "classic", "modern")
+sets["size_band"] = np.select(
+    [sets["Pieces"] < 100, sets["Pieces"] < 1000], ["small", "medium"], default="large")
+sets["size_band_cut"] = pd.cut(sets["Pieces"], bins=[-1, 99, 999, np.inf],
+                               labels=["small", "medium", "large"])               # same idea, as a category
+
+# .map(): a dictionary lookup or a function on ONE column
+port_names = {"S": "Southampton", "C": "Cherbourg", "Q": "Queenstown"}
+titanic["port"] = titanic["Embarked"].map(port_names)              # unmapped values become NaN
+titanic["title"] = titanic["Name"].str.extract(r",\s*([^\.]+)\.", expand=False)   # Mr, Mrs, Miss...
+
+
+def tidy_label(text):
+    """Strip spaces and use title case; leave missing values alone."""
+    return text.strip().title() if isinstance(text, str) else text
+
+
+sets["Theme"] = sets["Theme"].map(tidy_label)
+
+# .apply(axis=1): a function that needs several columns of the same row (slower)
+def family_size(row):
+    return row["SibSp"] + row["Parch"] + 1
+
+
+titanic["family_size"] = titanic.apply(family_size, axis=1)
+titanic["family_size_fast"] = titanic["SibSp"] + titanic["Parch"] + 1   # same result, vectorised
+
+# groupby().transform(): a group statistic on every row
+sets["pieces_vs_theme"] = sets["Pieces"] / sets.groupby("Theme")["Pieces"].transform("median")
+sets["rank_in_theme"] = sets.groupby("Theme")["USD_MSRP"].rank(ascending=False)
+
+# .pipe(): chain your own cleaning functions in a readable order
+def drop_free_sets(df):
+    return df[df["USD_MSRP"] > 0]
+
+
+def add_value_flag(df):
+    return df.assign(good_value=df["price_per_piece"] < df["price_per_piece"].median())
+
+
+clean_sets = sets.pipe(drop_free_sets).pipe(add_value_flag)
+```
+
+> **Watch out:** `.map()` with a dictionary turns any value that isn't a key into `NaN`, so check `.isna().sum()` afterwards (or use `.replace()` to change only the listed values). Avoid `.apply(axis=1)` and `for` loops over rows when a vectorised version exists: on a million rows the difference is seconds versus minutes. Functions you apply should handle missing values (`isinstance(text, str)` above) or they'll raise errors on the first `NaN`.
+
+See also: [.apply()](#apply), [.map()](#map), [Split-apply-combine](#split-apply-combine), [Creating a new column](#creating-a-new-column), [Binning (discretization)](#binning-discretization), [np.where() and np.select()](#np-where-and-np-select)
+
+<a id="one-hot-encoding-done-right"></a>
+
+### One-hot encoding done right
+
+_pandas, scikit-learn_
+
+One-hot encoding turns a categorical column into one 0/1 column per category, so models that need numbers can use it. Use `pd.get_dummies()` for quick EDA and correlation checks; use scikit-learn's `OneHotEncoder` inside a pipeline for anything you'll model, because it remembers the categories it saw in training and handles new ones safely.
+
+```python
+# quick EDA with pandas
+pd.get_dummies(titanic[["Sex", "Embarked"]], dtype=int).head()              # 0/1, one column per category
+pd.get_dummies(titanic["Embarked"], prefix="Embarked", dummy_na=True, dtype=int).sum()   # missing as its own column
+pd.get_dummies(titanic, columns=["Sex", "Embarked"], drop_first=True, dtype=int).columns.tolist()
+
+# modelling with scikit-learn: learn categories from training data only
+from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder
+
+train_cats, test_cats = train_test_split(titanic[["Sex", "Embarked"]],
+                                         test_size=0.2, random_state=RANDOM_STATE)
+ohe = OneHotEncoder(handle_unknown="ignore",      # a category unseen in training -> all zeros
+                    min_frequency=10,             # rare categories grouped into 'infrequent'
+                    sparse_output=False)
+ohe.fit(train_cats)
+ohe.get_feature_names_out()                       # ['Sex_female', 'Sex_male', 'Embarked_C', ...]
+encoded_test = pd.DataFrame(ohe.transform(test_cats), columns=ohe.get_feature_names_out(),
+                            index=test_cats.index)
+
+# ordered categories: one column with the order kept, instead of one-hot
+condition_order = [["Poor", "Fair", "Good", "Excellent"]]
+OrdinalEncoder(categories=condition_order).fit_transform(housing[["condition"]])[:5]
+```
+
+If you must use `get_dummies` on a train/test split, make the test columns match the training columns:
+
+```python
+train_d = pd.get_dummies(train_cats, dtype=int)
+test_d = pd.get_dummies(test_cats, dtype=int).reindex(columns=train_d.columns, fill_value=0)
+```
+
+| Choice | When |
+| --- | --- |
+| `drop_first=True` / `OneHotEncoder(drop="first")` | Unregularised linear and logistic regression (avoids the dummy variable trap) |
+| Keep all columns | Tree-based models, regularised models, kNN |
+| `min_frequency=` or group rare levels into "Other" | Columns with many rare categories (high cardinality) |
+| `OrdinalEncoder` with an explicit order | Ordered categories (Poor < Fair < Good < Excellent) |
+| Keep missing as its own category | When missingness is informative (`dummy_na=True`) |
+
+> **Watch out:** `get_dummies` applied separately to train and test gives different columns whenever a category appears in only one of them, and returns `True`/`False` instead of 0/1 unless you pass `dtype=int`. A column with hundreds of categories (postcodes, product IDs) explodes into hundreds of columns: group rare levels or use a different encoding. Encoding an ordered scale as one-hot throws away the order.
+
+See also: [One-hot encoding](#one-hot-encoding), [pd.get_dummies()](#pd-get-dummies), [Dummy variable trap](#dummy-variable-trap), [Label encoding](#label-encoding), [Curse of dimensionality](#curse-of-dimensionality)
+
+<a id="summarise-by-group"></a>
+
+### Summarise by group
+
+_pandas_
+
+Most EDA findings are comparisons between groups: survival by class, price by theme, sightings by state. Build compact summary tables with named aggregations, add counts so readers know how much data sits behind each figure, and compare each group with the overall value.
+
+```python
+# several statistics per group, with readable column names
+theme_summary = (
+    lego.groupby("Theme_Group")
+        .agg(n_sets=("Set_ID", "size"),
+             median_price=("USD_MSRP", "median"),
+             median_pieces=("Pieces", "median"),
+             share_priced=("USD_MSRP", lambda s: s.notna().mean()))
+        .sort_values("n_sets", ascending=False)
+        .round(2)
+)
+theme_summary.head()
+
+# two grouping columns, with an "All" row and column
+pd.crosstab(titanic["Pclass"], titanic["Sex"], values=titanic["Survived"],
+            aggfunc="mean", margins=True).round(2)
+
+# each group against the overall rate, with its size
+by_port = titanic.groupby("Embarked")["Survived"].agg(rate="mean", passengers="size")
+by_port["vs_overall"] = (by_port["rate"] - titanic["Survived"].mean()).round(3)
+by_port
+
+# full distribution summaries per group
+titanic.groupby("Pclass")["Fare"].describe().round(1)
+
+# the top N rows within each group
+(lego.sort_values("USD_MSRP", ascending=False)
+     .groupby("Theme_Group").head(3)[["Theme_Group", "Name", "USD_MSRP"]]
+     .sort_values(["Theme_Group", "USD_MSRP"], ascending=[True, False]))
+```
+
+> **Watch out:** always show the group size next to a group statistic; a 100% rate from three rows is noise. `groupby` drops rows whose group value is missing unless you pass `dropna=False`, so missing categories can silently vanish from your summaries.
+
+See also: [groupby()](#groupby), [.agg()](#agg), [Named aggregation](#named-aggregation), [Split-apply-combine](#split-apply-combine), [pd.crosstab()](#pd-crosstab), [.pivot_table() and .pivot()](#pivot-table-and-pivot)
+
+<a id="eda-charts-distributions"></a>
+
+### EDA charts: distributions
+
+_pandas, matplotlib, seaborn_
+
+Plot every column you might model, one at a time, before modelling anything. Distribution charts show skew, outliers, impossible values and gaps. Start each chart with its own `fig, ax = plt.subplots()`: separate figures stop charts in one cell from drawing on top of each other, and the `ax` lets you set a title that states what the chart shows.
+
+```python
+# quick look with pandas
+fig, ax = plt.subplots(figsize=(6, 3.5))
+titanic["Fare"].plot(kind="hist", bins=40, ax=ax, title="Fare: most tickets were cheap")
+
+# histogram + box plot side by side with seaborn
+fig, axes = plt.subplots(1, 2, figsize=(11, 3.5))
+sns.histplot(data=titanic, x="Age", bins=30, kde=True, ax=axes[0])
+axes[0].set_title("Age: centred on the late 20s")
+sns.boxplot(data=titanic, x="Fare", ax=axes[1])
+axes[1].set_title("Fare: long right tail with outliers")
+fig.tight_layout()
+
+# skewed money columns: a log scale shows the shape
+fig, ax = plt.subplots(figsize=(6, 3.5))
+sns.histplot(lego["USD_MSRP"].dropna(), bins=40, log_scale=True, ax=ax)
+ax.set_title("LEGO prices range from about $1.50 to $850")
+
+# compare a distribution across groups
+fig, ax = plt.subplots(figsize=(7, 4))
+sns.histplot(data=titanic, x="Age", hue="Survived", bins=30, element="step",
+             stat="density", common_norm=False, ax=ax)          # each group scaled to its own total
+ax.set_title("Children were more likely to survive")
+
+fig, ax = plt.subplots(figsize=(7, 4))
+sns.violinplot(data=titanic, x="Pclass", y="Age", hue="Survived", split=True, ax=ax)
+ax.set_title("Age by class and survival")
+
+# numbers to back up the pictures
+titanic[["Age", "Fare", "SibSp", "Parch"]].skew().round(2)      # > 1: strongly right-skewed
+```
+
+> **Watch out:** without `fig, ax = plt.subplots()`, consecutive seaborn calls in one notebook cell draw onto the **same** axes and produce a confusing overlay. When comparing groups of different sizes, use `stat="density", common_norm=False`, or the bigger group dominates the picture.
+
+See also: [Histogram](#histogram), [Choosing histogram bins](#choosing-histogram-bins), [Box plot](#box-plot), [Density plot / KDE](#density-plot-kde), [seaborn distribution plots](#seaborn-distribution-plots), [Skewness](#skewness)
+
+<a id="eda-charts-categories-and-the-target"></a>
+
+### EDA charts: categories and the target
+
+_pandas, matplotlib, seaborn_
+
+For categorical columns, check how many rows fall in each category (including missing), then how the **target** varies across categories. For a yes/no target, the mean of a 0/1 column is a **rate** (here, the survival rate), so a bar chart of the mean answers "which groups have the outcome most often?".
+
+```python
+# counts, including missing, in a sensible order
+fig, ax = plt.subplots(figsize=(6, 3))
+titanic["Embarked"].value_counts(dropna=False).plot(kind="barh", ax=ax, title="Passengers by port")
+
+# many categories: show the top N only, sorted
+top_themes = lego["Theme"].value_counts().head(15)
+fig, ax = plt.subplots(figsize=(7, 5))
+sns.barplot(x=top_themes.values, y=top_themes.index, ax=ax)
+ax.set(title="The 15 biggest LEGO themes", xlabel="Number of sets", ylabel="")
+
+# target RATE by category (classification): the bar is the mean, the line its 95% interval
+fig, ax = plt.subplots(figsize=(6, 4))
+sns.barplot(data=titanic, x="Pclass", y="Survived", hue="Sex", ax=ax)
+ax.set(title="Survival rate by class and sex", ylabel="Survival rate")
+
+# shares within each category with a crosstab
+shares = pd.crosstab(titanic["Pclass"], titanic["Survived"], normalize="index")
+ax = shares.plot(kind="bar", stacked=True, figsize=(6, 4), title="Share surviving within each class")
+ax.set_ylabel("Share of passengers")
+
+# numeric target across categories (regression): box plots, ordered by median
+order = lego.groupby("Theme_Group")["USD_MSRP"].median().sort_values().index
+fig, ax = plt.subplots(figsize=(8, 5))
+sns.boxplot(data=lego, x="USD_MSRP", y="Theme_Group", order=order, ax=ax)
+ax.set(xscale="log", title="Price by theme group (log scale)", xlabel="Price (USD)", ylabel="")
+```
+
+> **Watch out:** a bar of a group mean hides how many rows are behind it: a category with five rows can show an extreme rate by chance. Check the counts alongside (`value_counts()`), and treat categories with very few rows with caution. Sort bars by value (or by a natural order) rather than alphabetically.
+
+See also: [Bar chart](#bar-chart), [.value_counts()](#value-counts), [pd.crosstab()](#pd-crosstab), [sns.lineplot(), sns.barplot() and error bars](#sns-lineplot-sns-barplot-and-error-bars), [seaborn relationship and category plots](#seaborn-relationship-and-category-plots)
+
+<a id="eda-charts-relationships-correlation-and-time"></a>
+
+### EDA charts: relationships, correlation and time
+
+_pandas, matplotlib, seaborn_
+
+Relationship charts show how two numeric columns move together, which features are strongly related to the target (candidate predictors) or to each other (multicollinearity), and how values change over time.
+
+```python
+# two numeric columns
+fig, ax = plt.subplots(figsize=(6, 4))
+sns.scatterplot(data=lego, x="Pieces", y="USD_MSRP", alpha=0.3, ax=ax)
+ax.set(xscale="log", yscale="log", title="Price rises with piece count")
+
+fig, ax = plt.subplots(figsize=(6, 4))
+sns.regplot(data=auto, x="weight", y="mpg", scatter_kws={"alpha": 0.4}, ax=ax)   # with a trend line
+ax.set_title("Heavier cars do fewer miles per gallon")
+
+# correlation heatmap: lower triangle only, annotated
+cols = ["Survived", "Pclass", "Age", "SibSp", "Parch", "Fare"]
+corr = titanic[cols].corr()
+mask = np.triu(np.ones_like(corr, dtype=bool))             # hide the mirror-image upper half
+fig, ax = plt.subplots(figsize=(6, 5))
+sns.heatmap(corr, mask=mask, annot=True, fmt=".2f", cmap="coolwarm",
+            vmin=-1, vmax=1, center=0, ax=ax)
+ax.set_title("Correlations (Pearson)")
+
+corr["Survived"].drop("Survived").sort_values()            # features ranked by correlation with the target
+
+# several relationships at once on a sample (pair plots are slow on big tables)
+sample = titanic[["Age", "Fare", "Pclass", "Survived"]].dropna().sample(300, random_state=RANDOM_STATE)
+sns.pairplot(sample, hue="Survived", corner=True)
+
+# over time: resample to a regular period, then smooth with a rolling mean
+yearly = ufo.set_index("Time").resample("YE").size()         # sightings per year ("Y" in pandas < 2.2)
+fig, ax = plt.subplots(figsize=(8, 3.5))
+yearly.plot(ax=ax, label="sightings per year")
+yearly.rolling(5).mean().plot(ax=ax, label="5-year rolling average")
+ax.set(title="UFO sightings rose sharply after the mid-1990s", xlabel="")
+ax.legend()
+
+fig, ax = plt.subplots(figsize=(6, 3))
+ufo["Time"].dt.month.value_counts().sort_index().plot(kind="bar", ax=ax,
+                                                       title="Sightings by month: a summer peak")
+```
+
+> **Watch out:** a correlation measures **linear** association only (a strong curve can score near 0), it's sensitive to outliers, and it never shows causation. Read the scatter plot behind any correlation you report. Use `.corr(method="spearman")` for skewed or ranked data.
+
+See also: [Scatter plot](#scatter-plot), [Trend lines: regplot and lmplot](#trend-lines-regplot-and-lmplot), [Heatmap](#heatmap), [Correlation matrix](#correlation-matrix), [Pair plot / scatter matrix](#pair-plot-scatter-matrix), [Line chart](#line-chart), [.resample()](#resample)
+
+<a id="reusable-eda-plotting-helpers"></a>
+
+### Reusable EDA plotting helpers
+
+_matplotlib, seaborn_
+
+Three functions that chart a whole table in a few lines: every numeric column, every categorical column, and the target against every feature. They choose the right chart for each column type automatically, so they work on your capstone data as well as on the course datasets. Each returns the figure, so you can save it.
+
+```python
+def plot_numeric_grid(df, cols=None, ncols=3, bins=30):
+    """Histogram with KDE for every numeric column, titled with the median and % missing."""
+    cols = cols or df.select_dtypes("number").columns.tolist()
+    nrows = math.ceil(len(cols) / ncols)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(5 * ncols, 3.2 * nrows), squeeze=False)
+    for ax, col in zip(axes.flat, cols):
+        values = df[col].dropna()
+        sns.histplot(values, bins=bins, kde=True, ax=ax)
+        ax.set_title(f"{col}: median {values.median():,.2f}, {df[col].isna().mean():.0%} missing",
+                     fontsize=10)
+        ax.set_xlabel("")
+    for ax in axes.flat[len(cols):]:
+        ax.remove()                                              # remove unused panels
+    fig.tight_layout()
+    return fig
+
+
+def plot_category_grid(df, cols=None, top_n=10, ncols=2):
+    """Bar chart of the top categories (missing included) for every categorical column."""
+    cols = cols or df.select_dtypes(exclude=["number", "datetime"]).columns.tolist()
+    nrows = math.ceil(len(cols) / ncols)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(6 * ncols, 3.2 * nrows), squeeze=False)
+    for ax, col in zip(axes.flat, cols):
+        counts = df[col].astype("string").fillna("(missing)").value_counts().head(top_n)
+        sns.barplot(x=counts.values, y=counts.index, ax=ax)
+        ax.set_title(f"{col}: {df[col].nunique()} categories", fontsize=10)
+        ax.set(xlabel="rows", ylabel="")
+    for ax in axes.flat[len(cols):]:
+        ax.remove()
+    fig.tight_layout()
+    return fig
+
+
+def plot_target_by_features(df, target, features, ncols=3, top_n=10, max_points=2000):
+    """The target against each feature, with the right chart for each combination of types."""
+    numeric_target = pd.api.types.is_numeric_dtype(df[target]) and df[target].nunique() > 10
+    nrows = math.ceil(len(features) / ncols)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(5 * ncols, 3.6 * nrows), squeeze=False)
+    sample = df.sample(min(len(df), max_points), random_state=0)
+    for ax, feat in zip(axes.flat, features):
+        numeric_feat = pd.api.types.is_numeric_dtype(df[feat]) and df[feat].nunique() > 10
+        if numeric_feat and numeric_target:                      # number vs number: scatter
+            sns.scatterplot(data=sample, x=feat, y=target, alpha=0.4, ax=ax)
+        elif numeric_feat:                                       # number vs class: box plot per class
+            sns.boxplot(data=df, x=target, y=feat, ax=ax)
+        else:                                                    # category: top categories only
+            top = df[feat].value_counts().head(top_n).index
+            if pd.api.types.is_numeric_dtype(df[feat]):
+                top = top.sort_values()                          # 1, 2, 3 rather than by count
+            subset = df[df[feat].isin(top)]
+            if numeric_target:
+                sns.boxplot(data=subset, x=target, y=feat, order=top, ax=ax)
+            else:
+                sns.barplot(data=subset, x=feat, y=target, order=top, ax=ax)   # mean = rate
+                ax.set_ylabel(f"{target} rate")
+                ax.tick_params(axis="x", rotation=45)
+        ax.set_title(f"{target} vs {feat}", fontsize=10)
+    for ax in axes.flat[len(features):]:
+        ax.remove()
+    fig.tight_layout()
+    return fig
+
+
+plot_numeric_grid(titanic, ["Age", "Fare", "SibSp", "Parch"])
+plot_category_grid(titanic, ["Sex", "Embarked", "Pclass", "Cabin"])
+fig = plot_target_by_features(titanic, "Survived", ["Sex", "Pclass", "Embarked", "Age", "Fare", "SibSp"])
+fig.savefig(OUT_DIR / "survival_by_feature.png", dpi=150, bbox_inches="tight")
+```
+
+> **Watch out:** helpers are for **exploring**. For the few charts you'll present, make each one individually, with a title that states the finding, labelled axes with units, and a note of the data source. Very high-cardinality columns (names, IDs) make unreadable category charts; leave them out of the column list.
+
+See also: [plt.subplots()](#plt-subplots), [Subplot grids: subplot, add_subplot, delaxes and suptitle](#subplot-grids-subplot-add-subplot-delaxes-and-suptitle), [Figure-level vs axes-level seaborn functions](#figure-level-vs-axes-level-seaborn-functions)
+
+<a id="export-clean-data-and-figures"></a>
+
+### Export clean data and figures
+
+_pandas, matplotlib_
+
+Save the outputs of the data stage so the modelling notebook starts from the clean table rather than repeating the cleaning. Use **Parquet** for the clean data (it keeps the types), CSV when someone needs to open it elsewhere, one **Excel workbook** for the tables you'll put in your report, and image files for your figures.
+
+```python
+titanic_filled.to_parquet(OUT_DIR / "titanic_clean.parquet", index=False)   # for your next notebook
+titanic_filled.to_csv(OUT_DIR / "titanic_clean.csv", index=False)           # for sharing
+
+report_tables = {                                                           # several tables, one workbook
+    "clean_data": titanic_filled,
+    "missing_report": missing_report(titanic),
+    "numeric_summary": titanic_filled.describe().T,
+}
+with pd.ExcelWriter(OUT_DIR / "capstone_tables.xlsx") as writer:
+    for sheet, table in report_tables.items():
+        table.to_excel(writer, sheet_name=sheet[:31], index=(sheet == "numeric_summary"))
+
+with pd.ExcelWriter(OUT_DIR / "workbook_clean.xlsx") as writer:              # the Excel import, cleaned
+    for name, frame in workbook.items():
+        frame.to_excel(writer, sheet_name=name[:31], index=False)
+
+fig.savefig(OUT_DIR / "survival_by_feature.png", dpi=150, bbox_inches="tight")   # every figure you present
+```
+
+> **Watch out:** Excel sheet names are limited to 31 characters (hence `[:31]`), and Excel can't store timezone-aware dates; remove the timezone with `.dt.tz_localize(None)` first. Saving with `bbox_inches="tight"` stops titles and labels being cut off.
+
+See also: [.to_csv()](#to-csv), [Excel files: read_excel() and to_excel()](#excel-files-read-excel-and-to-excel), [Import Parquet, JSON and other formats](#import-parquet-json-and-other-formats), [Saving a fitted pipeline (joblib)](#saving-a-fitted-pipeline-joblib)
+
+---
+
+<a id="course-materials-map"></a>
+
+## Course materials map
+
+**Datasets** (in `data/` and the lessons' `practice/data/` folders): `lego.csv`, `cpi.json`, `titanic-adj.csv`, `housing-geron.csv`, `sodas.csv`, `sodas_2.csv`, `imdb_1000.csv`, `ufo.csv`, `autoMPG.csv`, `iowa_houses.csv`, `drinks.csv`, `eu-govt-bonds.tsv` and `eu-govt-bonds-cleaned.csv`, `country-codes.csv`, `rock.csv`, `rejections.csv.gz` with `loans_data_dictionary.xlsx`, and the other practice files. The setup block under [How to read the examples](#how-to-read-the-examples) loads the ones the glossary uses.
 
 ---
 
@@ -8150,622 +9298,556 @@ See also: [Random seed (Unit 2)](https://github.com/CharleyHananiaGA/DSB-Unit-02
 
 ## A–Z index
 
+**0–9**
+
+- [3-D plots](#3-d-plots)
+
 **A**
 
-- [Accuracy](#accuracy)
-- [ACF plot](#acf-plot)
-- [AdaBoost](#adaboost)
-- [AdaBoost from scratch](#adaboost-from-scratch)
-- [AdaBoostClassifier](#adaboostclassifier)
-- [Adam, RMSProp and IRLS](#adam-rmsprop-and-irls)
-- [ADASYN](#adasyn)
-- [Addition rule (unions)](#addition-rule-unions)
-- [Adjusted Rand index (ARI)](#adjusted-rand-index-ari)
-- [Adjusted R²](#adjusted-r2)
-- [Agent-based modelling (ABM)](#agent-based-modelling-abm)
-- [Agglomerative clustering](#agglomerative-clustering)
-- [AI, machine learning and deep learning](#ai-machine-learning-and-deep-learning)
-- [AIC (Akaike Information Criterion)](#aic-akaike-information-criterion)
-- [alpha (regularization strength)](#alpha-regularization-strength)
-- [Analytical model vs simulation](#analytical-model-vs-simulation)
-- [ARCH(p)](#arch-p)
-- [ARIMA with exog (GLS in Python)](#arima-with-exog-gls-in-python)
-- [ARIMA(p, d, q)](#arima-p-d-q)
-- [ARMA(p, q)](#arma-p-q)
-- [AUC (ROC AUC)](#auc-roc-auc)
-- [Augmented Dickey–Fuller (ADF) test](#augmented-dickey-fuller-adf-test)
-- [Autocorrelation](#autocorrelation)
-- [Autoregression (AR)](#autoregression-ar)
+- [A/B test](#a-b-test)
+- [Adding rows with .loc](#adding-rows-with-loc)
+- [.agg()](#agg)
+- [Alternative hypothesis (H₁)](#alternative-hypothesis-h)
+- [Annotations: text, reference lines and legends](#annotations-text-reference-lines-and-legends)
+- [ANOVA](#anova)
+- [Anscombe's quartet](#anscombe-s-quartet)
+- [API (Application Programming Interface)](#api-application-programming-interface)
+- [API documentation](#api-documentation)
+- [API key](#api-key)
+- [API risks: cost and maintenance](#api-risks-cost-and-maintenance)
+- [API wrapper](#api-wrapper)
+- [Apply functions to columns, rows and groups](#apply-functions-to-columns-rows-and-groups)
+- [.apply()](#apply)
+- [np.arange() and np.linspace()](#np-arange-and-np-linspace)
+- [Arguments and parameters](#arguments-and-parameters)
+- [Array (ndarray)](#array-ndarray)
+- [assert](#assert)
+- [.assign()](#assign)
+- [.astype()](#astype)
+- [Audit missing values by field type](#audit-missing-values-by-field-type)
+- [Axes](#axes)
+- [Axes methods](#axes-methods)
+- [axis](#axis)
 
 **B**
 
-- [Bagging (bootstrap aggregating)](#bagging-bootstrap-aggregating)
-- [Bagging vs boosting](#bagging-vs-boosting)
-- [BaggingClassifier](#baggingclassifier)
-- [Balanced accuracy](#balanced-accuracy)
-- [Balanced model](#balanced-model)
-- [Base rate and false alarms](#base-rate-and-false-alarms)
-- [Base rate fallacy](#base-rate-fallacy)
-- [Baseline costs and projected savings](#baseline-costs-and-projected-savings)
-- [Bayes' theorem](#bayes-theorem)
-- [Bayesian A/B testing](#bayesian-a-b-testing)
-- [Bayesian election forecasting](#bayesian-election-forecasting)
-- [Bayesian statistics](#bayesian-statistics)
-- [Benefits of simulation](#benefits-of-simulation)
-- [best*params*, best*score* and best*estimator*](#best-params-best-score-and-best-estimator)
+- [Bar chart](#bar-chart)
+- [Baseline model](#baseline-model)
+- [Bessel's correction (ddof)](#bessel-s-correction-ddof)
+- [Better-than-default data types](#better-than-default-data-types)
+- [Between-subject design](#between-subject-design)
 - [Bias](#bias)
-- [Bias–variance decomposition](#bias-variance-decomposition)
-- [Bias–variance trade-off](#bias-variance-trade-off)
-- [Big data considerations](#big-data-considerations)
-- [Binary and multiclass classification](#binary-and-multiclass-classification)
-- [Birch and Affinity Propagation](#birch-and-affinity-propagation)
-- [Black-box model](#black-box-model)
-- [Boosting](#boosting)
-- [Boosting pros and cons](#boosting-pros-and-cons)
-- [Bootstrap sample](#bootstrap-sample)
-- [Bootstrapping](#bootstrapping)
-- [Build, buy or partner](#build-buy-or-partner)
-- [Bullseye diagram](#bullseye-diagram)
+- [Bimodal / multimodal distribution](#bimodal-multimodal-distribution)
+- [Binning (discretization)](#binning-discretization)
+- [Blinding](#blinding)
+- [Blocking factor](#blocking-factor)
+- [Boolean (bool)](#boolean-bool)
+- [Boolean mask (filtering)](#boolean-mask-filtering)
+- [Box plot](#box-plot)
+- [Build a data dictionary from your data](#build-a-data-dictionary-from-your-data)
+- [Built-in functions](#built-in-functions)
 
 **C**
 
-- [C (inverse regularization strength)](#c-inverse-regularization-strength)
-- [C (SVM)](#c-svm)
-- [Calibration](#calibration)
-- [Calling an LLM from Python](#calling-an-llm-from-python)
-- [Capstone template: classification](#capstone-template-classification)
-- [Capstone template: clustering](#capstone-template-clustering)
-- [Capstone template: regression](#capstone-template-regression)
-- [Capstone template: time series forecasting](#capstone-template-time-series-forecasting)
-- [CART algorithm](#cart-algorithm)
-- [CatBoost](#catboost)
-- [Categorical features in kNN](#categorical-features-in-knn)
-- [ccp_alpha (cost-complexity pruning)](#ccp-alpha-cost-complexity-pruning)
-- [Centroid](#centroid)
-- [Centroid initialization](#centroid-initialization)
-- [Changing the threshold for imbalanced data](#changing-the-threshold-for-imbalanced-data)
-- [Chat interface vs API](#chat-interface-vs-api)
-- [Choosing a classification metric](#choosing-a-classification-metric)
-- [Choosing a regression metric](#choosing-a-regression-metric)
-- [Choosing a scoring metric for tuning](#choosing-a-scoring-metric-for-tuning)
-- [Choosing a simulation approach](#choosing-a-simulation-approach)
-- [Choosing an approach by question type](#choosing-an-approach-by-question-type)
-- [Choosing k](#choosing-k)
-- [Choosing n_components with grid search](#choosing-n-components-with-grid-search)
-- [Choosing p, d and q](#choosing-p-d-and-q)
-- [Choosing the number of clusters](#choosing-the-number-of-clusters)
-- [Choosing α](#choosing)
-- [Class weights](#class-weights)
-- [Classical decomposition](#classical-decomposition)
-- [Classification](#classification)
-- [Classification threshold](#classification-threshold)
-- [classification_report()](#classification-report)
-- [Closed-form solution](#closed-form-solution)
-- [Cluster labels are arbitrary](#cluster-labels-are-arbitrary)
-- [Clustering](#clustering)
-- [Clustering algorithms](#clustering-algorithms)
-- [.coef* and .intercept*](#coef-and-intercept)
-- [Coefficients are not importance](#coefficients-are-not-importance)
-- [Coffee shop queue simulation](#coffee-shop-queue-simulation)
-- [Collaborative filtering](#collaborative-filtering)
-- [Common capstone mistakes checklist](#common-capstone-mistakes-checklist)
-- [Comparing AdaBoost, gradient boosting and XGBoost](#comparing-adaboost-gradient-boosting-and-xgboost)
-- [Comparing clustering algorithms](#comparing-clustering-algorithms)
-- [Comparing models on the same scale](#comparing-models-on-the-same-scale)
-- [Complement (Aᶜ)](#complement-a)
-- [Complement rule](#complement-rule)
-- [Conditional heteroscedasticity](#conditional-heteroscedasticity)
-- [Conditional probability](#conditional-probability)
-- [Confusion matrix](#confusion-matrix)
-- [ConfusionMatrixDisplay](#confusionmatrixdisplay)
-- [Conjugate prior (Beta–binomial)](#conjugate-prior-beta-binomial)
-- [Content-based, knowledge-based and hybrid recommenders](#content-based-knowledge-based-and-hybrid-recommenders)
-- [Context window](#context-window)
-- [Convergence and tolerance](#convergence-and-tolerance)
-- [Convex function](#convex-function)
-- [Core, border and noise points](#core-border-and-noise-points)
-- [Cosine similarity](#cosine-similarity)
-- [Counterfactual explanation](#counterfactual-explanation)
-- [Covariance matrix, eigenvectors and eigenvalues](#covariance-matrix-eigenvectors-and-eigenvalues)
-- [Credible interval](#credible-interval)
-- [Cross-validation pros and cons](#cross-validation-pros-and-cons)
-- [cross_val_score()](#cross-val-score)
-- [cv*results*](#cv-results)
+- [Caching API responses](#caching-api-responses)
+- [calendar module](#calendar-module)
+- [Capped values](#capped-values)
+- [Capstone common-mistakes checklist](#capstone-common-mistakes-checklist)
+- [Capstone notebook setup](#capstone-notebook-setup)
+- [Cardinality](#cardinality)
+- [Causation](#causation)
+- [Central tendency](#central-tendency)
+- [Checking join keys](#checking-join-keys)
+- [Choosing a chart type](#choosing-a-chart-type)
+- [Choosing histogram bins](#choosing-histogram-bins)
+- [Choosing the outcome measure](#choosing-the-outcome-measure)
+- [Class imbalance](#class-imbalance)
+- [Classifying missingness: the survey exercise](#classifying-missingness-the-survey-exercise)
+- [Classifying variables in code](#classifying-variables-in-code)
+- [Clean and validate dates and times](#clean-and-validate-dates-and-times)
+- [Cleaning text categories](#cleaning-text-categories)
+- [Cleaning workflow](#cleaning-workflow)
+- [Colorbar](#colorbar)
+- [Colormap / palette](#colormap-palette)
+- [Column deletion](#column-deletion)
+- [.columns](#columns)
+- [ColumnTransformer](#columntransformer)
+- [Combining conditions (& | ~)](#combining-conditions)
+- [Common distributions in data](#common-distributions-in-data)
+- [Common HTTP status codes](#common-http-status-codes)
+- [Comparison methods and .between()](#comparison-methods-and-between)
+- [Completely Randomized Block Design (CRBD)](#completely-randomized-block-design-crbd)
+- [Completely Randomized Design (CRD)](#completely-randomized-design-crd)
+- [pd.concat()](#pd-concat)
+- [np.concatenate() and np.append()](#np-concatenate-and-np-append)
+- [Confounding variable](#confounding-variable)
+- [Constant value imputation](#constant-value-imputation)
+- [continue and break](#continue-and-break)
+- [Continuous variable](#continuous-variable)
+- [Control group](#control-group)
+- [.copy()](#copy)
+- [Copy-on-Write](#copy-on-write)
+- [Correlation](#correlation)
+- [Correlation does not imply causation](#correlation-does-not-imply-causation)
+- [Correlation matrix](#correlation-matrix)
+- [Correlation with the target](#correlation-with-the-target)
+- [Covariance](#covariance)
+- [Creating a new column](#creating-a-new-column)
+- [Creating features from domain knowledge](#creating-features-from-domain-knowledge)
+- [Cross-validation](#cross-validation)
+- [pd.crosstab()](#pd-crosstab)
+- [csv module (DictReader and DictWriter)](#csv-module-dictreader-and-dictwriter)
+- [curl](#curl)
+- [Curse of dimensionality](#curse-of-dimensionality)
+- [Custom transformer](#custom-transformer)
 
 **D**
 
-- [Data leakage (in model evaluation)](#data-leakage-in-model-evaluation)
-- [Data minimization and anonymization](#data-minimization-and-anonymization)
-- [Data privacy with GenAI tools](#data-privacy-with-genai-tools)
-- [Data science lifecycle](#data-science-lifecycle)
-- [Date-based slicing](#date-based-slicing)
-- [Datetime index](#datetime-index)
-- [DBSCAN](#dbscan)
-- [DBSCAN pros and cons](#dbscan-pros-and-cons)
-- [De Morgan's laws](#de-morgan-s-laws)
-- [Decision boundary](#decision-boundary)
-- [Decision stump](#decision-stump)
-- [Decision tree](#decision-tree)
-- [Decision tree pros and cons](#decision-tree-pros-and-cons)
-- [decision_function()](#decision-function)
-- [DecisionTreeClassifier and DecisionTreeRegressor](#decisiontreeclassifier-and-decisiontreeregressor)
-- [Dendrogram](#dendrogram)
-- [Derivative](#derivative)
-- [Design matrix](#design-matrix)
-- [Differencing and .diff()](#differencing-and-diff)
-- [Dimensionality reduction](#dimensionality-reduction)
-- [Dimensionality-reduced reconstruction](#dimensionality-reduced-reconstruction)
-- [Discrete event simulation (DES)](#discrete-event-simulation-des)
-- [Disjoint (mutually exclusive) events](#disjoint-mutually-exclusive-events)
-- [Distance metric (the four rules)](#distance-metric-the-four-rules)
-- [Distance metrics (Euclidean, Manhattan, Minkowski)](#distance-metrics-euclidean-manhattan-minkowski)
-- [Dummy variables in regression](#dummy-variables-in-regression)
-- [DummyClassifier](#dummyclassifier)
-- [Durbin–Watson statistic](#durbin-watson-statistic)
+- [Data dictionary](#data-dictionary)
+- [Data leakage](#data-leakage)
+- [Data quality assessment](#data-quality-assessment)
+- [Data source comparison](#data-source-comparison)
+- [Data type](#data-type)
+- [Data-understanding checklist](#data-understanding-checklist)
+- [DataFrame](#dataframe)
+- [datetime module](#datetime-module)
+- [Define validation rules and check your data](#define-validation-rules-and-check-your-data)
+- [Deletion methods](#deletion-methods)
+- [Density plot / KDE](#density-plot-kde)
+- [.describe()](#describe)
+- [Descriptive statistics](#descriptive-statistics)
+- [Detect and treat outliers](#detect-and-treat-outliers)
+- [Deviation](#deviation)
+- [Dictionary (dict)](#dictionary-dict)
+- [Dictionary and set comprehensions](#dictionary-and-set-comprehensions)
+- [Dictionary methods](#dictionary-methods)
+- [Discrete / categorical variable](#discrete-categorical-variable)
+- [Discrete vs continuous random variable](#discrete-vs-continuous-random-variable)
+- [Distribution](#distribution)
+- [Distribution transformation](#distribution-transformation)
+- [Docstring](#docstring)
+- [.drop()](#drop)
+- [.drop_duplicates()](#drop-duplicates)
+- [.dropna()](#dropna)
+- [.dt accessor](#dt-accessor)
+- [dtype](#dtype)
+- [Dummy variable trap](#dummy-variable-trap)
+- [Duplicate rows and leakage](#duplicate-rows-and-leakage)
+- [.duplicated()](#duplicated)
 
 **E**
 
-- [ElasticNet](#elasticnet)
-- [Elbow method](#elbow-method)
-- [Embedding](#embedding)
-- [Emergence](#emergence)
-- [Ensemble model](#ensemble-model)
-- [Entropy and cross-entropy](#entropy-and-cross-entropy)
-- [eps and min_samples](#eps-and-min-samples)
-- [Equal variance / homoscedasticity (E)](#equal-variance-homoscedasticity-e)
-- [Error term (ε)](#error-term)
-- [Ethical concerns with GenAI](#ethical-concerns-with-genai)
-- [Ethical, legal and strategic implications](#ethical-legal-and-strategic-implications)
-- [Euclidean distance](#euclidean-distance)
-- [Evaluating a split with Gini](#evaluating-a-split-with-gini)
-- [Event](#event)
-- [Exogenous and endogenous variables](#exogenous-and-endogenous-variables)
+- [EDA charts: categories and the target](#eda-charts-categories-and-the-target)
+- [EDA charts: distributions](#eda-charts-distributions)
+- [EDA charts: relationships, correlation and time](#eda-charts-relationships-correlation-and-time)
+- [EDA findings that shape model choice](#eda-findings-that-shape-model-choice)
+- [EDA for exploration](#eda-for-exploration)
+- [EDA for modeling](#eda-for-modeling)
+- [EDA template notebook](#eda-template-notebook)
+- [Effect size (Cohen's d)](#effect-size-cohen-s-d)
+- [Encoding categorical data](#encoding-categorical-data)
+- [Endpoint](#endpoint)
+- [enumerate()](#enumerate)
+- [Environment variables and .env files](#environment-variables-and-env-files)
+- [Equal-frequency binning (pd.qcut)](#equal-frequency-binning-pd-qcut)
+- [Equal-width binning (pd.cut)](#equal-width-binning-pd-cut)
+- [Establishing causality](#establishing-causality)
+- [Evaluation metrics (R², MSE, RMSE, MAE, accuracy)](#evaluation-metrics-r-mse-rmse-mae-accuracy)
+- [Excel files: read_excel() and to_excel()](#excel-files-read-excel-and-to-excel)
+- [Expected value](#expected-value)
 - [Experiment](#experiment)
-- [Explained variance and explained variance ratio](#explained-variance-and-explained-variance-ratio)
-- [export_text()](#export-text)
-- [External cluster metrics](#external-cluster-metrics)
-- [Extrapolation](#extrapolation)
+- [Experimental unit](#experimental-unit)
+- [Exploratory Data Analysis (EDA)](#exploratory-data-analysis-eda)
+- [Export clean data and figures](#export-clean-data-and-figures)
 
 **F**
 
-- [F-beta score](#f-beta-score)
-- [F1 score](#f1-score)
-- [False positive rate (FPR)](#false-positive-rate-fpr)
-- [Feasibility assessment](#feasibility-assessment)
-- [Feature importance](#feature-importance)
-- [Feature importance in ensembles](#feature-importance-in-ensembles)
-- [Feature scale in linear regression](#feature-scale-in-linear-regression)
-- [Feature scaling and gradient descent](#feature-scaling-and-gradient-descent)
-- [Feedback loop](#feedback-loop)
-- [fit_regularized() in statsmodels](#fit-regularized-in-statsmodels)
-- [fit_resample()](#fit-resample)
-- [Fitting sine exercise](#fitting-sine-exercise)
-- [Five key considerations for framing](#five-key-considerations-for-framing)
-- [Flat curves (vanishing steps)](#flat-curves-vanishing-steps)
-- [Fold](#fold)
-- [Four pillars of simulation](#four-pillars-of-simulation)
-- [Framing checklist](#framing-checklist)
-- [Framing the problem type early](#framing-the-problem-type-early)
-- [Frequentist vs Bayesian](#frequentist-vs-bayesian)
-- [From coefficients to probability](#from-coefficients-to-probability)
+- [f-string](#f-string)
+- [Feature (independent variable)](#feature-independent-variable)
+- [Feature engineering](#feature-engineering)
+- [Feature engineering inside pipelines](#feature-engineering-inside-pipelines)
+- [Feature engineering pitfalls](#feature-engineering-pitfalls)
+- [Features from dates](#features-from-dates)
+- [Figure](#figure)
+- [Figure-level vs axes-level seaborn functions](#figure-level-vs-axes-level-seaborn-functions)
+- [Fill gaps by field type](#fill-gaps-by-field-type)
+- [Fill gaps with models](#fill-gaps-with-models)
+- [.fillna()](#fillna)
+- [Filter rows: a cheat sheet](#filter-rows-a-cheat-sheet)
+- [Find and handle duplicates](#find-and-handle-duplicates)
+- [Find the code you need](#find-the-code-you-need)
+- [fit / predict](#fit-predict)
+- [Five-number summary](#five-number-summary)
+- [Fix misspelled and inconsistent categories](#fix-misspelled-and-inconsistent-categories)
+- [flatten() and ravel()](#flatten-and-ravel)
+- [Float](#float)
+- [.floordiv() and .mul()](#floordiv-and-mul)
+- [for loop](#for-loop)
+- [Four purposes of experiments](#four-purposes-of-experiments)
+- [Four steps of experimental design](#four-steps-of-experimental-design)
+- [Frame the question and the target](#frame-the-question-and-the-target)
+- [Full factorial design](#full-factorial-design)
+- [Function (def)](#function-def)
+- [Function, method and attribute](#function-method-and-attribute)
+- [FunctionTransformer](#functiontransformer)
 
 **G**
 
-- [Gambler's fallacy](#gambler-s-fallacy)
-- [gamma](#gamma)
-- [GARCH(p, q)](#garch-p-q)
-- [GenAI tools for data scientists](#genai-tools-for-data-scientists)
-- [Generalization](#generalization)
-- [Generalized least squares (GLS)](#generalized-least-squares-gls)
-- [Generation mode vs analysis mode](#generation-mode-vs-analysis-mode)
-- [Generative AI (GenAI)](#generative-ai-genai)
-- [Gini impurity](#gini-impurity)
-- [Global vs local explanations](#global-vs-local-explanations)
-- [Gradient boosting](#gradient-boosting)
-- [Gradient descent](#gradient-descent)
-- [Gradient descent for OLS](#gradient-descent-for-ols)
-- [GradientBoostingClassifier](#gradientboostingclassifier)
-- [Greedy algorithm](#greedy-algorithm)
-- [Grid approximation](#grid-approximation)
-- [Grid search](#grid-search)
-- [GridSearchCV](#gridsearchcv)
+- [Garbage in, garbage out](#garbage-in-garbage-out)
+- [pd.get_dummies()](#pd-get-dummies)
+- [get_feature_names_out() and set_output()](#get-feature-names-out-and-set-output)
+- [Grain of a table](#grain-of-a-table)
+- [Granularity](#granularity)
+- [Group-based imputation](#group-based-imputation)
+- [groupby()](#groupby)
 
 **H**
 
-- [Hallucination](#hallucination)
-- [Hat notation (ŷ, β̂)](#hat-notation)
-- [HDBSCAN](#hdbscan)
-- [Hierarchical clustering](#hierarchical-clustering)
-- [Holdout method](#holdout-method)
-- [How GenAI output goes wrong](#how-genai-output-goes-wrong)
-- [How LLMs are trained](#how-llms-are-trained)
-- [Hyperparameter](#hyperparameter)
-- [Hyperparameter tuning](#hyperparameter-tuning)
-- [Hyperparameter vs parameter](#hyperparameter-vs-parameter)
+- [.head() and .tail()](#head-and-tail)
+- [Heatmap](#heatmap)
+- [High-cardinality strategies](#high-cardinality-strategies)
+- [Histogram](#histogram)
+- [Homoscedasticity](#homoscedasticity)
+- [HTML](#html)
+- [HTTP](#http)
+- [HTTP methods (GET, POST, PUT, DELETE)](#http-methods-get-post-put-delete)
+- [hue](#hue)
+- [Hypothesis](#hypothesis)
+- [Hypothesis testing](#hypothesis-testing)
 
 **I**
 
-- [Imbalanced classes](#imbalanced-classes)
-- [Imbalanced data checklist](#imbalanced-data-checklist)
-- [imbalanced-learn pipeline](#imbalanced-learn-pipeline)
-- [Independence (I)](#independence-i)
-- [Individual conditional expectation (ICE)](#individual-conditional-expectation-ice)
-- [Inertia (within-cluster sum of squares)](#inertia-within-cluster-sum-of-squares)
-- [Influence/interest grid](#influence-interest-grid)
-- [Information criteria (AIC, BIC, Mallows's Cp)](#information-criteria-aic-bic-mallows-s-cp)
-- [Ingredients of a supervised model](#ingredients-of-a-supervised-model)
-- [Interaction term](#interaction-term)
-- [Intercept (β₀)](#intercept)
-- [Interpretability](#interpretability)
-- [Interpreting coefficients](#interpreting-coefficients)
-- [Interpreting logistic regression coefficients](#interpreting-logistic-regression-coefficients)
-- [Intersection (A ∩ B)](#intersection-a-b)
-- [Irreducible error](#irreducible-error)
-- [itertools.product()](#itertools-product)
+- [.idxmin() and .idxmax()](#idxmin-and-idxmax)
+- [if / elif / else](#if-elif-else)
+- [.iloc[]](#iloc)
+- [import](#import)
+- [Import CSV and TSV files](#import-csv-and-tsv-files)
+- [Import every sheet from an Excel workbook](#import-every-sheet-from-an-excel-workbook)
+- [Import Parquet, JSON and other formats](#import-parquet-json-and-other-formats)
+- [Imputation](#imputation)
+- [Index](#index)
+- [Indexing and slicing](#indexing-and-slicing)
+- [Inferential statistics](#inferential-statistics)
+- [Infinity (inf) from dividing by zero](#infinity-inf-from-dividing-by-zero)
+- [.info()](#info)
+- [Inheritance](#inheritance)
+- [Inner join](#inner-join)
+- [inplace=True](#inplace-true)
+- [Integer (int)](#integer-int)
+- [Internal and external validity](#internal-and-external-validity)
+- [Interquartile range (IQR)](#interquartile-range-iqr)
+- [Interval](#interval)
+- [IQR outlier fences](#iqr-outlier-fences)
+- [.isin()](#isin)
+- [.isnull() / .isna()](#isnull-isna)
+- [Item missingness](#item-missingness)
 
 **J**
 
-- [Johnson & Johnson earnings (running example)](#johnson-and-johnson-earnings-running-example)
+- [Join](#join)
+- [Join DataFrames safely](#join-dataframes-safely)
+- [JSON](#json)
+- [pd.json_normalize()](#pd-json-normalize)
+- [Jupyter notebook](#jupyter-notebook)
 
 **K**
 
-- [k-distance plot](#k-distance-plot)
-- [k-fold cross-validation](#k-fold-cross-validation)
-- [k-means](#k-means)
-- [k-means assumptions](#k-means-assumptions)
-- [k-means sensitivities](#k-means-sensitivities)
-- [k-means strengths and weaknesses](#k-means-strengths-and-weaknesses)
-- [k-nearest neighbors (kNN)](#k-nearest-neighbors-knn)
-- [Kernel](#kernel)
-- [Kernel trick](#kernel-trick)
-- [KernelExplainer and force plot](#kernelexplainer-and-force-plot)
-- [Key components of a simulation](#key-components-of-a-simulation)
-- [Key probability facts (Kolmogorov's axioms)](#key-probability-facts-kolmogorov-s-axioms)
-- [KFold](#kfold)
-- [KMeans](#kmeans)
-- [KNeighborsClassifier](#kneighborsclassifier)
-- [kNN strengths and weaknesses](#knn-strengths-and-weaknesses)
+- [KBinsDiscretizer](#kbinsdiscretizer)
+- [Keep a cleaning log](#keep-a-cleaning-log)
+- [Keeping API keys secret](#keeping-api-keys-secret)
+- [Kendall's tau](#kendall-s-tau)
+- [KNNImputer and IterativeImputer](#knnimputer-and-iterativeimputer)
+- [Kurtosis](#kurtosis)
 
 **L**
 
-- [labels* and cluster_centers*](#labels-and-cluster-centers)
-- [Lag (backshift) and .shift()](#lag-backshift-and-shift)
-- [Large language model (LLM)](#large-language-model-llm)
-- [Lasso regression (L1)](#lasso-regression-l1)
-- [Law of Large Numbers (LLN)](#law-of-large-numbers-lln)
-- [Lazy learner](#lazy-learner)
-- [Learning rate (step size, α)](#learning-rate-step-size)
-- [learning_rate and n_estimators](#learning-rate-and-n-estimators)
-- [Leave-one-out cross-validation (LOOCV)](#leave-one-out-cross-validation-loocv)
+- [Label encoding](#label-encoding)
+- [lambda](#lambda)
+- [Last Observation Carried Forward (LOCF)](#last-observation-carried-forward-locf)
+- [Leak-free imputation and encoding in a pipeline](#leak-free-imputation-and-encoding-in-a-pipeline)
+- [Leakage check: known at prediction time?](#leakage-check-known-at-prediction-time)
+- [Left / right join](#left-right-join)
 - [Library version changes to know](#library-version-changes-to-know)
-- [Limitations of simulation](#limitations-of-simulation)
-- [Line of best fit](#line-of-best-fit)
-- [Linear probability model](#linear-probability-model)
-- [Linear regression](#linear-regression)
-- [Linear, polynomial and RBF kernels](#linear-polynomial-and-rbf-kernels)
-- [Linearity (L)](#linearity-l)
-- [LinearRegression](#linearregression)
-- [LINEM assumptions](#linem-assumptions)
-- [Link function and the logit](#link-function-and-the-logit)
-- [Linkage](#linkage)
-- [Ljung–Box test](#ljung-box-test)
-- [Loadings (components\_)](#loadings-components)
-- [Local vs global minimum](#local-vs-global-minimum)
-- [Log loss (binary cross-entropy)](#log-loss-binary-cross-entropy)
-- [Log returns](#log-returns)
-- [Log-odds](#log-odds)
-- [Log-transforming the target](#log-transforming-the-target)
-- [Logistic (sigmoid) function](#logistic-sigmoid-function)
-- [Logistic regression](#logistic-regression)
-- [Logistic regression assumptions](#logistic-regression-assumptions)
-- [Logistic regression vs decision trees](#logistic-regression-vs-decision-trees)
-- [LogisticRegressionCV](#logisticregressioncv)
-- [Loss function](#loss-function)
+- [Line chart](#line-chart)
+- [Linear model assumptions](#linear-model-assumptions)
+- [LinearRegression and LogisticRegression](#linearregression-and-logisticregression)
+- [sns.lineplot(), sns.barplot() and error bars](#sns-lineplot-sns-barplot-and-error-bars)
+- [List](#list)
+- [List comprehension](#list-comprehension)
+- [List the DataFrames you've created and their columns](#list-the-dataframes-you-ve-created-and-their-columns)
+- [Listwise deletion (complete-case analysis)](#listwise-deletion-complete-case-analysis)
+- [.loc[]](#loc)
+- [Log transformation](#log-transformation)
+- [Long tail](#long-tail)
+- [Looping over API requests](#looping-over-api-requests)
 
 **M**
 
-- [MACD chart](#macd-chart)
-- [Machine learning](#machine-learning)
-- [Macro, weighted and micro averages](#macro-weighted-and-micro-averages)
-- [Majority and minority class](#majority-and-minority-class)
-- [make_blobs()](#make-blobs)
-- [make_circles()](#make-circles)
-- [make_classification()](#make-classification)
-- [make_imbalance()](#make-imbalance)
-- [make_moons()](#make-moons)
-- [make_pipeline()](#make-pipeline)
-- [Margin](#margin)
-- [Markov Chain Monte Carlo (MCMC)](#markov-chain-monte-carlo-mcmc)
-- [Matrix form of OLS](#matrix-form-of-ols)
-- [max_features](#max-features)
-- [Maximal margin classifier](#maximal-margin-classifier)
-- [Mean absolute error (MAE)](#mean-absolute-error-mae)
-- [Mean centering ratings](#mean-centering-ratings)
-- [Mean squared error (MSE)](#mean-squared-error-mse)
-- [Mercer kernel](#mercer-kernel)
-- [Misclassification rate](#misclassification-rate)
-- [MNIST digits (load_digits)](#mnist-digits-load-digits)
-- [Model complexity](#model-complexity)
-- [Model explainability](#model-explainability)
-- [Model selection cheat sheet](#model-selection-cheat-sheet)
-- [Model-specific vs model-agnostic methods](#model-specific-vs-model-agnostic-methods)
-- [Modeling workflow (end to end)](#modeling-workflow-end-to-end)
-- [Modelling with GenAI: what to check](#modelling-with-genai-what-to-check)
-- [Monte Carlo simulation](#monte-carlo-simulation)
-- [Moving average model (MA)](#moving-average-model-ma)
-- [Multi-year ROI](#multi-year-roi)
-- [Multimodal LLM](#multimodal-llm)
-- [Multinomial logistic regression](#multinomial-logistic-regression)
-- [Multiple linear regression](#multiple-linear-regression)
-- [Multiplication rule (intersections)](#multiplication-rule-intersections)
+- [Magic commands](#magic-commands)
+- [Map Coordinates using the geopy Library](#finding-map-coordinates)
+- [.map()](#map)
+- [MAR (Missing At Random)](#mar-missing-at-random)
+- [Math functions (np.log, np.exp, np.sqrt, np.abs)](#math-functions-np-log-np-exp-np-sqrt-np-abs)
+- [matplotlib](#matplotlib)
+- [np.maximum() and np.clip()](#np-maximum-and-np-clip)
+- [MCAR (Missing Completely At Random)](#mcar-missing-completely-at-random)
+- [Mean](#mean)
+- [Mean / median / mode imputation](#mean-median-mode-imputation)
+- [Median](#median)
+- [.melt()](#melt)
+- [.merge()](#merge)
+- [Method chaining](#method-chaining)
+- [Min-max scaling (normalisation)](#min-max-scaling-normalisation)
+- [Misleading charts](#misleading-charts)
+- [Missing data](#missing-data)
+- [Missing data decision order](#missing-data-decision-order)
+- [Missing indicator](#missing-indicator)
+- [Missing-data decisions](#missing-data-decisions)
+- [Missingness heatmap](#missingness-heatmap)
+- [Missingness table](#missingness-table)
+- [missingno](#missingno)
+- [MNAR (Missing Not At Random)](#mnar-missing-not-at-random)
+- [Mode](#mode)
+- [Module, package and library](#module-package-and-library)
+- [Multicollinearity](#multicollinearity)
+- [MultiIndex](#multiindex)
+- [Multiple testing](#multiple-testing)
 
 **N**
 
-- [n_jobs and verbose](#n-jobs-and-verbose)
-- [Naive and seasonal naive forecasts](#naive-and-seasonal-naive-forecasts)
-- [Newton's method](#newton-s-method)
-- [No multicollinearity (M)](#no-multicollinearity-m)
-- [Noise label (−1)](#noise-label-1)
-- [Non-parametric model](#non-parametric-model)
-- [Normality of residuals (N)](#normality-of-residuals-n)
-- [normalize() vs scalers](#normalize-vs-scalers)
-- [np.logspace()](#np-logspace)
-- [np.polyfit() and np.polyval()](#np-polyfit-and-np-polyval)
-- [np.random.choice()](#np-random-choice)
-- [np.random.default_rng()](#np-random-default-rng)
-- [np.random.randint() and np.random.uniform()](#np-random-randint-and-np-random-uniform)
-- [Null accuracy](#null-accuracy)
-- [Null model (baseline) for regression](#null-model-baseline-for-regression)
+- [Named aggregation](#named-aggregation)
+- [NaN](#nan)
+- [Nested data](#nested-data)
+- [.nlargest() and .nsmallest()](#nlargest-and-nsmallest)
+- [Nominal](#nominal)
+- [None](#none)
+- [Nonlinear relationships and correlation](#nonlinear-relationships-and-correlation)
+- [Normal (Gaussian) distribution](#normal-gaussian-distribution)
+- [Null hypothesis (H₀)](#null-hypothesis-h)
+- [NumPy](#numpy)
 
 **O**
 
-- [Observation weights](#observation-weights)
-- [Odds](#odds)
-- [Odds ratio](#odds-ratio)
-- [One-time vs recurring costs](#one-time-vs-recurring-costs)
-- [One-vs-rest (OvR)](#one-vs-rest-ovr)
-- [Optimization](#optimization)
-- [Optimization problem: objective and constraints](#optimization-problem-objective-and-constraints)
-- [Ordinary least squares (OLS)](#ordinary-least-squares-ols)
-- [Other cross-validation schemes](#other-cross-validation-schemes)
-- [Other forecasting models](#other-forecasting-models)
-- [Out-of-bag (OOB) observations and error](#out-of-bag-oob-observations-and-error)
-- [Out-of-sample data](#out-of-sample-data)
-- [Outcome](#outcome)
-- [Overfitting](#overfitting)
-- [Oversampling](#oversampling)
+- [Object, class and instance](#object-class-and-instance)
+- [Object-oriented interface](#object-oriented-interface)
+- [Observation](#observation)
+- [Observational study](#observational-study)
+- [One-hot encoding](#one-hot-encoding)
+- [One-hot encoding done right](#one-hot-encoding-done-right)
+- [One-tailed vs two-tailed test](#one-tailed-vs-two-tailed-test)
+- [OneHotEncoder options](#onehotencoder-options)
+- [Operators](#operators)
+- [Order and carryover effects](#order-and-carryover-effects)
+- [Ordinal](#ordinal)
+- [OrdinalEncoder](#ordinalencoder)
+- [Other correlation measures](#other-correlation-measures)
+- [Other visualization libraries](#other-visualization-libraries)
+- [Outer join](#outer-join)
+- [Outlier](#outlier)
+- [Outlier decisions](#outlier-decisions)
 
 **P**
 
-- [PACF plot](#pacf-plot)
-- [pairwise_distances()](#pairwise-distances)
-- [Parallelizable](#parallelizable)
-- [param_grid](#param-grid)
-- [Parsing unstructured data with GenAI](#parsing-unstructured-data-with-genai)
-- [Partial dependence plot (PDP)](#partial-dependence-plot-pdp)
-- [Partitioning the feature space](#partitioning-the-feature-space)
-- [Payback period and NPV](#payback-period-and-npv)
-- [PCA assumptions](#pca-assumptions)
-- [PCA in scikit-learn](#pca-in-scikit-learn)
-- [penalty and l1_ratio in LogisticRegression](#penalty-and-l1-ratio-in-logisticregression)
-- [Penalty term](#penalty-term)
-- [Perfect separation](#perfect-separation)
-- [Permutation importance](#permutation-importance)
-- [Pipeline + GridSearchCV](#pipeline-gridsearchcv)
-- [Pipeline memory and debugging](#pipeline-memory-and-debugging)
-- [Pipeline with ColumnTransformer](#pipeline-with-columntransformer)
-- [Pipelines (in tuning)](#pipelines-in-tuning)
-- [Plotting the logistic curve](#plotting-the-logistic-curve)
-- [Poisson arrivals and exponential gaps](#poisson-arrivals-and-exponential-gaps)
-- [Polynomial regression](#polynomial-regression)
-- [PolynomialFeatures](#polynomialfeatures)
-- [pos_label](#pos-label)
-- [Precision](#precision)
-- [Precision–recall curve](#precision-recall-curve)
-- [Precision–recall trade-off](#precision-recall-trade-off)
-- [.predict_proba()](#predict-proba)
-- [Predictive maintenance](#predictive-maintenance)
-- [Predictor and response (and their many names)](#predictor-and-response-and-their-many-names)
-- [Principal component](#principal-component)
-- [Principal component analysis (PCA)](#principal-component-analysis-pca)
-- [Prior, likelihood and posterior](#prior-likelihood-and-posterior)
-- [Probability](#probability)
-- [Probability mass and density functions](#probability-mass-and-density-functions)
-- [Probability notation P(A)](#probability-notation-p-a)
-- [Problem framing](#problem-framing)
-- [Problem statement](#problem-statement)
-- [Project sponsor and KPI](#project-sponsor-and-kpi)
-- [Prompting for code](#prompting-for-code)
-- [Proxy variable](#proxy-variable)
-- [PyMC](#pymc)
+- [p-value](#p-value)
+- [Pagination](#pagination)
+- [Pair plot / scatter matrix](#pair-plot-scatter-matrix)
+- [Pairwise deletion](#pairwise-deletion)
+- [pandas](#pandas)
+- [pandas .plot()](#pandas-plot)
+- [pandas .plot() options](#pandas-plot-options)
+- [pathlib.Path](#pathlib-path)
+- [Patterns of missingness](#patterns-of-missingness)
+- [Pearson correlation coefficient (r)](#pearson-correlation-coefficient-r)
+- [Percentile / quantile](#percentile-quantile)
+- [pip](#pip)
+- [.pipe()](#pipe)
+- [Pipeline](#pipeline)
+- [Pipeline with imputation](#pipeline-with-imputation)
+- [.pivot_table() and .pivot()](#pivot-table-and-pivot)
+- [Placebo](#placebo)
+- [Placeholder values for missing data](#placeholder-values-for-missing-data)
+- [plotly (plotly express)](#plotly-plotly-express)
+- [np.poly1d()](#np-poly1d)
+- [np.polyfit()](#np-polyfit)
+- [Population vs sample](#population-vs-sample)
+- [Power transformation (Box-Cox, Yeo-Johnson)](#power-transformation-box-cox-yeo-johnson)
+- [Principal Component Analysis (PCA)](#principal-component-analysis-pca)
+- [Profile a dataset quickly](#profile-a-dataset-quickly)
+- [Proxy metric](#proxy-metric)
+- [pyplot (state-based) interface](#pyplot-state-based-interface)
+- [Python-style names for sheets and columns](#python-style-names-for-sheets-and-columns)
 
 **Q**
 
-- [Quasi-Newton methods (BFGS, L-BFGS)](#quasi-newton-methods-bfgs-l-bfgs)
-- [Q–Q plot](#q-q-plot)
+- [Q-Q plot](#q-q-plot)
+- [Quantile transformation](#quantile-transformation)
+- [Quartiles (Q1, Q3)](#quartiles-q1-q3)
+- [Query parameters](#query-parameters)
 
 **R**
 
-- [Random forest](#random-forest)
-- [Random forest pros and cons](#random-forest-pros-and-cons)
-- [RandomForestClassifier and RandomForestRegressor](#randomforestclassifier-and-randomforestregressor)
-- [RandomizedSearchCV](#randomizedsearchcv)
-- [RandomOverSampler](#randomoversampler)
-- [Rank deficiency](#rank-deficiency)
-- [Reading a statsmodels results object](#reading-a-statsmodels-results-object)
-- [Reading ACF and PACF to choose p and q](#reading-acf-and-pacf-to-choose-p-and-q)
-- [Reading grid search results](#reading-grid-search-results)
-- [Reading train vs test scores](#reading-train-vs-test-scores)
-- [Recall (sensitivity, true positive rate)](#recall-sensitivity-true-positive-rate)
-- [Recommender system](#recommender-system)
-- [Refitting for production](#refitting-for-production)
-- [Regression vs classification tasks](#regression-vs-classification-tasks)
-- [Regularization](#regularization)
-- [Regularization is on by default](#regularization-is-on-by-default)
-- [Regularizing categorical variables](#regularizing-categorical-variables)
-- [Reinforcement learning](#reinforcement-learning)
+- [random module](#random-module)
+- [Random number generators](#random-number-generators)
+- [Random seed](#random-seed)
+- [Random variable](#random-variable)
+- [random_state](#random-state)
+- [Randomization](#randomization)
+- [Range](#range-2)
+- [range()](#range)
+- [.rank()](#rank)
+- [Rate limit](#rate-limit)
+- [Ratio](#ratio)
+- [Raw string (r"...")](#raw-string-r)
+- [re (regular expressions)](#re-regular-expressions)
+- [pd.read_csv()](#pd-read-csv)
+- [read_csv() options for messy files](#read-csv-options-for-messy-files)
+- [pd.read_json()](#pd-read-json)
+- [Reading and writing text files](#reading-and-writing-text-files)
+- [Realisation](#realisation)
+- [Regression vs classification](#regression-vs-classification)
+- [Reject vs fail to reject the null](#reject-vs-fail-to-reject-the-null)
+- [.rename()](#rename)
+- [.replace()](#replace)
 - [Reproducibility habits](#reproducibility-habits)
-- [.resample() for time series](#resample-for-time-series)
-- [Resampling is a trade-off](#resampling-is-a-trade-off)
-- [Residual plot](#residual-plot)
-- [Return on investment (ROI)](#return-on-investment-roi)
-- [Ridge and Lasso trace plot](#ridge-and-lasso-trace-plot)
-- [Ridge regression (L2)](#ridge-regression-l2)
-- [RidgeCV and LassoCV](#ridgecv-and-lassocv)
-- [Risk-adjusted ROI](#risk-adjusted-roi)
-- [ROC curve](#roc-curve)
-- [Rolling statistics](#rolling-statistics)
-- [Root mean squared error (RMSE)](#root-mean-squared-error-rmse)
-- [Root node, internal node, leaf and branch](#root-node-internal-node-leaf-and-branch)
-- [R² (coefficient of determination)](#r2-coefficient-of-determination)
+- [Request and response](#request-and-response)
+- [requests library](#requests-library)
+- [.resample()](#resample)
+- [Reshape between wide and long formats](#reshape-between-wide-and-long-formats)
+- [reshape(-1, 1)](#reshape-1-1)
+- [Residual](#residual)
+- [Reusable EDA plotting helpers](#reusable-eda-plotting-helpers)
+- [Reverse causality](#reverse-causality)
+- [Robust scaling](#robust-scaling)
+- [Robust statistic](#robust-statistic)
 
 **S**
 
-- [Sample space](#sample-space)
-- [Sampling bias](#sampling-bias)
-- [Sampling with and without replacement](#sampling-with-and-without-replacement)
-- [SARIMA](#sarima)
-- [Scaling before clustering](#scaling-before-clustering)
-- [Scaling for distance-based models](#scaling-for-distance-based-models)
-- [.score()](#score)
-- [scoring parameter](#scoring-parameter)
-- [Scree plot](#scree-plot)
-- [Season-based train/test split](#season-based-train-test-split)
-- [Seasonal differencing](#seasonal-differencing)
-- [Seasonal-mean forecast](#seasonal-mean-forecast)
-- [seasonal_decompose()](#seasonal-decompose)
-- [Seasonality](#seasonality)
-- [Semi-supervised learning](#semi-supervised-learning)
-- [Sensitivity analysis](#sensitivity-analysis)
-- [Separating hyperplane](#separating-hyperplane)
-- [Set and element](#set-and-element)
-- [SHAP (SHapley Additive exPlanations)](#shap-shapley-additive-explanations)
-- [Shapley value](#shapley-value)
-- [Shrinkage and selection](#shrinkage-and-selection)
-- [Signal and noise](#signal-and-noise)
-- [Signum and indicator functions](#signum-and-indicator-functions)
-- [Silhouette score](#silhouette-score)
-- [Simple linear regression](#simple-linear-regression)
-- [Simpson's paradox](#simpson-s-paradox)
-- [SimPy](#simpy)
-- [Simulation](#simulation)
-- [Simulation (Monte Carlo)](#simulation-monte-carlo)
-- [Singular value decomposition (SVD)](#singular-value-decomposition-svd)
-- [sklearn.metrics](#sklearn-metrics)
-- [Slack variable](#slack-variable)
-- [Slope / coefficient (β₁)](#slope-coefficient)
-- [SMART goals](#smart-goals)
-- [SMOTE](#smote)
-- [SMOTENC and SMOTEN](#smotenc-and-smoten)
-- [Soft margin classifier](#soft-margin-classifier)
-- [solver and max_iter](#solver-and-max-iter)
-- [Sparse matrix](#sparse-matrix)
-- [Specificity (true negative rate)](#specificity-true-negative-rate)
-- [Splitting criterion](#splitting-criterion)
-- [Stacking](#stacking)
-- [Stage 10: Deploy, monitor and next steps](#stage-10-deploy-monitor-and-next-steps)
-- [Stage 1: Frame the question](#stage-1-frame-the-question)
-- [Stage 2: Get and understand the data](#stage-2-get-and-understand-the-data)
-- [Stage 3: Choose the split and validation strategy](#stage-3-choose-the-split-and-validation-strategy)
-- [Stage 4: Build baselines](#stage-4-build-baselines)
-- [Stage 5: Choose candidate models](#stage-5-choose-candidate-models)
-- [Stage 6: Build a pipeline and tune](#stage-6-build-a-pipeline-and-tune)
-- [Stage 7: Evaluate honestly](#stage-7-evaluate-honestly)
-- [Stage 8: Interpret and explain](#stage-8-interpret-and-explain)
-- [Stage 9: Communicate the value](#stage-9-communicate-the-value)
-- [Stakeholder](#stakeholder)
-- [Standardize before regularizing](#standardize-before-regularizing)
-- [Stationarity](#stationarity)
-- [Statistical independence](#statistical-independence)
-- [Statistical modeling](#statistical-modeling)
-- [statsmodels macrodata](#statsmodels-macrodata)
-- [statsmodels OLS](#statsmodels-ols)
-- [step\_\_parameter naming](#step-parameter-naming)
-- [Stochastic gradient descent (SGD)](#stochastic-gradient-descent-sgd)
-- [Stocks and flows](#stocks-and-flows)
-- [Stopping criteria](#stopping-criteria)
-- [Stratified split for imbalanced data](#stratified-split-for-imbalanced-data)
-- [StratifiedKFold](#stratifiedkfold)
-- [Success metrics and hypotheses](#success-metrics-and-hypotheses)
-- [Sum of squared errors (SSE)](#sum-of-squared-errors-sse)
-- [Supervised learning](#supervised-learning)
-- [Support vector machine (SVM)](#support-vector-machine-svm)
-- [Support vectors](#support-vectors)
-- [SVC and LinearSVC](#svc-and-linearsvc)
-- [SVM pros and cons](#svm-pros-and-cons)
-- [Synthetic data generation](#synthetic-data-generation)
-- [System dynamics (SD)](#system-dynamics-sd)
+- [.sample()](#sample)
+- [Sampling with rng.choice()](#sampling-with-rng-choice)
+- [savefig()](#savefig)
+- [Saving a fitted pipeline (joblib)](#saving-a-fitted-pipeline-joblib)
+- [Scaling and linear regression predictions](#scaling-and-linear-regression-predictions)
+- [Scaling doesn't change a distribution's shape](#scaling-doesn-t-change-a-distribution-s-shape)
+- [Scatter plot](#scatter-plot)
+- [scikit-learn (sklearn)](#scikit-learn-sklearn)
+- [scipy.stats](#scipy-stats)
+- [seaborn](#seaborn)
+- [seaborn distribution plots](#seaborn-distribution-plots)
+- [seaborn relationship and category plots](#seaborn-relationship-and-category-plots)
+- [Select, drop and reorder columns](#select-drop-and-reorder-columns)
+- [.select_dtypes()](#select-dtypes)
+- [Selecting columns](#selecting-columns)
+- [Selection bias](#selection-bias)
+- [Series](#series)
+- [Set](#set)
+- [.set_index() and .reset_index()](#set-index-and-reset-index)
+- [pd.set_option()](#pd-set-option)
+- [SettingWithCopyWarning and Copy-on-Write](#settingwithcopywarning)
+- [.shape](#shape)
+- [Shapiro-Wilk test](#shapiro-wilk-test)
+- [.shift(), .diff() and cumulative sums](#shift-diff-and-cumulative-sums)
+- [Significance level (α)](#significance-level)
+- [SimpleImputer](#simpleimputer)
+- [.size() and .count()](#size-and-count)
+- [Skewness](#skewness)
+- [Small multiples](#small-multiples)
+- [.sort_values() and .sort_index()](#sort-values-and-sort-index)
+- [sorted(), .sort() and reversed()](#sorted-sort-and-reversed)
+- [Spearman rank correlation](#spearman-rank-correlation)
+- [Split and extract values from text](#split-and-extract-values-from-text)
+- [Split-apply-combine](#split-apply-combine)
+- [Spread (dispersion)](#spread-dispersion)
+- [Spurious correlation](#spurious-correlation)
+- [.stack() and .unstack()](#stack-and-unstack)
+- [Standard deviation](#standard-deviation)
+- [Standardise text: spacing, case and punctuation](#standardise-text-spacing-case-and-punctuation)
+- [Standardization / feature scaling](#standardization-feature-scaling)
+- [StandardScaler, MinMaxScaler, RobustScaler](#standardscaler-minmaxscaler-robustscaler)
+- [Statistic](#statistic)
+- [Statistical power](#statistical-power)
+- [Statistical test](#statistical-test)
+- [Status code](#status-code)
+- [.str accessor](#str-accessor)
+- [String (str)](#string-str)
+- [String dtype (str) in pandas 3](#string-dtype-str-in-pandas-3)
+- [String methods](#string-methods)
+- [Style sheets and rcParams](#style-sheets-and-rcparams)
+- [Subplot grids: subplot, add_subplot, delaxes and suptitle](#subplot-grids-subplot-add-subplot-delaxes-and-suptitle)
+- [plt.subplots()](#plt-subplots)
+- [Summarise by group](#summarise-by-group)
+- [sweetviz EDA visualisation library](#sweetviz-eda-visualisation-library)
+- [Synthetic and toy datasets](#synthetic-and-toy-datasets)
 
 **T**
 
-- [Technical debt](#technical-debt)
-- [Temperature and sampling](#temperature-and-sampling)
-- [test_size, stratify and shuffle](#test-size-stratify-and-shuffle)
-- [Testing AI-generated code](#testing-ai-generated-code)
-- [The cost of grid searching](#the-cost-of-grid-searching)
-- [The modeling workflow in scikit-learn](#the-modeling-workflow-in-scikit-learn)
-- [Three-way split (validation set)](#three-way-split-validation-set)
-- [Time handling in simulations](#time-handling-in-simulations)
-- [Time series](#time-series)
-- [Time series train/test split](#time-series-train-test-split)
-- [Token](#token)
-- [Total sum of squares (SST)](#total-sum-of-squares-sst)
-- [Train-test ratio rule of thumb](#train-test-ratio-rule-of-thumb)
-- [Train-test split](#train-test-split)
-- [Training vs test error curve](#training-vs-test-error-curve)
-- [Transfer learning](#transfer-learning)
-- [Transformer and attention](#transformer-and-attention)
-- [Transparency](#transparency)
-- [Trend](#trend)
-- [True/false positives and negatives](#true-false-positives-and-negatives)
-- [Tuning tree depth](#tuning-tree-depth)
+- [.T (transpose)](#t-transpose)
+- [t-test (stats.ttest_ind)](#t-test-stats-ttest-ind)
+- [Target (dependent variable)](#target-dependent-variable)
+- [Target encoding](#target-encoding)
+- [Test statistic](#test-statistic)
+- [Themes and palettes: sns.set_theme()](#themes-and-palettes-sns-set-theme)
+- [Ticks and axis limits](#ticks-and-axis-limits)
+- [plt.tight_layout()](#plt-tight-layout)
+- [Timeouts and error handling](#timeouts-and-error-handling)
+- [Timestamp, Timedelta and date arithmetic](#timestamp-timedelta-and-date-arithmetic)
+- [.to_csv()](#to-csv)
+- [pd.to_datetime()](#pd-to-datetime)
+- [.to_dict() and .tolist()](#to-dict-and-tolist)
+- [pd.to_numeric()](#pd-to-numeric)
+- [.to_period()](#to-period)
+- [Trailing semicolon](#trailing-semicolon)
+- [train_test_split()](#train-test-split)
+- [Training set and test set](#training-set-and-test-set)
+- [.transform()](#transform)
+- [Transformer](#transformer)
+- [Treatment factor](#treatment-factor)
+- [Tree-based models](#tree-based-models)
+- [Trend lines: regplot and lmplot](#trend-lines-regplot-and-lmplot)
+- [np.triu() and np.ones_like()](#np-triu-and-np-ones-like)
+- [try / except](#try-except)
+- [Tuple](#tuple)
+- [Tuple unpacking](#tuple-unpacking)
+- [Turning JSON into a DataFrame](#turning-json-into-a-dataframe)
+- [Type conversion (casting)](#type-conversion-casting)
 - [Type I and Type II errors](#type-i-and-type-ii-errors)
-- [Types of variables](#types-of-variables)
 
 **U**
 
-- [Underfitting](#underfitting)
-- [Undersampling](#undersampling)
-- [Union (A ∪ B)](#union-a-b)
-- [Univariate vs multivariate time series](#univariate-vs-multivariate-time-series)
-- [Unlabeled data](#unlabeled-data)
-- [Unsupervised learning](#unsupervised-learning)
-- [Uses of clustering](#uses-of-clustering)
-- [Using this glossary for your capstone](#using-this-glossary-for-your-capstone)
-- [Utility (ratings) matrix](#utility-ratings-matrix)
-- [Utilization](#utilization)
+- [Uniform distribution](#uniform-distribution)
+- [.unique() and .nunique()](#unique-and-nunique)
+- [Unit missingness](#unit-missingness)
+- [Univariate, bivariate and multivariate analysis](#univariate-bivariate-and-multivariate-analysis)
+- [URL anatomy](#url-anatomy)
 
 **V**
 
-- [Validating GenAI classifications](#validating-genai-classifications)
-- [Variance (model variance)](#variance-model-variance)
+- [Validating a merge](#validating-a-merge)
+- [.value_counts()](#value-counts)
+- [.values / .to_numpy()](#values-to-numpy)
+- [Variable](#variable)
+- [Variable and assignment](#variable-and-assignment)
+- [Variance](#variance)
 - [Variance inflation factor (VIF)](#variance-inflation-factor-vif)
-- [Vector autoregression (VAR)](#vector-autoregression-var)
-- [Vectorized simulation](#vectorized-simulation)
-- [Verification and validation](#verification-and-validation)
-- [Visualizing a decision tree (plot_tree)](#visualizing-a-decision-tree-plot-tree)
-- [Volatility clustering](#volatility-clustering)
-- [Voronoi diagram](#voronoi-diagram)
-- [VotingClassifier](#votingclassifier)
+- [Vectorized operation](#vectorized-operation)
+- [Visualise missing data with missingno](#visualise-missing-data-with-missingno)
 
 **W**
 
-- [Weak learner](#weak-learner)
-- [When imbalance matters](#when-imbalance-matters)
-- [When to use PCA (and when not)](#when-to-use-pca-and-when-not)
-- [Where GenAI helps in the data science lifecycle](#where-genai-helps-in-the-data-science-lifecycle)
-- [Which model is best?](#which-model-is-best)
-- [while loop](#while-loop)
-- [White noise](#white-noise)
-- [White-box model](#white-box-model)
-- [Why data science projects fail](#why-data-science-projects-fail)
-- [Why explainability matters](#why-explainability-matters)
-- [Why lasso gives exact zeros](#why-lasso-gives-exact-zeros)
-- [Why linear models overfit](#why-linear-models-overfit)
-- [Why not linear regression for classification?](#why-not-linear-regression-for-classification)
-- [Wisdom of the crowd](#wisdom-of-the-crowd)
+- [Warnings and filterwarnings](#warnings-and-filterwarnings)
+- [Web API](#web-api)
+- [Web scraping](#web-scraping)
+- [Welch's t-test and paired t-test](#welch-s-t-test-and-paired-t-test)
+- [np.where() and np.select()](#np-where-and-np-select)
+- [Wide vs long (tidy) format](#wide-vs-long-tidy-format)
+- [Within-subject design](#within-subject-design)
+- [Work with large files and reduce memory](#work-with-large-files-and-reduce-memory)
+- [Worked example: mean vs median with an outlier](#worked-example-mean-vs-median-with-an-outlier)
+- [Writing your own class](#writing-your-own-class)
 
-**X**
+**Z**
 
-- [X is 2D, y is 1D](#x-is-2d-y-is-1d)
-- [XGBoost](#xgboost)
+- [Z-score standardization](#z-score-standardization)
+- [Zero-inflated data](#zero-inflated-data)
+- [zip()](#zip)
+
+[Back to top](#top)
